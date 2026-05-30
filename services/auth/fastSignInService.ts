@@ -4,7 +4,7 @@ import { ENV } from "@/utils/constants";
 
 // The native deep-link scheme that expo-web-browser listens for to detect OAuth completion.
 // The backend /auth/callback endpoint redirects to this scheme after receiving Google's response.
-export const NATIVE_OAUTH_SCHEME = "fathom://oauth";
+export const NATIVE_OAUTH_SCHEME = "brisk://oauth";
 
 type BuildFastGoogleAuthRequestArgs = {
   nonce: string;
