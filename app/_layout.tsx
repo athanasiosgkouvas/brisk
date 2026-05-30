@@ -50,8 +50,6 @@ function RootNavigator({ readyToReveal }: { readyToReveal: () => void }) {
       >
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="welcome" />
-        <Stack.Screen name="how-it-works" />
-        <Stack.Screen name="responsible-gaming" />
       </Stack>
     </>
   );

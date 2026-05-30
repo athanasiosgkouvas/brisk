@@ -36,7 +36,7 @@ export function AuthGateScreen({
       >
         <View className="w-full max-w-[420px]">
           <Text className="text-center text-[11px] uppercase tracking-[2px] text-fathom-subtext">
-            Fathom
+            Brisk
           </Text>
           <Text className="mt-2 text-center text-4xl font-bold text-fathom-text">{title}</Text>
           <Text className="mt-3 text-center text-sm leading-6 text-fathom-subtext">{subtitle}</Text>

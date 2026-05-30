@@ -14,9 +14,6 @@ export function useAuth() {
     setSession,
     setStatus,
     setErrorMessage,
-    managerId,
-    setManagerId,
-    setDeepbookManagerId,
     setHydrated,
   } = useAuthStore();
 
@@ -68,21 +65,17 @@ export function useAuth() {
       await enokiAuthService.logout();
     } finally {
       setSession(null);
-      setManagerId(null);
-      setDeepbookManagerId(null);
       setErrorMessage(null);
       setStatus("idle");
       setHydrated(true);
     }
-  }, [setErrorMessage, setHydrated, setManagerId, setDeepbookManagerId, setSession, setStatus]);
+  }, [setErrorMessage, setHydrated, setSession, setStatus]);
 
   return {
     session,
     status,
     errorMessage,
     hydrated,
-    managerId,
-    setManagerId,
     login,
     logout,
   };

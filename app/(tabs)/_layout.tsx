@@ -1,9 +1,7 @@
 import { Tabs } from "expo-router";
 import { Platform, View } from "react-native";
-import { Hand, PiggyBank, UserCircle2 } from "lucide-react-native";
+import { QrCode, Store, PiggyBank } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-import { WinToast } from "@/components/common/WinToast";
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
@@ -33,26 +31,25 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            title: "Swipe",
-            tabBarIcon: ({ color, size }) => <Hand color={color} size={size} />,
+            title: "Pay",
+            tabBarIcon: ({ color, size }) => <QrCode color={color} size={size} />,
           }}
         />
         <Tabs.Screen
-          name="earn"
+          name="merchant"
           options={{
-            title: "Earn",
+            title: "Charge",
+            tabBarIcon: ({ color, size }) => <Store color={color} size={size} />,
+          }}
+        />
+        <Tabs.Screen
+          name="save"
+          options={{
+            title: "Save",
             tabBarIcon: ({ color, size }) => <PiggyBank color={color} size={size} />,
           }}
         />
-        <Tabs.Screen
-          name="profile"
-          options={{
-            title: "Settings",
-            tabBarIcon: ({ color, size }) => <UserCircle2 color={color} size={size} />,
-          }}
-        />
       </Tabs>
-      <WinToast />
     </View>
   );
 }

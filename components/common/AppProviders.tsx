@@ -5,22 +5,14 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { AppErrorBoundary } from "@/components/common/AppErrorBoundary";
-import { useEarnHistoryPersistence } from "@/hooks/useEarnHistoryPersistence";
-import { usePortfolioPersistence } from "@/hooks/usePortfolioPersistence";
-import { useSettingsPersistence } from "@/hooks/useSettingsPersistence";
 import { initAnalytics, trackEvent } from "@/services/analytics/analyticsService";
 import { initErrorTracking } from "@/services/monitoring/errorService";
-import { hydrateEarnVaultCache } from "@/services/storage/earnVaultCache";
 
 function BootstrapStores() {
-  usePortfolioPersistence();
-  useSettingsPersistence();
-  useEarnHistoryPersistence();
   useEffect(() => {
     initAnalytics();
     initErrorTracking();
     void trackEvent("app_open");
-    void hydrateEarnVaultCache();
   }, []);
   return null;
 }
