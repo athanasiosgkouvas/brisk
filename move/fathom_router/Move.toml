@@ -1,0 +1,23 @@
+[package]
+name = "fathom_router"
+edition = "2024.beta"
+version = "0.2.0"
+
+# fathom_router is Fathom's only on-chain Move package. `assert_and_record`
+# enforces the min-out invariant on the DeepBook spot leg of a "Smart Bet" and
+# emits a linking event, turning the previously cosmetic (min_out = 0, no-op)
+# hedge into a load-bearing, on-chain-asserted leg of the trade.
+#
+# It depends ONLY on the Sui framework. It deliberately does NOT call DeepBook
+# from Move: DeepBook gates pools by package version (`pool::load_inner`), so a
+# module linked to a specific deepbook version aborts the moment DeepBook
+# upgrades (observed on testnet — the feature-branch deepbook id `0x74cd56…` is
+# already a disabled version, while the live pool wants `0x22be4ca…`). Instead
+# the swap stays a loose, SDK-versioned PTB call and this package asserts over
+# its output coin. See memory `fathom_router_move_dep_constraint`.
+
+# No explicit dependencies: the Sui framework + MoveStdlib are auto-added.
+# Crucially, NO deepbook dependency — see the header comment for why.
+
+[addresses]
+fathom_router = "0x0"
