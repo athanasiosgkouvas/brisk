@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "from_file_path": "/Users/agkouvas/sui_repos/brisk/move/sources/loyalty.move",
+  "definition_location": {
+    "file_hash": "9eebf88ca80eab646e7b143a270cd62cd422c552b12d90e8b755d68f555b8218",
+    "start": 299,
+    "end": 313
+  },
+  "module_name": ["0000000000000000000000000000000000000000000000000000000000000000", "loyalty"],
+  "struct_map": {},
+  "enum_map": {},
+  "function_map": {},
+  "constant_map": {}
+}

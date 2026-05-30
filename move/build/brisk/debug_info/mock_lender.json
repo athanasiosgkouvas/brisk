@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "from_file_path": "/Users/agkouvas/sui_repos/brisk/move/sources/mock_lender.move",
+  "definition_location": {
+    "file_hash": "016e77c81fab995b7b15a597f65e466a45209d739e8b63f2291c42023533df2f",
+    "start": 268,
+    "end": 286
+  },
+  "module_name": [
+    "0000000000000000000000000000000000000000000000000000000000000000",
+    "mock_lender"
+  ],
+  "struct_map": {},
+  "enum_map": {},
+  "function_map": {},
+  "constant_map": {}
+}

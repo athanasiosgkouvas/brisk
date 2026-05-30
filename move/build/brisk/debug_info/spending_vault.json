@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "from_file_path": "/Users/agkouvas/sui_repos/brisk/move/sources/spending_vault.move",
+  "definition_location": {
+    "file_hash": "0b38fa744957007689f1317f7798c6639b4945311926fb2910c5549ff9fd2925",
+    "start": 351,
+    "end": 372
+  },
+  "module_name": [
+    "0000000000000000000000000000000000000000000000000000000000000000",
+    "spending_vault"
+  ],
+  "struct_map": {},
+  "enum_map": {},
+  "function_map": {},
+  "constant_map": {}
+}
