@@ -194,12 +194,13 @@ Cut order if time-tight: **cashback → vault** (the tap is the core, never cut;
 
 ### ⏭️ Phase 1 — NFC tap-to-pay core (PoC) — _the headline_
 
-- [ ] **Verify testnet USDC type + that `send_funds` is gasless for it** (de-risk foundation).
-- [ ] Add deps + native config: `react-native-hce`, `react-native-nfc-manager`, `expo-local-authentication`; iOS NFC entitlement + `NFCReaderUsageDescription`; Android HCE `HostApduService`/`apduservice.xml`/`nfc.hce` feature; re-`expo prebuild` both platforms.
-- [ ] Invoice format helpers (`brisk://pay?...` encode/parse).
-- [ ] **Charge (Android)**: amount entry → HCE emulate invoice tag → "Tap to pay $X".
-- [ ] **Pay (iOS+Android)**: tap → read NDEF → confirm → Face ID → submit gasless `send_funds<USDC>`.
-- [ ] Merchant settlement detection (poll/event) → "Paid ✓".
+- [x] **Verified testnet + mainnet USDC types**; USDC is gasless-allowlisted (`send_funds`). (JSON-RPC needs manual gas=0.)
+- [x] Added deps + native config: `react-native-hce`, `react-native-nfc-manager`, `expo-local-authentication`; iOS NFC entitlement + usage string; Android HCE service + `aid_list.xml` (AID `D2760000850101`) via `plugins/withBriskHce.js`; re-prebuilt both platforms.
+- [x] Invoice codec (`brisk://pay?...`) + USDC amount helpers (`paymentTx.ts`).
+- [x] `payInvoice` (native-gasless → Enoki-sponsored fallback) + `waitForSettlement` (`payments.ts`).
+- [x] **Charge (Android)**: amount → HCE emulate invoice (`useCharge`, `merchant.tsx`).
+- [x] **Pay (iOS+Android)**: tap → read NDEF → review → Face ID → pay (`usePay`, `index.tsx`). Typechecks + lints clean.
+- [ ] **On-device verification** (real Android + iPhone): the tap end-to-end. ← NEXT (NFC can't run on simulator). Likely tweak: settlement detection (balance poll vs address-balance reflection).
 - [ ] QR fallback (small): merchant-on-iPhone shows QR; customer can scan instead of tap.
 - [ ] **Exit:** iPhone customer **taps** an Android Brisk Terminal → pays exact amount, no gas → terminal shows Paid in ~1s. Same for Android customer.
 
