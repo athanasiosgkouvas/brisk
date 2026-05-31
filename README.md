@@ -197,13 +197,17 @@ All four test suites pass (`sui move test`): receipt fields, merchant registrati
 ```
 brisk/
 ├── app/                      # expo-router screens
-│   ├── (tabs)/index.tsx      #   Pay   — customer NFC tap → Face ID → pay
+│   ├── (tabs)/index.tsx      #   Wallet — balance · Receive/Send · activity
+│   ├── (tabs)/pay.tsx        #   Pay    — customer NFC tap → Face ID → pay
 │   ├── (tabs)/merchant.tsx   #   Charge — Brisk Terminal (Android HCE)
-│   └── (tabs)/save.tsx       #   Save   — yield vault
-├── hooks/                    # usePay, useCharge, useSave, useAuth
+│   ├── (tabs)/save.tsx       #   Save   — yield vault
+│   ├── welcome.tsx           #   Onboarding carousel → Continue with Google
+│   ├── receive.tsx           #   Receive — address QR + copy
+│   └── send.tsx              #   Send    — paste address → Face ID → feeless send
+├── hooks/                    # usePay, useCharge, useSave, useWallet, useSend, useActivity, useAuth
 ├── services/
 │   ├── auth/                 # enokiAuth (zkLogin login/restore/sign)
-│   ├── blockchain/           # suiClient, paymentTx, payments, vaultTx, saveAccount, receipts
+│   ├── blockchain/           # suiClient, paymentTx, payments, wallet, vaultTx, saveAccount, receipts
 │   └── nfc/                  # hce (merchant), reader (customer)
 ├── plugins/
 │   ├── withBriskHce.js       # config plugin: inject HCE module + manifest + aid_list
@@ -302,9 +306,10 @@ earn only when we earn for you). Configurable via `EXPO_PUBLIC_YIELD_SPREAD_BPS`
 `lender_adapter`, point config at mainnet USDC + the Enoki gas pool, re‑publish, and (with the won audit
 credits) ship. No app‑logic changes.
 
-- **v2:** fiat on/off‑ramp (Apple Pay / Google Pay via a ramp partner) · cashback redemption marketplace ·
-  merchant analytics · iOS‑as‑terminal once Apple's EEA device‑to‑device NFC entitlement is granted ·
-  enable the yield‑spread fee.
+- **v2:** fiat **on/off‑ramp** (Apple Pay / Google Pay via a ramp partner) — flow analyzed in
+  [`docs/ONRAMP_OFFRAMP.md`](docs/ONRAMP_OFFRAMP.md) · cashback redemption marketplace · merchant
+  analytics · iOS‑as‑terminal once Apple's EEA device‑to‑device NFC entitlement is granted · enable the
+  yield‑spread fee.
 
 ---
 

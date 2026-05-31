@@ -46,8 +46,13 @@ Proven by open-source demos (iPhone reading Android HCE NDEF) + libraries that e
 
 ## Where we are right now
 
-**Phases 0–4 are code-complete** (Move + app integration; all 4 Move test suites pass; app typechecks).
-The app **builds + runs on the Pixel**, zkLogin sign-in works, the custom HCE module loads.
+**Phases 0–4 are code-complete** (Move + app integration; all 4 Move test suites pass; app typechecks),
+**plus the wallet fundamentals + onboarding**: a Wallet/Home tab (balance via `core.getBalance` incl.
+Address Balances, activity feed), **Receive** (address QR + copy), **Send** (paste → Face ID → feeless),
+and a 4-slide onboarding carousel. Tabs are now Wallet / Pay / Charge / Save. Fiat on/off-ramp is v2,
+analyzed in [`ONRAMP_OFFRAMP.md`](ONRAMP_OFFRAMP.md).
+The app **builds + runs on the Pixel** (Wallet build verified: svg autolinked, JS running), zkLogin
+sign-in works, the custom HCE module loads, and Save activation creates the vault on-chain.
 **Remaining: end-to-end on-device tap test** (needs a 2nd NFC device — iPhone NFC requires a
 **paid Apple Developer account**), **fund the LendingPool reserve** with testnet USDC (to pay
 withdrawal yield), then polish + submission (Phase 5).
