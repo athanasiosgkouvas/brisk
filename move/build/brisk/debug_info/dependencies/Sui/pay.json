@@ -1199,6 +1199,32 @@
         }
       },
       "is_native": false
+    },
+    "8": {
+      "location": {
+        "file_hash": "a6a54cd0665673cc29e9123765469b8c45cc6b60d2081131afe488b95fa5fc00",
+        "start": 160,
+        "end": 2603
+      },
+      "definition_location": {
+        "file_hash": "a6a54cd0665673cc29e9123765469b8c45cc6b60d2081131afe488b95fa5fc00",
+        "start": 160,
+        "end": 2603
+      },
+      "type_parameters": [],
+      "parameters": [],
+      "returns": [],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "a6a54cd0665673cc29e9123765469b8c45cc6b60d2081131afe488b95fa5fc00",
+          "start": 160,
+          "end": 2603
+        }
+      },
+      "is_native": false
     }
   },
   "constant_map": { "ENoCoins": 0 }

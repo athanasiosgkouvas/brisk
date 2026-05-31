@@ -7,11 +7,38 @@
     "end": 286
   },
   "module_name": [
-    "0000000000000000000000000000000000000000000000000000000000000000",
+    "713f0b6d6251bf8bf557479ceb4a9695ed2d14eea8946d610d23c88d3c5f9934",
     "mock_lender"
   ],
   "struct_map": {},
   "enum_map": {},
-  "function_map": {},
+  "function_map": {
+    "0": {
+      "location": {
+        "file_hash": "016e77c81fab995b7b15a597f65e466a45209d739e8b63f2291c42023533df2f",
+        "start": 261,
+        "end": 287
+      },
+      "definition_location": {
+        "file_hash": "016e77c81fab995b7b15a597f65e466a45209d739e8b63f2291c42023533df2f",
+        "start": 261,
+        "end": 287
+      },
+      "type_parameters": [],
+      "parameters": [],
+      "returns": [],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "016e77c81fab995b7b15a597f65e466a45209d739e8b63f2291c42023533df2f",
+          "start": 261,
+          "end": 287
+        }
+      },
+      "is_native": false
+    }
+  },
   "constant_map": {}
 }

@@ -1502,6 +1502,83 @@
       "labels": {},
       "code_map": {},
       "is_native": true
+    },
+    "31": {
+      "location": {
+        "file_hash": "4a8505218b4d0991d2bf29519776b1723ee9ac107630f5220fdd3d5c8be9024e",
+        "start": 8850,
+        "end": 8945
+      },
+      "definition_location": {
+        "file_hash": "4a8505218b4d0991d2bf29519776b1723ee9ac107630f5220fdd3d5c8be9024e",
+        "start": 8861,
+        "end": 8873
+      },
+      "type_parameters": [],
+      "parameters": [
+        [
+          "ctx#0#0",
+          {
+            "file_hash": "4a8505218b4d0991d2bf29519776b1723ee9ac107630f5220fdd3d5c8be9024e",
+            "start": 8874,
+            "end": 8877
+          }
+        ]
+      ],
+      "returns": [
+        {
+          "file_hash": "4a8505218b4d0991d2bf29519776b1723ee9ac107630f5220fdd3d5c8be9024e",
+          "start": 8892,
+          "end": 8894
+        }
+      ],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "4a8505218b4d0991d2bf29519776b1723ee9ac107630f5220fdd3d5c8be9024e",
+          "start": 8913,
+          "end": 8916
+        },
+        "1": {
+          "file_hash": "4a8505218b4d0991d2bf29519776b1723ee9ac107630f5220fdd3d5c8be9024e",
+          "start": 8913,
+          "end": 8941
+        },
+        "2": {
+          "file_hash": "4a8505218b4d0991d2bf29519776b1723ee9ac107630f5220fdd3d5c8be9024e",
+          "start": 8901,
+          "end": 8943
+        }
+      },
+      "is_native": false
+    },
+    "32": {
+      "location": {
+        "file_hash": "4a8505218b4d0991d2bf29519776b1723ee9ac107630f5220fdd3d5c8be9024e",
+        "start": 102,
+        "end": 8945
+      },
+      "definition_location": {
+        "file_hash": "4a8505218b4d0991d2bf29519776b1723ee9ac107630f5220fdd3d5c8be9024e",
+        "start": 102,
+        "end": 8945
+      },
+      "type_parameters": [],
+      "parameters": [],
+      "returns": [],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "4a8505218b4d0991d2bf29519776b1723ee9ac107630f5220fdd3d5c8be9024e",
+          "start": 102,
+          "end": 8945
+        }
+      },
+      "is_native": false
     }
   },
   "constant_map": {

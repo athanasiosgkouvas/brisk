@@ -2660,6 +2660,32 @@
         }
       },
       "is_native": false
+    },
+    "43": {
+      "location": {
+        "file_hash": "104026006462a5b92805e05b36e87e61e9cc8cfe1c24b94fd726cb2c0114eb48",
+        "start": 110,
+        "end": 11939
+      },
+      "definition_location": {
+        "file_hash": "104026006462a5b92805e05b36e87e61e9cc8cfe1c24b94fd726cb2c0114eb48",
+        "start": 110,
+        "end": 11939
+      },
+      "type_parameters": [],
+      "parameters": [],
+      "returns": [],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "104026006462a5b92805e05b36e87e61e9cc8cfe1c24b94fd726cb2c0114eb48",
+          "start": 110,
+          "end": 11939
+        }
+      },
+      "is_native": false
     }
   },
   "constant_map": {

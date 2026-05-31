@@ -197,6 +197,93 @@
       "labels": {},
       "code_map": {},
       "is_native": true
+    },
+    "3": {
+      "location": {
+        "file_hash": "d8c4ace728a0566ac9d78b86ed592501e95576f51582dc3b32ab0c17ab9a9681",
+        "start": 2037,
+        "end": 2073
+      },
+      "definition_location": {
+        "file_hash": "d8c4ace728a0566ac9d78b86ed592501e95576f51582dc3b32ab0c17ab9a9681",
+        "start": 2055,
+        "end": 2065
+      },
+      "type_parameters": [],
+      "parameters": [],
+      "returns": [
+        {
+          "file_hash": "d8c4ace728a0566ac9d78b86ed592501e95576f51582dc3b32ab0c17ab9a9681",
+          "start": 2069,
+          "end": 2072
+        }
+      ],
+      "locals": [],
+      "nops": {},
+      "labels": {},
+      "code_map": {},
+      "is_native": true
+    },
+    "4": {
+      "location": {
+        "file_hash": "d8c4ace728a0566ac9d78b86ed592501e95576f51582dc3b32ab0c17ab9a9681",
+        "start": 2178,
+        "end": 2240
+      },
+      "definition_location": {
+        "file_hash": "d8c4ace728a0566ac9d78b86ed592501e95576f51582dc3b32ab0c17ab9a9681",
+        "start": 2196,
+        "end": 2210
+      },
+      "type_parameters": [
+        [
+          "T",
+          {
+            "file_hash": "d8c4ace728a0566ac9d78b86ed592501e95576f51582dc3b32ab0c17ab9a9681",
+            "start": 2211,
+            "end": 2212
+          }
+        ]
+      ],
+      "parameters": [],
+      "returns": [
+        {
+          "file_hash": "d8c4ace728a0566ac9d78b86ed592501e95576f51582dc3b32ab0c17ab9a9681",
+          "start": 2230,
+          "end": 2239
+        }
+      ],
+      "locals": [],
+      "nops": {},
+      "labels": {},
+      "code_map": {},
+      "is_native": true
+    },
+    "5": {
+      "location": {
+        "file_hash": "d8c4ace728a0566ac9d78b86ed592501e95576f51582dc3b32ab0c17ab9a9681",
+        "start": 766,
+        "end": 2240
+      },
+      "definition_location": {
+        "file_hash": "d8c4ace728a0566ac9d78b86ed592501e95576f51582dc3b32ab0c17ab9a9681",
+        "start": 766,
+        "end": 2240
+      },
+      "type_parameters": [],
+      "parameters": [],
+      "returns": [],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "d8c4ace728a0566ac9d78b86ed592501e95576f51582dc3b32ab0c17ab9a9681",
+          "start": 766,
+          "end": 2240
+        }
+      },
+      "is_native": false
     }
   },
   "constant_map": {}

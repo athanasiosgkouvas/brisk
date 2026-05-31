@@ -818,6 +818,32 @@
         }
       },
       "is_native": false
+    },
+    "3": {
+      "location": {
+        "file_hash": "88668252e93376bb5e95890ad9b8e4fd9a822726cb70ed0a037f750ff70b7c61",
+        "start": 110,
+        "end": 3477
+      },
+      "definition_location": {
+        "file_hash": "88668252e93376bb5e95890ad9b8e4fd9a822726cb70ed0a037f750ff70b7c61",
+        "start": 110,
+        "end": 3477
+      },
+      "type_parameters": [],
+      "parameters": [],
+      "returns": [],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "88668252e93376bb5e95890ad9b8e4fd9a822726cb70ed0a037f750ff70b7c61",
+          "start": 110,
+          "end": 3477
+        }
+      },
+      "is_native": false
     }
   },
   "constant_map": { "EInvalidHexLength": 0, "ENotValidHexCharacter": 1, "HEX": 2 }

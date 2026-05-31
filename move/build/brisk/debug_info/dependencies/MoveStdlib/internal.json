@@ -75,6 +75,32 @@
         }
       },
       "is_native": false
+    },
+    "1": {
+      "location": {
+        "file_hash": "1e64f67dda05c373a7cc0b31f07eeb8d52772e44b48f7648ffcfb93797bb28d5",
+        "start": 848,
+        "end": 1190
+      },
+      "definition_location": {
+        "file_hash": "1e64f67dda05c373a7cc0b31f07eeb8d52772e44b48f7648ffcfb93797bb28d5",
+        "start": 848,
+        "end": 1190
+      },
+      "type_parameters": [],
+      "parameters": [],
+      "returns": [],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "1e64f67dda05c373a7cc0b31f07eeb8d52772e44b48f7648ffcfb93797bb28d5",
+          "start": 848,
+          "end": 1190
+        }
+      },
+      "is_native": false
     }
   },
   "constant_map": {}

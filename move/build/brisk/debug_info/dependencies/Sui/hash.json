@@ -79,6 +79,32 @@
       "labels": {},
       "code_map": {},
       "is_native": true
+    },
+    "2": {
+      "location": {
+        "file_hash": "d61cbcce22bccdfe46c198dd3e92cadd7d181242d078985a76d82b6b3b302057",
+        "start": 213,
+        "end": 575
+      },
+      "definition_location": {
+        "file_hash": "d61cbcce22bccdfe46c198dd3e92cadd7d181242d078985a76d82b6b3b302057",
+        "start": 213,
+        "end": 575
+      },
+      "type_parameters": [],
+      "parameters": [],
+      "returns": [],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "d61cbcce22bccdfe46c198dd3e92cadd7d181242d078985a76d82b6b3b302057",
+          "start": 213,
+          "end": 575
+        }
+      },
+      "is_native": false
     }
   },
   "constant_map": {}

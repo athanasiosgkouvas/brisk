@@ -7,7 +7,7 @@
     "end": 248
   },
   "module_name": [
-    "0000000000000000000000000000000000000000000000000000000000000000",
+    "713f0b6d6251bf8bf557479ceb4a9695ed2d14eea8946d610d23c88d3c5f9934",
     "merchant_registry"
   ],
   "struct_map": {
@@ -320,6 +320,32 @@
           "file_hash": "9da55114b752554b9625791e5f760403b51109c8315b72ee83095462c30676a6",
           "start": 1109,
           "end": 1110
+        }
+      },
+      "is_native": false
+    },
+    "3": {
+      "location": {
+        "file_hash": "9da55114b752554b9625791e5f760403b51109c8315b72ee83095462c30676a6",
+        "start": 217,
+        "end": 1112
+      },
+      "definition_location": {
+        "file_hash": "9da55114b752554b9625791e5f760403b51109c8315b72ee83095462c30676a6",
+        "start": 217,
+        "end": 1112
+      },
+      "type_parameters": [],
+      "parameters": [],
+      "returns": [],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "9da55114b752554b9625791e5f760403b51109c8315b72ee83095462c30676a6",
+          "start": 217,
+          "end": 1112
         }
       },
       "is_native": false

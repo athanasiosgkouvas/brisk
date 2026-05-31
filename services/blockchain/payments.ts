@@ -6,8 +6,8 @@ import { executeSponsored } from "@/services/blockchain/sponsoredExec";
 import { getSuiClientForBuild, suiClient } from "@/services/blockchain/suiClient";
 import {
   buildGaslessTransferTx,
-  buildSponsoredTransferTx,
-  TRANSFER_TARGETS,
+  buildPaymentWithReceiptTx,
+  PAY_WITH_RECEIPT_TARGETS,
   type Invoice,
 } from "@/services/blockchain/paymentTx";
 import { ENV } from "@/utils/constants";
@@ -15,49 +15,53 @@ import { ENV } from "@/utils/constants";
 export type PayResult = { digest: string; method: "gasless" | "sponsored" };
 
 /**
- * Pay an invoice, feeless to the user. Tries the native-gasless path first
- * (protocol charges no gas); if building/submitting that fails (e.g. JSON-RPC
- * gas-zeroing quirks), falls back to an Enoki-sponsored transfer (Enoki pays
- * gas). Either way the user is charged exactly the invoice amount.
+ * Pay a merchant invoice: an Enoki-sponsored PTB that atomically moves USDC to
+ * the merchant AND mints an on-chain Receipt for the payer. Feeless to the user
+ * (Enoki covers gas), charged exactly the invoice amount. `now` is the client
+ * timestamp stamped into the receipt.
  */
-export async function payInvoice(session: AuthSession, invoice: Invoice): Promise<PayResult> {
-  try {
-    const client = await getSuiClientForBuild();
-    const tx = buildGaslessTransferTx({
-      sender: session.address,
-      payee: invoice.payee,
-      amountMicros: invoice.amountMicros,
-    });
-    const bytes: Uint8Array = await tx.build({ client });
-    const bytesB64 = toBase64(bytes);
-    // signSponsoredTransaction just produces a zkLogin signature over the bytes;
-    // for this self-built (unsponsored) tx that single signature is sufficient.
-    const signature = await enokiAuthService.signSponsoredTransaction(bytesB64, session);
-    const res = await client.executeTransactionBlock({
-      transactionBlock: bytesB64,
-      signature,
-      options: { showEffects: true },
-    });
-    const status = res?.effects?.status?.status;
-    if (status && status !== "success") {
-      throw new Error(`gasless tx status ${status}`);
-    }
-    return { digest: res.digest, method: "gasless" };
-  } catch {
-    // Fallback: Enoki-sponsored transfer (proven path).
-    const client = await getSuiClientForBuild();
-    const tx = buildSponsoredTransferTx({
-      payee: invoice.payee,
-      amountMicros: invoice.amountMicros,
-    });
-    const txKindBytes = toBase64(await tx.build({ client, onlyTransactionKind: true }));
-    const { digest } = await executeSponsored({
-      session,
-      txKindBytes,
-      allowedMoveCallTargets: TRANSFER_TARGETS,
-    });
-    return { digest, method: "sponsored" };
-  }
+export async function payInvoice(
+  session: AuthSession,
+  invoice: Invoice,
+  now: number,
+): Promise<PayResult> {
+  const client = await getSuiClientForBuild();
+  const tx = buildPaymentWithReceiptTx({
+    payer: session.address,
+    payee: invoice.payee,
+    amountMicros: invoice.amountMicros,
+    memo: invoice.merchant,
+    invoiceId: invoice.invoiceId,
+    timestampMs: now,
+  });
+  const txKindBytes = toBase64(await tx.build({ client, onlyTransactionKind: true }));
+  const { digest } = await executeSponsored({
+    session,
+    txKindBytes,
+    allowedMoveCallTargets: PAY_WITH_RECEIPT_TARGETS,
+  });
+  return { digest, method: "sponsored" };
+}
+
+/**
+ * Plain peer-to-peer transfer with NO receipt — the native-gasless showcase
+ * (protocol charges zero gas). Kept for a future "send to a friend" flow.
+ */
+export async function payGasless(
+  session: AuthSession,
+  payee: string,
+  amountMicros: number,
+): Promise<PayResult> {
+  const client = await getSuiClientForBuild();
+  const tx = buildGaslessTransferTx({ sender: session.address, payee, amountMicros });
+  const bytesB64 = toBase64(await tx.build({ client }));
+  const signature = await enokiAuthService.signSponsoredTransaction(bytesB64, session);
+  const res = await client.executeTransactionBlock({
+    transactionBlock: bytesB64,
+    signature,
+    options: { showEffects: true },
+  });
+  return { digest: res.digest, method: "gasless" };
 }
 
 /** Current USDC balance (micro-units) for an address. */

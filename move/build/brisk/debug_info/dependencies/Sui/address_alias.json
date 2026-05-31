@@ -759,6 +759,77 @@
         }
       },
       "is_native": false
+    },
+    "5": {
+      "location": {
+        "file_hash": "7f2fc895fe6c7cfaaff4470144b96290afdef33697ed9372e8ff14dc2440fd85",
+        "start": 3782,
+        "end": 3849
+      },
+      "definition_location": {
+        "file_hash": "7f2fc895fe6c7cfaaff4470144b96290afdef33697ed9372e8ff14dc2440fd85",
+        "start": 3793,
+        "end": 3811
+      },
+      "type_parameters": [],
+      "parameters": [
+        [
+          "ctx#0#0",
+          {
+            "file_hash": "7f2fc895fe6c7cfaaff4470144b96290afdef33697ed9372e8ff14dc2440fd85",
+            "start": 3812,
+            "end": 3815
+          }
+        ]
+      ],
+      "returns": [],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "7f2fc895fe6c7cfaaff4470144b96290afdef33697ed9372e8ff14dc2440fd85",
+          "start": 3842,
+          "end": 3845
+        },
+        "1": {
+          "file_hash": "7f2fc895fe6c7cfaaff4470144b96290afdef33697ed9372e8ff14dc2440fd85",
+          "start": 3835,
+          "end": 3846
+        },
+        "2": {
+          "file_hash": "7f2fc895fe6c7cfaaff4470144b96290afdef33697ed9372e8ff14dc2440fd85",
+          "start": 3846,
+          "end": 3847
+        }
+      },
+      "is_native": false
+    },
+    "6": {
+      "location": {
+        "file_hash": "7f2fc895fe6c7cfaaff4470144b96290afdef33697ed9372e8ff14dc2440fd85",
+        "start": 149,
+        "end": 3849
+      },
+      "definition_location": {
+        "file_hash": "7f2fc895fe6c7cfaaff4470144b96290afdef33697ed9372e8ff14dc2440fd85",
+        "start": 149,
+        "end": 3849
+      },
+      "type_parameters": [],
+      "parameters": [],
+      "returns": [],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "7f2fc895fe6c7cfaaff4470144b96290afdef33697ed9372e8ff14dc2440fd85",
+          "start": 149,
+          "end": 3849
+        }
+      },
+      "is_native": false
     }
   },
   "constant_map": {

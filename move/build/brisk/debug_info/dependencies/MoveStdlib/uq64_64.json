@@ -1553,6 +1553,32 @@
         }
       },
       "is_native": false
+    },
+    "15": {
+      "location": {
+        "file_hash": "6c2b57202de661bf34287c108af09c5200325e32e4798353b9e7e58eb0f7be9e",
+        "start": 605,
+        "end": 5615
+      },
+      "definition_location": {
+        "file_hash": "6c2b57202de661bf34287c108af09c5200325e32e4798353b9e7e58eb0f7be9e",
+        "start": 605,
+        "end": 5615
+      },
+      "type_parameters": [],
+      "parameters": [],
+      "returns": [],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "6c2b57202de661bf34287c108af09c5200325e32e4798353b9e7e58eb0f7be9e",
+          "start": 605,
+          "end": 5615
+        }
+      },
+      "is_native": false
     }
   },
   "constant_map": {

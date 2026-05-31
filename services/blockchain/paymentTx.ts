@@ -127,3 +127,55 @@ export function buildSponsoredTransferTx(input: {
 
 /** Move-call targets this payment touches — for the Enoki sponsorship allowlist. */
 export const TRANSFER_TARGETS = ["0x2::balance::send_funds"];
+
+const PKG = ENV.briskPackageId;
+
+/**
+ * Atomic merchant payment WITH an on-chain receipt, in one PTB:
+ *   1. move `amount` USDC to the merchant (`balance::send_funds`)
+ *   2. mint a `Receipt` (`payment_receipt::issue`) and hand it to the payer
+ * Runs as an Enoki-sponsored tx (the receipt mint disqualifies native-gasless),
+ * so the user still pays $0. Sender is set so the balance source resolves at
+ * build time.
+ */
+export function buildPaymentWithReceiptTx(input: {
+  payer: string;
+  payee: string;
+  amountMicros: number | bigint;
+  memo: string;
+  invoiceId: string;
+  timestampMs: number | bigint;
+}): Transaction {
+  const tx = new Transaction();
+  tx.setSender(input.payer);
+
+  const balance = tx.balance({ type: USDC, balance: BigInt(input.amountMicros) });
+  tx.moveCall({
+    target: "0x2::balance::send_funds",
+    typeArguments: [USDC],
+    arguments: [balance, tx.pure.address(input.payee)],
+  });
+
+  const receipt = tx.moveCall({
+    target: `${PKG}::payment_receipt::issue`,
+    typeArguments: [USDC],
+    arguments: [
+      tx.pure.address(input.payer),
+      tx.pure.address(input.payee),
+      tx.pure.u64(BigInt(input.amountMicros)),
+      tx.pure.string(input.memo),
+      tx.pure.string(input.invoiceId),
+      tx.pure.u64(BigInt(input.timestampMs)),
+    ],
+  });
+  tx.transferObjects([receipt], tx.pure.address(input.payer));
+
+  return tx;
+}
+
+/** Allowlist for the sponsored payment-with-receipt PTB. */
+export const PAY_WITH_RECEIPT_TARGETS = [
+  "0x2::balance::send_funds",
+  "0x2::coin::into_balance",
+  `${PKG}::payment_receipt::issue`,
+];

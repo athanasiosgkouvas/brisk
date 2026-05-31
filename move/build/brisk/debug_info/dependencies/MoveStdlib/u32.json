@@ -4262,6 +4262,32 @@
         }
       },
       "is_native": false
+    },
+    "25": {
+      "location": {
+        "file_hash": "de21fa0ea826436ec8730dddf2c720015689e5f407fbd157de338ca20b323795",
+        "start": 101,
+        "end": 6446
+      },
+      "definition_location": {
+        "file_hash": "de21fa0ea826436ec8730dddf2c720015689e5f407fbd157de338ca20b323795",
+        "start": 101,
+        "end": 6446
+      },
+      "type_parameters": [],
+      "parameters": [],
+      "returns": [],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "de21fa0ea826436ec8730dddf2c720015689e5f407fbd157de338ca20b323795",
+          "start": 101,
+          "end": 6446
+        }
+      },
+      "is_native": false
     }
   },
   "constant_map": {}

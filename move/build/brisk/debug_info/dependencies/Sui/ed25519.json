@@ -60,6 +60,32 @@
       "labels": {},
       "code_map": {},
       "is_native": true
+    },
+    "1": {
+      "location": {
+        "file_hash": "a8c60d2014d6c05e8658cdd287005261573c7058712bf69e34628c4c880881a5",
+        "start": 75,
+        "end": 584
+      },
+      "definition_location": {
+        "file_hash": "a8c60d2014d6c05e8658cdd287005261573c7058712bf69e34628c4c880881a5",
+        "start": 75,
+        "end": 584
+      },
+      "type_parameters": [],
+      "parameters": [],
+      "returns": [],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "a8c60d2014d6c05e8658cdd287005261573c7058712bf69e34628c4c880881a5",
+          "start": 75,
+          "end": 584
+        }
+      },
+      "is_native": false
     }
   },
   "constant_map": {}

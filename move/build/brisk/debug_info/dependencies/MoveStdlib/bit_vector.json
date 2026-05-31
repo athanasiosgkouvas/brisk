@@ -1318,6 +1318,64 @@
         }
       },
       "is_native": false
+    },
+    "7": {
+      "location": {
+        "file_hash": "627d05d5c9213de5cb5a0a90687c2888ce3a2381b5d4edc5caac4ce7fe266416",
+        "start": 3238,
+        "end": 3283
+      },
+      "definition_location": {
+        "file_hash": "627d05d5c9213de5cb5a0a90687c2888ce3a2381b5d4edc5caac4ce7fe266416",
+        "start": 3249,
+        "end": 3258
+      },
+      "type_parameters": [],
+      "parameters": [],
+      "returns": [
+        {
+          "file_hash": "627d05d5c9213de5cb5a0a90687c2888ce3a2381b5d4edc5caac4ce7fe266416",
+          "start": 3262,
+          "end": 3265
+        }
+      ],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "627d05d5c9213de5cb5a0a90687c2888ce3a2381b5d4edc5caac4ce7fe266416",
+          "start": 3272,
+          "end": 3281
+        }
+      },
+      "is_native": false
+    },
+    "8": {
+      "location": {
+        "file_hash": "627d05d5c9213de5cb5a0a90687c2888ce3a2381b5d4edc5caac4ce7fe266416",
+        "start": 75,
+        "end": 3283
+      },
+      "definition_location": {
+        "file_hash": "627d05d5c9213de5cb5a0a90687c2888ce3a2381b5d4edc5caac4ce7fe266416",
+        "start": 75,
+        "end": 3283
+      },
+      "type_parameters": [],
+      "parameters": [],
+      "returns": [],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "627d05d5c9213de5cb5a0a90687c2888ce3a2381b5d4edc5caac4ce7fe266416",
+          "start": 75,
+          "end": 3283
+        }
+      },
+      "is_native": false
     }
   },
   "constant_map": { "EINDEX": 0, "ELENGTH": 1, "MAX_SIZE": 3, "WORD_SIZE": 2 }

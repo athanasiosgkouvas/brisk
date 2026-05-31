@@ -879,6 +879,32 @@
         }
       },
       "is_native": false
+    },
+    "10": {
+      "location": {
+        "file_hash": "93c3ff2e6802b3d941445d38313a7702cf7eb14ec06c7537789b7a74eb00233e",
+        "start": 1139,
+        "end": 4245
+      },
+      "definition_location": {
+        "file_hash": "93c3ff2e6802b3d941445d38313a7702cf7eb14ec06c7537789b7a74eb00233e",
+        "start": 1139,
+        "end": 4245
+      },
+      "type_parameters": [],
+      "parameters": [],
+      "returns": [],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "93c3ff2e6802b3d941445d38313a7702cf7eb14ec06c7537789b7a74eb00233e",
+          "start": 1139,
+          "end": 4245
+        }
+      },
+      "is_native": false
     }
   },
   "constant_map": { "EBagNotEmpty": 0 }

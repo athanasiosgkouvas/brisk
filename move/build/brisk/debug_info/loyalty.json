@@ -6,9 +6,36 @@
     "start": 299,
     "end": 313
   },
-  "module_name": ["0000000000000000000000000000000000000000000000000000000000000000", "loyalty"],
+  "module_name": ["713f0b6d6251bf8bf557479ceb4a9695ed2d14eea8946d610d23c88d3c5f9934", "loyalty"],
   "struct_map": {},
   "enum_map": {},
-  "function_map": {},
+  "function_map": {
+    "0": {
+      "location": {
+        "file_hash": "9eebf88ca80eab646e7b143a270cd62cd422c552b12d90e8b755d68f555b8218",
+        "start": 292,
+        "end": 314
+      },
+      "definition_location": {
+        "file_hash": "9eebf88ca80eab646e7b143a270cd62cd422c552b12d90e8b755d68f555b8218",
+        "start": 292,
+        "end": 314
+      },
+      "type_parameters": [],
+      "parameters": [],
+      "returns": [],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "9eebf88ca80eab646e7b143a270cd62cd422c552b12d90e8b755d68f555b8218",
+          "start": 292,
+          "end": 314
+        }
+      },
+      "is_native": false
+    }
+  },
   "constant_map": {}
 }

@@ -327,6 +327,32 @@
         }
       },
       "is_native": false
+    },
+    "2": {
+      "location": {
+        "file_hash": "929dd24560327f62308c48d781228bc85f9386297ac9086b4cdd2dfd9f61ed3a",
+        "start": 201,
+        "end": 1736
+      },
+      "definition_location": {
+        "file_hash": "929dd24560327f62308c48d781228bc85f9386297ac9086b4cdd2dfd9f61ed3a",
+        "start": 201,
+        "end": 1736
+      },
+      "type_parameters": [],
+      "parameters": [],
+      "returns": [],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "929dd24560327f62308c48d781228bc85f9386297ac9086b4cdd2dfd9f61ed3a",
+          "start": 201,
+          "end": 1736
+        }
+      },
+      "is_native": false
     }
   },
   "constant_map": {

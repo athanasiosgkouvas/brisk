@@ -5720,6 +5720,32 @@
         }
       },
       "is_native": false
+    },
+    "30": {
+      "location": {
+        "file_hash": "181618e27406e4ce5ca6e5d04a8e20189b6e345e373ac8e63847def1f8fcbcf3",
+        "start": 1052,
+        "end": 8356
+      },
+      "definition_location": {
+        "file_hash": "181618e27406e4ce5ca6e5d04a8e20189b6e345e373ac8e63847def1f8fcbcf3",
+        "start": 1052,
+        "end": 8356
+      },
+      "type_parameters": [],
+      "parameters": [],
+      "returns": [],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "181618e27406e4ce5ca6e5d04a8e20189b6e345e373ac8e63847def1f8fcbcf3",
+          "start": 1052,
+          "end": 8356
+        }
+      },
+      "is_native": false
     }
   },
   "constant_map": { "ELenOutOfRange": 2, "ENotBool": 1, "EOutOfRange": 0 }

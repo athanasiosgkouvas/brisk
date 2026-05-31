@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react";
 
 import { useAuth } from "@/hooks/useAuth";
 import { startEmulatingInvoice, stopEmulating } from "@/services/nfc/hce";
-import { getUsdcBalanceMicros, waitForSettlement } from "@/services/blockchain/payments";
+import { waitForPaymentEvent } from "@/services/blockchain/receipts";
 import { encodeInvoice, type Invoice } from "@/services/blockchain/paymentTx";
 
 export type ChargeStatus = "idle" | "awaiting" | "paid" | "timeout" | "error";
@@ -36,15 +36,15 @@ export function useCharge() {
         merchant: MERCHANT_NAME,
       };
       try {
-        const baseline = await getUsdcBalanceMicros(session.address).catch(() => 0);
+        const sinceMs = Date.now();
         await startEmulatingInvoice(encodeInvoice(inv));
         setInvoice(inv);
         setStatus("awaiting");
         activeRef.current = true;
 
-        const settled = await waitForSettlement({
+        const settled = await waitForPaymentEvent({
           merchant: session.address,
-          baselineMicros: baseline,
+          sinceMs,
           expectedMicros: amountMicros,
         });
         if (!activeRef.current) return; // cancelled

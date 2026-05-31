@@ -960,6 +960,32 @@
         }
       },
       "is_native": false
+    },
+    "11": {
+      "location": {
+        "file_hash": "3ca6c85e0ca956a4fdaf1d8881b1c2c6fa0a6046a8b1694520b297434174540e",
+        "start": 137,
+        "end": 5623
+      },
+      "definition_location": {
+        "file_hash": "3ca6c85e0ca956a4fdaf1d8881b1c2c6fa0a6046a8b1694520b297434174540e",
+        "start": 137,
+        "end": 5623
+      },
+      "type_parameters": [],
+      "parameters": [],
+      "returns": [],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "3ca6c85e0ca956a4fdaf1d8881b1c2c6fa0a6046a8b1694520b297434174540e",
+          "start": 137,
+          "end": 5623
+        }
+      },
+      "is_native": false
     }
   },
   "constant_map": {

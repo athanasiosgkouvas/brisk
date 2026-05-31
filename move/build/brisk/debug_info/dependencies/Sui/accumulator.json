@@ -1307,6 +1307,32 @@
       "labels": {},
       "code_map": {},
       "is_native": true
+    },
+    "18": {
+      "location": {
+        "file_hash": "755e40ff7661e72bccb6ab4355f788aaf1f1c46ecab4b3c75454237ab8d5f0c2",
+        "start": 75,
+        "end": 4561
+      },
+      "definition_location": {
+        "file_hash": "755e40ff7661e72bccb6ab4355f788aaf1f1c46ecab4b3c75454237ab8d5f0c2",
+        "start": 75,
+        "end": 4561
+      },
+      "type_parameters": [],
+      "parameters": [],
+      "returns": [],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "755e40ff7661e72bccb6ab4355f788aaf1f1c46ecab4b3c75454237ab8d5f0c2",
+          "start": 75,
+          "end": 4561
+        }
+      },
+      "is_native": false
     }
   },
   "constant_map": { "ENotSystemAddress": 0 }

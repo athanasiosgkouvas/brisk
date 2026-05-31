@@ -1182,6 +1182,155 @@
       "labels": {},
       "code_map": {},
       "is_native": true
+    },
+    "16": {
+      "location": {
+        "file_hash": "3ec5a78be55b2972a120a998a39e373cce1eef27186737b977d897da668e93db",
+        "start": 8711,
+        "end": 8822
+      },
+      "definition_location": {
+        "file_hash": "3ec5a78be55b2972a120a998a39e373cce1eef27186737b977d897da668e93db",
+        "start": 8731,
+        "end": 8744
+      },
+      "type_parameters": [
+        [
+          "T",
+          {
+            "file_hash": "3ec5a78be55b2972a120a998a39e373cce1eef27186737b977d897da668e93db",
+            "start": 8745,
+            "end": 8746
+          }
+        ]
+      ],
+      "parameters": [
+        [
+          "id#0#0",
+          {
+            "file_hash": "3ec5a78be55b2972a120a998a39e373cce1eef27186737b977d897da668e93db",
+            "start": 8753,
+            "end": 8755
+          }
+        ],
+        [
+          "version#0#0",
+          {
+            "file_hash": "3ec5a78be55b2972a120a998a39e373cce1eef27186737b977d897da668e93db",
+            "start": 8761,
+            "end": 8768
+          }
+        ]
+      ],
+      "returns": [
+        {
+          "file_hash": "3ec5a78be55b2972a120a998a39e373cce1eef27186737b977d897da668e93db",
+          "start": 8776,
+          "end": 8788
+        }
+      ],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "3ec5a78be55b2972a120a998a39e373cce1eef27186737b977d897da668e93db",
+          "start": 8807,
+          "end": 8809
+        },
+        "1": {
+          "file_hash": "3ec5a78be55b2972a120a998a39e373cce1eef27186737b977d897da668e93db",
+          "start": 8811,
+          "end": 8818
+        },
+        "2": {
+          "file_hash": "3ec5a78be55b2972a120a998a39e373cce1eef27186737b977d897da668e93db",
+          "start": 8795,
+          "end": 8820
+        }
+      },
+      "is_native": false
+    },
+    "17": {
+      "location": {
+        "file_hash": "3ec5a78be55b2972a120a998a39e373cce1eef27186737b977d897da668e93db",
+        "start": 8837,
+        "end": 8912
+      },
+      "definition_location": {
+        "file_hash": "3ec5a78be55b2972a120a998a39e373cce1eef27186737b977d897da668e93db",
+        "start": 8857,
+        "end": 8869
+      },
+      "type_parameters": [
+        [
+          "T",
+          {
+            "file_hash": "3ec5a78be55b2972a120a998a39e373cce1eef27186737b977d897da668e93db",
+            "start": 8870,
+            "end": 8871
+          }
+        ]
+      ],
+      "parameters": [
+        [
+          "r#0#0",
+          {
+            "file_hash": "3ec5a78be55b2972a120a998a39e373cce1eef27186737b977d897da668e93db",
+            "start": 8878,
+            "end": 8879
+          }
+        ]
+      ],
+      "returns": [
+        {
+          "file_hash": "3ec5a78be55b2972a120a998a39e373cce1eef27186737b977d897da668e93db",
+          "start": 8897,
+          "end": 8899
+        }
+      ],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "3ec5a78be55b2972a120a998a39e373cce1eef27186737b977d897da668e93db",
+          "start": 8906,
+          "end": 8907
+        },
+        "1": {
+          "file_hash": "3ec5a78be55b2972a120a998a39e373cce1eef27186737b977d897da668e93db",
+          "start": 8906,
+          "end": 8910
+        }
+      },
+      "is_native": false
+    },
+    "18": {
+      "location": {
+        "file_hash": "3ec5a78be55b2972a120a998a39e373cce1eef27186737b977d897da668e93db",
+        "start": 98,
+        "end": 8912
+      },
+      "definition_location": {
+        "file_hash": "3ec5a78be55b2972a120a998a39e373cce1eef27186737b977d897da668e93db",
+        "start": 98,
+        "end": 8912
+      },
+      "type_parameters": [],
+      "parameters": [],
+      "returns": [],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "3ec5a78be55b2972a120a998a39e373cce1eef27186737b977d897da668e93db",
+          "start": 98,
+          "end": 8912
+        }
+      },
+      "is_native": false
     }
   },
   "constant_map": {

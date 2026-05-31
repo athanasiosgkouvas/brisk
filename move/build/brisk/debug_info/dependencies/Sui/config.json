@@ -2213,6 +2213,32 @@
       "labels": {},
       "code_map": {},
       "is_native": true
+    },
+    "11": {
+      "location": {
+        "file_hash": "c8faffbd0c26e910a9cba9350955835ccee4d74690888b3968a32fc5c4e66599",
+        "start": 75,
+        "end": 8434
+      },
+      "definition_location": {
+        "file_hash": "c8faffbd0c26e910a9cba9350955835ccee4d74690888b3968a32fc5c4e66599",
+        "start": 75,
+        "end": 8434
+      },
+      "type_parameters": [],
+      "parameters": [],
+      "returns": [],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "c8faffbd0c26e910a9cba9350955835ccee4d74690888b3968a32fc5c4e66599",
+          "start": 75,
+          "end": 8434
+        }
+      },
+      "is_native": false
     }
   },
   "constant_map": { "EAlreadySetForEpoch": 0, "EBCSSerializationFailure": 2, "ENotSetForEpoch": 1 }

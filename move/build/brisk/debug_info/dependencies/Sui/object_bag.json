@@ -952,6 +952,32 @@
         }
       },
       "is_native": false
+    },
+    "11": {
+      "location": {
+        "file_hash": "a4c9727c2cf12e275a3da86c1ee00c4bcf97046c43976a6f7620139b7b1085a3",
+        "start": 422,
+        "end": 3928
+      },
+      "definition_location": {
+        "file_hash": "a4c9727c2cf12e275a3da86c1ee00c4bcf97046c43976a6f7620139b7b1085a3",
+        "start": 422,
+        "end": 3928
+      },
+      "type_parameters": [],
+      "parameters": [],
+      "returns": [],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "a4c9727c2cf12e275a3da86c1ee00c4bcf97046c43976a6f7620139b7b1085a3",
+          "start": 422,
+          "end": 3928
+        }
+      },
+      "is_native": false
     }
   },
   "constant_map": { "EBagNotEmpty": 0 }

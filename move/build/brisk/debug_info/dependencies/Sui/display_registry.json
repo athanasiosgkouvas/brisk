@@ -2016,6 +2016,77 @@
         }
       },
       "is_native": false
+    },
+    "18": {
+      "location": {
+        "file_hash": "a1d1512e159820dc570fcdd1ff94373d476c9787dc0edd3b6e7ac66de80241a4",
+        "start": 7515,
+        "end": 7595
+      },
+      "definition_location": {
+        "file_hash": "a1d1512e159820dc570fcdd1ff94373d476c9787dc0edd3b6e7ac66de80241a4",
+        "start": 7535,
+        "end": 7553
+      },
+      "type_parameters": [],
+      "parameters": [
+        [
+          "ctx#0#0",
+          {
+            "file_hash": "a1d1512e159820dc570fcdd1ff94373d476c9787dc0edd3b6e7ac66de80241a4",
+            "start": 7554,
+            "end": 7557
+          }
+        ]
+      ],
+      "returns": [],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "a1d1512e159820dc570fcdd1ff94373d476c9787dc0edd3b6e7ac66de80241a4",
+          "start": 7588,
+          "end": 7591
+        },
+        "1": {
+          "file_hash": "a1d1512e159820dc570fcdd1ff94373d476c9787dc0edd3b6e7ac66de80241a4",
+          "start": 7581,
+          "end": 7592
+        },
+        "2": {
+          "file_hash": "a1d1512e159820dc570fcdd1ff94373d476c9787dc0edd3b6e7ac66de80241a4",
+          "start": 7592,
+          "end": 7593
+        }
+      },
+      "is_native": false
+    },
+    "19": {
+      "location": {
+        "file_hash": "a1d1512e159820dc570fcdd1ff94373d476c9787dc0edd3b6e7ac66de80241a4",
+        "start": 75,
+        "end": 7595
+      },
+      "definition_location": {
+        "file_hash": "a1d1512e159820dc570fcdd1ff94373d476c9787dc0edd3b6e7ac66de80241a4",
+        "start": 75,
+        "end": 7595
+      },
+      "type_parameters": [],
+      "parameters": [],
+      "returns": [],
+      "locals": [],
+      "nops": {},
+      "labels": { "0": 0 },
+      "code_map": {
+        "0": {
+          "file_hash": "a1d1512e159820dc570fcdd1ff94373d476c9787dc0edd3b6e7ac66de80241a4",
+          "start": 75,
+          "end": 7595
+        }
+      },
+      "is_native": false
     }
   },
   "constant_map": {

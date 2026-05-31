@@ -53,7 +53,7 @@ export function usePay() {
       if (!auth.success) throw new Error("Payment not authorized.");
 
       setStatus("paying");
-      const res = await payInvoice(session, invoice);
+      const res = await payInvoice(session, invoice, Date.now());
       setResult(res);
       setStatus("done");
       return res;
