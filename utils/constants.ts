@@ -16,9 +16,12 @@ export const ENV = {
     "0x713f0b6d6251bf8bf557479ceb4a9695ed2d14eea8946d610d23c88d3c5f9934",
 
   /**
-   * The stablecoin Brisk standardizes on. Mainnet: canonical Circle USDC.
-   * Testnet: must be a gasless-allowlisted test stablecoin — VERIFY the exact
-   * type + that `0x2::balance::send_funds` is gasless for it before Phase 1.
+   * Circle USDC — Brisk's stablecoin. Both types VERIFIED (Circle docs) and USDC
+   * is #1 on Sui's gasless-transfer allowlist (`0x2::balance::send_funds<USDC>`).
+   *   testnet: 0xa1ec7fc0…::usdc::USDC
+   *   mainnet: 0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC
+   * NOTE: auto gas=0 detection only fires on gRPC/GraphQL transport; on JSON-RPC
+   * the payment builder sets gasPrice=0 / gasBudget=0 manually (eligibility known).
    */
   usdcType:
     process.env.EXPO_PUBLIC_USDC_TYPE ??

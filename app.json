@@ -38,7 +38,21 @@
           "imageWidth": 220,
           "resizeMode": "contain"
         }
-      ]
+      ],
+      [
+        "react-native-nfc-manager",
+        {
+          "nfcPermission": "Brisk uses NFC to let you tap and pay merchants.",
+          "selectIdentifiers": ["D2760000850101"]
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Brisk uses Face ID to authorize your payments."
+        }
+      ],
+      "./plugins/withBriskHce"
     ],
     "experiments": {
       "typedRoutes": true
