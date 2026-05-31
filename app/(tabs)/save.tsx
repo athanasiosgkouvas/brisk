@@ -1,19 +1,76 @@
-import { Text, View } from "react-native";
+import { useState } from "react";
+import { ActivityIndicator, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { PiggyBank } from "lucide-react-native";
 
-// "Save" tab. Phase 3 wires the yield vault: deposit/withdraw a Save bucket
-// that earns in a blue-chip lender (mock on testnet, real adapter on mainnet),
-// with instant withdraw-and-pay at spend time.
+import { PrimaryButton } from "@/components/ui/PrimaryButton";
+import { useSave } from "@/hooks/useSave";
+import { formatUsd, usdToMicros } from "@/services/blockchain/paymentTx";
+
+// "Save" tab: the yield vault. Idle USDC earns in a blue-chip lender (mock on
+// testnet, real adapter on mainnet) and stays instantly spendable.
 export default function SaveScreen() {
+  const { state, status, error, activate, deposit, withdraw } = useSave();
+  const [amountText, setAmountText] = useState("");
+  const micros = usdToMicros(Number(amountText || "0"));
+  const busy = status === "working" || status === "loading";
+
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-brisk-bg0 px-5 pt-10">
       <View className="flex-1 items-center justify-center">
         <PiggyBank color="#00D98B" size={56} />
-        <Text className="mt-6 text-2xl font-bold text-brisk-text">Save</Text>
-        <Text className="mt-2 text-center text-sm text-brisk-subtext">
-          Move idle dollars to Save and earn yield — spend straight from it anytime.
+        <Text className="mt-4 text-sm uppercase tracking-[2px] text-brisk-subtext">
+          Save balance
         </Text>
+        <Text className="mt-1 text-5xl font-bold text-brisk-text">
+          {formatUsd(state.valueMicros)}
+        </Text>
+        <Text className="mt-2 text-center text-sm text-brisk-subtext">
+          Idle dollars earn yield — spend straight from it anytime.
+        </Text>
+
+        {status === "loading" ? (
+          <ActivityIndicator className="mt-8" color="#00D98B" />
+        ) : !state.vaultId ? (
+          <View className="mt-8 w-full max-w-[360px]">
+            <PrimaryButton label="Activate Save" onPress={activate} loading={busy} />
+          </View>
+        ) : (
+          <View className="mt-8 w-full max-w-[360px]">
+            <View className="flex-row items-center rounded-2xl border border-[#2C3E55] bg-brisk-bg1 px-4 py-3">
+              <Text className="text-2xl font-bold text-brisk-subtext">$</Text>
+              <TextInput
+                className="ml-1 flex-1 text-2xl font-bold text-brisk-text"
+                placeholder="0.00"
+                placeholderTextColor="#5A6B7B"
+                keyboardType="decimal-pad"
+                value={amountText}
+                onChangeText={setAmountText}
+              />
+            </View>
+            <View className="mt-4 flex-row gap-3">
+              <View className="flex-1">
+                <PrimaryButton
+                  label="Deposit"
+                  onPress={() => deposit(micros)}
+                  loading={busy}
+                  disabled={micros <= 0}
+                />
+              </View>
+              <View className="flex-1">
+                <PrimaryButton
+                  label="Withdraw"
+                  variant="secondary"
+                  onPress={() => withdraw(micros)}
+                  loading={busy}
+                  disabled={micros <= 0}
+                />
+              </View>
+            </View>
+          </View>
+        )}
+
+        {error ? <Text className="mt-4 text-center text-xs text-brisk-danger">{error}</Text> : null}
       </View>
     </SafeAreaView>
   );

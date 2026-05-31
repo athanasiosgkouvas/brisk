@@ -15,6 +15,9 @@ export const ENV = {
     process.env.EXPO_PUBLIC_BRISK_PACKAGE_ID ??
     "0x713f0b6d6251bf8bf557479ceb4a9695ed2d14eea8946d610d23c88d3c5f9934",
 
+  /** Shared mock_lender LendingPool<USDC> id (set after republish + create_pool). */
+  briskPoolId: process.env.EXPO_PUBLIC_BRISK_POOL_ID ?? "",
+
   /**
    * Circle USDC — Brisk's stablecoin. Both types VERIFIED (Circle docs) and USDC
    * is #1 on Sui's gasless-transfer allowlist (`0x2::balance::send_funds<USDC>`).
