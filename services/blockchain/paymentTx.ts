@@ -127,8 +127,21 @@ export function buildSponsoredTransferTx(input: {
   return tx;
 }
 
-/** Move-call targets this payment touches — for the Enoki sponsorship allowlist. */
-export const TRANSFER_TARGETS = ["0x2::balance::send_funds"];
+/**
+ * Coin/Balance ops the SDK may emit when resolving `tx.balance(...)` + send_funds.
+ * Sourcing from the Address Balance resolves to `0x2::coin::send_funds` (not
+ * `balance::send_funds`), so the Enoki allowlist must include both families.
+ */
+const COIN_BALANCE_OPS = [
+  "0x2::balance::send_funds",
+  "0x2::coin::send_funds",
+  "0x2::coin::into_balance",
+  "0x2::coin::from_balance",
+  "0x2::balance::split",
+];
+
+/** Move-call targets a plain transfer touches — for the Enoki sponsorship allowlist. */
+export const TRANSFER_TARGETS = [...COIN_BALANCE_OPS];
 
 const PKG = ENV.briskPackageId;
 
@@ -183,8 +196,7 @@ export function buildPaymentWithReceiptTx(input: {
 
 /** Allowlist for the sponsored payment-with-receipt-and-cashback PTB. */
 export const PAY_WITH_RECEIPT_TARGETS = [
-  "0x2::balance::send_funds",
-  "0x2::coin::into_balance",
+  ...COIN_BALANCE_OPS,
   `${PKG}::payment_receipt::issue`,
   `${PKG}::loyalty::earn`,
 ];

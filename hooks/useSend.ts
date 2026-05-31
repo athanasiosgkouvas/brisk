@@ -39,6 +39,8 @@ export function useSend() {
         setDigest(res.digest);
         setStatus("done");
       } catch (e) {
+        // Logged so it's visible in logcat on dev builds (release strips console).
+        console.error("[brisk-send] failed:", e instanceof Error ? e.message : e, e);
         setError(e instanceof Error ? e.message : "Send failed");
         setStatus("error");
       }

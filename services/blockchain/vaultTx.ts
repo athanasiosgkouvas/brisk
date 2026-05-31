@@ -71,8 +71,14 @@ export function buildWithdrawTx(input: {
 export const OPEN_VAULT_TARGETS = [`${PKG}::spending_vault::open`];
 export const DEPOSIT_TARGETS = [
   `${PKG}::spending_vault::deposit`,
+  "0x2::coin::send_funds",
   "0x2::coin::into_balance",
   "0x2::coin::from_balance",
+  "0x2::balance::send_funds",
   "0x2::balance::split",
 ];
-export const WITHDRAW_TARGETS = [`${PKG}::spending_vault::withdraw`];
+export const WITHDRAW_TARGETS = [
+  `${PKG}::spending_vault::withdraw`,
+  "0x2::coin::send_funds",
+  "0x2::balance::send_funds",
+];
