@@ -134,10 +134,12 @@ export function buildSponsoredTransferTx(input: {
  */
 const COIN_BALANCE_OPS = [
   "0x2::balance::send_funds",
+  "0x2::balance::redeem_funds",
+  "0x2::balance::withdraw",
+  "0x2::balance::split",
   "0x2::coin::send_funds",
   "0x2::coin::into_balance",
   "0x2::coin::from_balance",
-  "0x2::balance::split",
 ];
 
 /** Move-call targets a plain transfer touches — for the Enoki sponsorship allowlist. */
