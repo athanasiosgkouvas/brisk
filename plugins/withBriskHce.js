@@ -1,17 +1,28 @@
 /**
- * Expo config plugin: register react-native-hce's HostApduService so the Android
- * "Brisk Terminal" can emulate an NFC Forum Type-4 tag (the invoice). Expo CNG
- * regenerates AndroidManifest on every prebuild, so this must run as a plugin —
- * manual native edits would be wiped. Mirrors the manual steps in the
- * react-native-hce README (CardService + aid_list.xml, AID D2760000850101).
+ * Expo config plugin for Brisk's custom Android HCE module (the "Brisk
+ * Terminal"). react-native-hce is unusable on RN 0.81/AGP 8 (no namespace,
+ * broken gradle), so we ship our own tiny native module instead:
  *
- * iOS is untouched (no HCE on iOS); the customer-side NFC *reading* entitlement
- * + usage string come from the react-native-nfc-manager plugin in app.json.
+ *  - HceNdefService.kt   — HostApduService emulating an NDEF Type-4 tag
+ *  - BriskHceModule.kt    — RN bridge (setNdefMessage / stop)
+ *  - BriskHcePackage.kt   — ReactPackage
+ *
+ * This plugin copies those Kotlin sources into the app, registers the service
+ * (+ aid_list.xml, AID D2760000850101) in the manifest, and adds the package to
+ * MainApplication. All of it survives `expo prebuild` (CNG). iOS is untouched
+ * (HCE is Android-only); the customer-side NFC read uses react-native-nfc-manager.
  */
-const { withAndroidManifest, withDangerousMod, AndroidConfig } = require("@expo/config-plugins");
+const {
+  withAndroidManifest,
+  withDangerousMod,
+  withMainApplication,
+  AndroidConfig,
+} = require("@expo/config-plugins");
 const fs = require("fs");
 const path = require("path");
 
+const HCE_PACKAGE = "com.gkouvas.brisk.hce";
+const SERVICE_CLASS = `${HCE_PACKAGE}.HceNdefService`;
 const AID = "D2760000850101"; // NFC Forum Type-4 NDEF tag AID
 
 const AID_LIST_XML = `<?xml version="1.0" encoding="utf-8"?>
@@ -25,10 +36,22 @@ const AID_LIST_XML = `<?xml version="1.0" encoding="utf-8"?>
 </host-apdu-service>
 `;
 
-function withAidListXml(config) {
+// Copy the Kotlin sources + aid_list.xml into the generated android project.
+function withNativeSources(config) {
   return withDangerousMod(config, [
     "android",
     async (cfg) => {
+      const srcDir = path.join(cfg.modRequest.projectRoot, "plugins/hce-android");
+      const javaDir = path.join(
+        cfg.modRequest.platformProjectRoot,
+        "app/src/main/java",
+        HCE_PACKAGE.replace(/\./g, "/"),
+      );
+      fs.mkdirSync(javaDir, { recursive: true });
+      for (const file of ["HceNdefService.kt", "BriskHceModule.kt", "BriskHcePackage.kt"]) {
+        fs.copyFileSync(path.join(srcDir, file), path.join(javaDir, file));
+      }
+
       const xmlDir = path.join(cfg.modRequest.platformProjectRoot, "app/src/main/res/xml");
       fs.mkdirSync(xmlDir, { recursive: true });
       fs.writeFileSync(path.join(xmlDir, "aid_list.xml"), AID_LIST_XML);
@@ -41,9 +64,6 @@ function withHceManifest(config) {
   return withAndroidManifest(config, (cfg) => {
     const manifest = cfg.modResults;
 
-    // <uses-feature android:name="android.hardware.nfc.hce" android:required="false" />
-    // required=false so the single APK still installs on customer Androids that
-    // only need to *read* (not emulate).
     manifest.manifest["uses-feature"] = manifest.manifest["uses-feature"] || [];
     if (
       !manifest.manifest["uses-feature"].some(
@@ -55,16 +75,13 @@ function withHceManifest(config) {
       });
     }
 
-    // <service com.reactnativehce.services.CardService ...> inside <application>
     const app = AndroidConfig.Manifest.getMainApplicationOrThrow(manifest);
     app.service = app.service || [];
-    const SERVICE = "com.reactnativehce.services.CardService";
-    if (!app.service.some((s) => s.$ && s.$["android:name"] === SERVICE)) {
+    if (!app.service.some((s) => s.$ && s.$["android:name"] === SERVICE_CLASS)) {
       app.service.push({
         $: {
-          "android:name": SERVICE,
+          "android:name": SERVICE_CLASS,
           "android:exported": "true",
-          "android:enabled": "false", // library flips this on when emulation starts
           "android:permission": "android.permission.BIND_NFC_SERVICE",
         },
         "intent-filter": [
@@ -85,13 +102,27 @@ function withHceManifest(config) {
         ],
       });
     }
+    return cfg;
+  });
+}
 
+// Register BriskHcePackage in MainApplication.kt (it isn't autolinked).
+function withPackageRegistration(config) {
+  return withMainApplication(config, (cfg) => {
+    const add = `add(${HCE_PACKAGE}.BriskHcePackage())`;
+    if (!cfg.modResults.contents.includes(add)) {
+      cfg.modResults.contents = cfg.modResults.contents.replace(
+        /(\/\/ add\(MyReactNativePackage\(\)\))/,
+        `$1\n              ${add}`,
+      );
+    }
     return cfg;
   });
 }
 
 module.exports = function withBriskHce(config) {
-  config = withAidListXml(config);
+  config = withNativeSources(config);
   config = withHceManifest(config);
+  config = withPackageRegistration(config);
   return config;
 };

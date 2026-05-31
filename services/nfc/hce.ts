@@ -1,49 +1,37 @@
-import { Platform } from "react-native";
+import { NativeModules, Platform } from "react-native";
+import { Ndef } from "react-native-nfc-manager";
+import { toBase64 } from "@mysten/sui/utils";
 
 /**
- * Merchant-side HCE (Android only — the "Brisk Terminal"). Emulates an NFC
- * Forum Type-4 tag carrying the invoice as an NDEF Text record. The customer
- * taps to read it. iOS cannot present a tag (no HCE without an EEA entitlement),
- * so the Charge screen gates this to Android and offers QR as the fallback.
- *
- * Lazily imported so the iOS bundle never touches the Android-only native module.
+ * Merchant-side HCE (Android only — the "Brisk Terminal"). Drives our custom
+ * native module (BriskHce, see plugins/hce-android): it emulates an NFC Forum
+ * Type-4 tag carrying the invoice as an NDEF Text record. The customer taps to
+ * read it. iOS can't present a tag (no entitlement-free HCE), so the Charge
+ * screen gates this to Android and offers QR as the fallback.
  */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type HceSession = any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let hceModule: any = null;
-let session: HceSession = null;
+type BriskHceNative = {
+  setNdefMessage: (base64: string) => Promise<boolean>;
+  stop: () => Promise<boolean>;
+};
 
-export const isHceAvailable = Platform.OS === "android";
+const BriskHce = NativeModules.BriskHce as BriskHceNative | undefined;
 
-async function loadHce() {
-  if (!isHceAvailable) throw new Error("HCE (Brisk Terminal) is only available on Android.");
-  if (!hceModule) hceModule = await import("react-native-hce");
-  return hceModule;
-}
+export const isHceAvailable = Platform.OS === "android" && !!BriskHce;
 
-/** Start emulating a tag carrying `invoiceUri`. Returns once HCE is enabled. */
+/** Start emulating a tag carrying `invoiceUri` (a brisk://pay?... string). */
 export async function startEmulatingInvoice(invoiceUri: string): Promise<void> {
-  const { HCESession, NFCTagType4, NFCTagType4NDEFContentType } = await loadHce();
-  const tag = new NFCTagType4({
-    type: NFCTagType4NDEFContentType.Text,
-    content: invoiceUri,
-    writable: false,
-  });
-  session = await HCESession.getInstance();
-  await session.setApplication(tag);
-  await session.setEnabled(true);
+  if (!BriskHce) throw new Error("HCE (Brisk Terminal) is only available on Android.");
+  const bytes = Uint8Array.from(Ndef.encodeMessage([Ndef.textRecord(invoiceUri)]));
+  await BriskHce.setNdefMessage(toBase64(bytes));
 }
 
 /** Stop emulating (call when the charge is settled or cancelled). */
 export async function stopEmulating(): Promise<void> {
-  if (!session) return;
+  if (!BriskHce) return;
   try {
-    await session.setEnabled(false);
+    await BriskHce.stop();
   } catch {
     // best-effort
-  } finally {
-    session = null;
   }
 }

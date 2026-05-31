@@ -52,7 +52,8 @@
           "faceIDPermission": "Brisk uses Face ID to authorize your payments."
         }
       ],
-      "./plugins/withBriskHce"
+      "./plugins/withBriskHce",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true
