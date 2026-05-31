@@ -50,6 +50,8 @@ function RootNavigator({ readyToReveal }: { readyToReveal: () => void }) {
       >
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="welcome" />
+        <Stack.Screen name="receive" options={{ presentation: "modal" }} />
+        <Stack.Screen name="send" options={{ presentation: "modal" }} />
       </Stack>
     </>
   );

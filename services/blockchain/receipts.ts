@@ -48,6 +48,47 @@ export async function queryRecentPayments(merchant: string, limit = 50): Promise
     .filter((e): e is PaymentEvent => !!e && e.payee === merchant);
 }
 
+export type ActivityItem = {
+  direction: "sent" | "received";
+  counterparty: string;
+  amountMicros: number;
+  timestampMs: number;
+  digest: string;
+};
+
+/** Recent activity for an address (both sent and received), newest first. */
+export async function queryActivity(address: string, limit = 30): Promise<ActivityItem[]> {
+  const client = await getSuiClientForBuild();
+  const res = await client.queryEvents({
+    query: { MoveEventType: PAYMENT_EVENT_TYPE },
+    limit,
+    order: "descending",
+  });
+  const items: ActivityItem[] = [];
+  for (const raw of (res?.data ?? []) as unknown[]) {
+    const p = parsePaymentEvent(raw);
+    if (!p) continue;
+    if (p.payer === address) {
+      items.push({
+        direction: "sent",
+        counterparty: p.payee,
+        amountMicros: p.amountMicros,
+        timestampMs: p.timestampMs,
+        digest: p.digest,
+      });
+    } else if (p.payee === address) {
+      items.push({
+        direction: "received",
+        counterparty: p.payer,
+        amountMicros: p.amountMicros,
+        timestampMs: p.timestampMs,
+        digest: p.digest,
+      });
+    }
+  }
+  return items;
+}
+
 /**
  * Poll for a payment to `merchant` of at least `expectedMicros`, stamped at/after
  * `sinceMs`. Returns the matching event, or null on timeout.

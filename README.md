@@ -321,17 +321,3 @@ We'd rather be straight about the edges than oversell:
   and loads the HCE module on a Pixel 9 Pro today.
 
 See [`docs/PLAN.md`](docs/PLAN.md) for the full status and the phase‑by‑phase implementation log.
-
----
-
-## Acknowledgements
-
-Built on [Sui](https://sui.io), [Mysten Labs Enoki](https://docs.enoki.mystenlabs.com/) (zkLogin +
-sponsorship), [Circle USDC](https://www.circle.com/usdc), and Sui's protocol‑level gasless stablecoin
-transfers. The auth + sponsorship spine was adapted from a prior Sui project (`fathom`).
-
-<div align="center">
-
-_Brisk — pay with a tap, keep every cent, earn while you spend._
-
-</div>

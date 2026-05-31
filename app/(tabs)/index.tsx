@@ -1,88 +1,111 @@
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { useCallback, useState } from "react";
+import { RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { CheckCircle2, QrCode, XCircle } from "lucide-react-native";
+import { useRouter } from "expo-router";
+import { ArrowDownLeft, ArrowUpRight, PiggyBank } from "lucide-react-native";
 
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
-import { usePay } from "@/hooks/usePay";
+import { useWallet } from "@/hooks/useWallet";
+import { useSave } from "@/hooks/useSave";
+import { useActivity } from "@/hooks/useActivity";
 import { formatUsd } from "@/services/blockchain/paymentTx";
 
-// Customer "Pay" tab (iOS + Android). Tap the Brisk Terminal -> review -> Face ID
-// -> feeless pay. The whole point of the app.
-export default function PayScreen() {
-  const { status, invoice, result, error, tapToRead, confirmAndPay, reset } = usePay();
+function shortAddr(a: string): string {
+  return a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
+}
+
+export default function HomeScreen() {
+  const router = useRouter();
+  const { usdcMicros, loading, refresh } = useWallet();
+  const { state: save } = useSave();
+  const { items, refresh: refreshActivity } = useActivity();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([refresh(), refreshActivity()]);
+    setRefreshing(false);
+  }, [refresh, refreshActivity]);
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1 bg-brisk-bg0 px-5 pt-10">
-      <View className="flex-1 items-center justify-center">
-        {status === "idle" || status === "reading" ? (
-          <>
-            <QrCode color="#00D98B" size={64} />
-            <Text className="mt-6 text-2xl font-bold text-brisk-text">Tap to pay</Text>
-            <Text className="mt-2 text-center text-sm text-brisk-subtext">
-              Hold your phone to the Brisk Terminal. Pay in USDC — no gas, exact amount.
-            </Text>
-            <View className="mt-8 w-full max-w-[360px]">
-              <PrimaryButton
-                label={status === "reading" ? "Hold near terminal…" : "Tap to pay"}
-                onPress={() => void tapToRead()}
-                loading={status === "reading"}
-              />
-            </View>
-          </>
-        ) : null}
+    <SafeAreaView edges={["top"]} className="flex-1 bg-brisk-bg0">
+      <ScrollView
+        contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00D98B" />
+        }
+      >
+        {/* Balance */}
+        <Text className="text-center text-sm uppercase tracking-[2px] text-brisk-subtext">
+          Balance
+        </Text>
+        <Text className="mt-1 text-center text-6xl font-bold text-brisk-text">
+          {loading ? "…" : formatUsd(usdcMicros)}
+        </Text>
+        <Text className="mt-1 text-center text-sm text-brisk-subtext">USDC · feeless on Sui</Text>
 
-        {status === "review" && invoice ? (
-          <View className="w-full max-w-[360px] items-center">
-            <Text className="text-sm uppercase tracking-[2px] text-brisk-subtext">Pay</Text>
-            <Text className="mt-2 text-5xl font-bold text-brisk-text">
-              {formatUsd(invoice.amountMicros)}
-            </Text>
-            <Text className="mt-2 text-base text-brisk-subtext">to {invoice.merchant}</Text>
-            <View className="mt-8 w-full">
-              <PrimaryButton label="Confirm & Pay" onPress={() => void confirmAndPay()} />
-              <Pressable className="mt-3 py-3" onPress={reset}>
-                <Text className="text-center text-sm text-brisk-subtext">Cancel</Text>
-              </Pressable>
-            </View>
+        {/* Receive / Send */}
+        <View className="mt-8 flex-row gap-3">
+          <View className="flex-1">
+            <PrimaryButton label="Receive" onPress={() => router.push("/receive")} />
           </View>
-        ) : null}
+          <View className="flex-1">
+            <PrimaryButton label="Send" variant="secondary" onPress={() => router.push("/send")} />
+          </View>
+        </View>
 
-        {status === "authorizing" || status === "paying" ? (
-          <View className="items-center">
-            <ActivityIndicator color="#00D98B" size="large" />
-            <Text className="mt-4 text-sm text-brisk-subtext">
-              {status === "authorizing" ? "Authorizing…" : "Settling on Sui…"}
+        {/* Save summary */}
+        <View className="mt-5 flex-row items-center rounded-2xl border border-[#1C2A3A] bg-brisk-bg1 px-4 py-4">
+          <PiggyBank color="#00D98B" size={24} />
+          <View className="ml-3 flex-1">
+            <Text className="text-sm text-brisk-text">Save</Text>
+            <Text className="text-xs text-brisk-subtext">
+              {save.vaultId ? "Earning yield on idle dollars" : "Not active yet"}
             </Text>
           </View>
-        ) : null}
+          <Text className="text-base font-semibold text-brisk-text">
+            {formatUsd(save.valueMicros)}
+          </Text>
+        </View>
 
-        {status === "done" && result && invoice ? (
-          <View className="items-center">
-            <CheckCircle2 color="#00D98B" size={64} />
-            <Text className="mt-4 text-2xl font-bold text-brisk-text">Paid</Text>
-            <Text className="mt-1 text-base text-brisk-subtext">
-              {formatUsd(invoice.amountMicros)} to {invoice.merchant}
-            </Text>
-            <Text className="mt-1 text-xs text-brisk-subtext">
-              {result.method === "gasless" ? "Gasless transfer" : "Sponsored — you paid no gas"}
-            </Text>
-            <View className="mt-8 w-full max-w-[360px]">
-              <PrimaryButton label="Done" onPress={reset} />
-            </View>
+        {/* Activity */}
+        <Text className="mt-8 text-sm uppercase tracking-[2px] text-brisk-subtext">Activity</Text>
+        {items.length === 0 ? (
+          <Text className="mt-3 text-sm text-brisk-subtext">No payments yet.</Text>
+        ) : (
+          <View className="mt-3">
+            {items.map((it, i) => {
+              const received = it.direction === "received";
+              return (
+                <View
+                  key={`${it.digest}-${i}`}
+                  className="mb-2 flex-row items-center rounded-2xl border border-[#1C2A3A] bg-brisk-bg1 px-4 py-3"
+                >
+                  {received ? (
+                    <ArrowDownLeft color="#00D98B" size={20} />
+                  ) : (
+                    <ArrowUpRight color="#8B98A5" size={20} />
+                  )}
+                  <View className="ml-3 flex-1">
+                    <Text className="text-sm text-brisk-text">
+                      {received ? "Received" : "Sent"}
+                    </Text>
+                    <Text className="text-xs text-brisk-subtext">
+                      {received ? "from" : "to"} {shortAddr(it.counterparty)}
+                    </Text>
+                  </View>
+                  <Text
+                    className={`text-base font-semibold ${received ? "text-brisk-accent" : "text-brisk-text"}`}
+                  >
+                    {received ? "+" : "−"}
+                    {formatUsd(it.amountMicros)}
+                  </Text>
+                </View>
+              );
+            })}
           </View>
-        ) : null}
-
-        {status === "error" ? (
-          <View className="items-center">
-            <XCircle color="#FF5A76" size={64} />
-            <Text className="mt-4 text-lg font-semibold text-brisk-text">Something went wrong</Text>
-            <Text className="mt-1 text-center text-sm text-brisk-subtext">{error}</Text>
-            <View className="mt-8 w-full max-w-[360px]">
-              <PrimaryButton label="Try again" onPress={reset} />
-            </View>
-          </View>
-        ) : null}
-      </View>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
