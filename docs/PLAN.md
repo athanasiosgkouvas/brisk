@@ -46,34 +46,39 @@ Proven by open-source demos (iPhone reading Android HCE NDEF) + libraries that e
 
 ## Where we are right now
 
-**Phase 0 (foundations) is complete.** Clean fork of `fathom`, stripped + rebranded,
-Move package live on testnet, backend sponsor relay verified, iOS app prebuilt.
-**Next: Phase 1 — the NFC tap-to-pay core** (this is the headline build).
+**Phases 0–4 are code-complete** (Move + app integration; all 4 Move test suites pass; app typechecks).
+The app **builds + runs on the Pixel**, zkLogin sign-in works, the custom HCE module loads.
+**Remaining: end-to-end on-device tap test** (needs a 2nd NFC device — iPhone NFC requires a
+**paid Apple Developer account**), **fund the LendingPool reserve** with testnet USDC (to pay
+withdrawal yield), then polish + submission (Phase 5).
 
 Test devices available: **Android phone + iPhone** (Android = Brisk Terminal, iPhone = customer).
+⚠️ iPhone can't run the NFC build on a free Apple team — needs the paid program, or use a 2nd Android.
 
 ---
 
 ## Key coordinates (don't re-derive these)
 
-| Thing                  | Value                                                                                                           |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------- |
-| Repo                   | `/Users/agkouvas/sui_repos/brisk` (monorepo: app root / `backend/` / `move/`)                                   |
-| Built on               | fork of `/Users/agkouvas/sui_repos/fathom` (auth + sponsor spine reused)                                        |
-| Move package (testnet) | `0x713f0b6d6251bf8bf557479ceb4a9695ed2d14eea8946d610d23c88d3c5f9934`                                            |
-| UpgradeCap             | `0x2f2e2985a84c8e0287ea6426944afbebe2c88854c5f3b29e052b3dcb8a739f12`                                            |
-| Deployments record     | `move/deployments.json`                                                                                         |
-| Dev Sui address        | `0x076a67589159074d5c29ccddc1c24f7c34a4c3527502e55f182e10f5bc0bd606`                                            |
-| Network                | testnet (gasless `send_funds` confirmed on testnet)                                                             |
-| Bundle id / scheme     | `com.gkouvas.brisk` / `brisk://` (OAuth deep link `brisk://oauth`; invoice `brisk://pay?...`)                   |
-| Backend URL (ngrok)    | `https://buddy-goldsmith-bolster.ngrok-free.dev` → local `:3001`                                                |
-| ngrok command          | `cd backend && npm run ngrok` (reserved domain)                                                                 |
-| NFC libs               | `react-native-hce` (Android terminal, HCE) · `react-native-nfc-manager` (customer read, iOS+Android)            |
-| NDEF tag               | Type-4, AID `D2760000850101`; payload = `brisk://pay?payee=<addr>&amount=<micros>&invoice=<id>&merchant=<name>` |
-| Stablecoin             | **USDC**. ⚠️ testnet type in `.env` UNVERIFIED — confirm in Phase 1                                             |
-| Auth                   | zkLogin via Google + Enoki; ephemeral key in `expo-secure-store`; device biometric gate (Phase 1)               |
-| Monetization           | yield spread (cut of generated yield; payments always free)                                                     |
-| Test devices           | Android phone (terminal) + iPhone (customer). **NFC needs real hardware — no simulator.**                       |
+| Thing                  | Value                                                                                                                |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Repo                   | `/Users/agkouvas/sui_repos/brisk` (monorepo: app root / `backend/` / `move/`)                                        |
+| Built on               | fork of `/Users/agkouvas/sui_repos/fathom` (auth + sponsor spine reused)                                             |
+| Move package (testnet) | `0xc7073f8c1f54ece01d81e4b4cd9a16931ddacc43875bf80bf4780112fb72204a` (all 6 modules; supersedes 0x713f… scaffold)    |
+| LendingPool<USDC>      | `0x2e3c89fa3b757dcbe0ea8242e1368d8662ed6ed0eda2c412cafe0b1380f16457` (10% APY; reserve UNFUNDED — fund to pay yield) |
+| mock_lender AdminCap   | `0xaa2304057a21eb0689b3d2e6000a82e4e2c183565713cb317be1411d82930e37`                                                 |
+| UpgradeCap             | `0x09d162f6c9688c14fe85bf75df2342aa6ac352591f11d994d5c533d20ba9dc8a`                                                 |
+| Deployments record     | `move/deployments.json`                                                                                              |
+| Dev Sui address        | `0x076a67589159074d5c29ccddc1c24f7c34a4c3527502e55f182e10f5bc0bd606`                                                 |
+| Network                | testnet (gasless `send_funds` confirmed on testnet)                                                                  |
+| Bundle id / scheme     | `com.gkouvas.brisk` / `brisk://` (OAuth deep link `brisk://oauth`; invoice `brisk://pay?...`)                        |
+| Backend URL (ngrok)    | `https://buddy-goldsmith-bolster.ngrok-free.dev` → local `:3001`                                                     |
+| ngrok command          | `cd backend && npm run ngrok` (reserved domain)                                                                      |
+| NFC libs               | `react-native-hce` (Android terminal, HCE) · `react-native-nfc-manager` (customer read, iOS+Android)                 |
+| NDEF tag               | Type-4, AID `D2760000850101`; payload = `brisk://pay?payee=<addr>&amount=<micros>&invoice=<id>&merchant=<name>`      |
+| Stablecoin             | **USDC**. ⚠️ testnet type in `.env` UNVERIFIED — confirm in Phase 1                                                  |
+| Auth                   | zkLogin via Google + Enoki; ephemeral key in `expo-secure-store`; device biometric gate (Phase 1)                    |
+| Monetization           | yield spread (cut of generated yield; payments always free)                                                          |
+| Test devices           | Android phone (terminal) + iPhone (customer). **NFC needs real hardware — no simulator.**                            |
 
 Secrets live in gitignored `.env` (frontend) and `backend/.env` (Enoki private key). Templates: `.env.example`, `backend/.env.example`.
 
@@ -204,23 +209,22 @@ Cut order if time-tight: **cashback → vault** (the tap is the core, never cut;
 - [ ] QR fallback (small): merchant-on-iPhone shows QR; customer can scan instead of tap.
 - [ ] **Exit:** iPhone customer **taps** an Android Brisk Terminal → pays exact amount, no gas → terminal shows Paid in ~1s. Same for Android customer.
 
-### Phase 2 — On-chain receipts + merchant registry
+### ✅ Phase 2 — On-chain receipts + merchant registry (CODE DONE)
 
-- [ ] Finish `merchant_registry` + `payment_receipt` (+ tests); merchant onboarding.
-- [ ] Payment uses sponsored "rich" PTB (transfer + `Receipt`); receipt history from `PaymentMade` events.
-- [ ] **Exit:** every payment yields an on-chain `Receipt`; refund path demoable.
+- [x] `merchant_registry` + `payment_receipt` fleshed out (+ Move tests).
+- [x] `payInvoice` uses a sponsored "rich" PTB (send_funds + `issue` Receipt → payer); settlement detected from `PaymentMade` events (`receipts.ts`, event-envelope ts).
+- [ ] _On-device:_ confirm a `Receipt` object + `PaymentMade` event land per payment.
 
-### Phase 3 — Yield vault + Save bucket
+### ✅ Phase 3 — Yield vault + Save bucket (CODE DONE)
 
-- [ ] `spending_vault` + `lender_adapter` + `mock_lender` (+ tests, Prover value-conservation spec).
-- [ ] Save tab: deposit/withdraw, accruing yield (fast-forwardable), `withdraw_and_pay`.
-- [ ] **Exit:** deposit → yield accrues → spend pulls from Save instantly; invariant test passes.
+- [x] `spending_vault` + `mock_lender` (+ test: deposit → 1yr → withdraw = principal + 10%). `lender_adapter` documents the mainnet swap seam.
+- [x] Save tab: activate/deposit/withdraw, live value via devInspect (`vaultTx`, `saveAccount`, `useSave`, `save.tsx`).
+- [ ] _On-device:_ fund the pool reserve, then deposit → accrue → withdraw.
 
-### Phase 4 — Cashback + polish
+### ✅ Phase 4 — Cashback (CODE DONE)
 
-- [ ] `loyalty` Closed-Loop cashback minted on payment; redemption UX.
-- [ ] Tighten tap UX (haptics on read, retry, error states); QR fallback polish.
-- [ ] **Exit:** cashback appears post-payment; tap flow feels production-grade.
+- [x] `loyalty`: closed-loop `Points` (key, no store = non-transferable credit); `earn` mints 1% on payment, `redeem` burns (+ test). Minted atomically in the payment PTB.
+- [ ] Redemption UX in the app + tap-UX polish (haptics, retry) — Phase 5.
 
 ### Phase 5 — Harden, pitch, submit
 
