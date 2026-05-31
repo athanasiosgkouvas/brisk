@@ -1,130 +1,337 @@
-# Fathom
+<div align="center">
 
-> Swipe to bet on Sui — a mobile-first prediction market that composes **DeepBook Spot + DeepBook Predict** in a single sponsored transaction.
+# Brisk
 
-Fathom turns binary and range prediction markets into a swipe-deck. There are no wallet pop-ups, no gas approvals, and no seed phrases. Sign in with Google, swipe right for YES, left for NO, and claim winnings with one tap. The same DeepBook Predict vault that pays out winners is open to **anyone** as an LP via the Earn tab — making Fathom a self-contained dual-sided economy on a single shared pool.
+### Tap to pay in stablecoins — feeless to the user, and your idle dollars earn while you spend.
 
-**Sui Overflow 2026 / DeepBook track headline:** DeepBook's orderbook is *load-bearing and on-chain-enforced*, not decorative:
+**A decentralized tap‑to‑pay point‑of‑sale on [Sui](https://sui.io).**
+A customer taps their phone (iPhone **or** Android) to a merchant's _Brisk Terminal_ and pays in **USDC** —
+charged the exact amount, **no gas, no card fees** — and the merchant is paid **instantly**.
+Idle balances earn yield in a one‑tap **Save** vault.
 
-1. **Enforced atomic spot leg.** Flip on **Smart Bet** and each swipe submits one sponsored PTB that mints a Predict position **and** trades SUI on `deepbook::pool::swap_exact_base_for_quote<SUI, DBUSDC>` — then calls **Fathom's own Move package** `fathom_router::assert_and_record`, which *asserts the orderbook actually filled* a real slippage floor (aborting the whole transaction otherwise) and emits a `HedgedSwapExecuted` event. No fill, no bet — atomically.
-2. **Real maker liquidity.** A maker-order panel rests genuine limit orders on the SUI/DBUSDC CLOB via a per-user `BalanceManager` (`place_limit_order` / `cancel_order`), sponsored end-to-end.
-3. **Live orderbook data.** A backend feed surfaces the live SUI/DBUSDC mid + spread in-app.
+`Sui Overflow 2026` · **DeFi & Payments** track · Built on Sui's protocol‑level **gasless stablecoin transfers**
 
-Honest about testnet: the spot leg only engages when the book can fill and the wallet holds DEEP; otherwise the swipe mints a plain Predict position and says why. Predict lists only BTC markets on testnet, so we do **not** pretend to price them off DeepBook.
+</div>
 
-## For judges
+---
 
-- **60-second demo video:** _(record per [`docs/demo-script.md`](docs/demo-script.md) and link here)_
-- **Try it in 10 seconds:** install the [release APK](docs/build-android.md) on Android, or run `EXPO_PUBLIC_DEMO_MODE=true npm run start` for a deterministic walkthrough.
-- **What to look at, in order:**
-  1. **Swipe tab** — toggle **DeepBook Smart Bet** on (the chip directly above the deck). Each swipe now bundles a Predict mint + DeepBook Spot hedge in one explorer digest.
-  2. **Profile / Settings tab** — claim winnings to see the itemized **Gross → Fathom fee → Net** modal (1% take-rate skimmed inside the redeem PTB), and try the **DeepBook swap** utility panel for standalone SUI ↔ DBUSDC.
-  3. **Earn tab** — deposit dUSDC into DeepBook Predict's shared vault for PLP shares and a live 7-day APY, with on-chain `available_withdrawal` pre-check before every withdraw.
+## Table of contents
 
-## Why it matters
+- [Why Brisk](#why-brisk)
+- [What makes it different](#what-makes-it-different)
+- [How the tap works (the hard part)](#how-the-tap-works-the-hard-part)
+- [Feeless by design: gasless vs sponsored](#feeless-by-design-gasless-vs-sponsored)
+- [The on‑chain primitive (Move)](#the-onchain-primitive-move)
+- [Architecture](#architecture)
+- [Tech stack](#tech-stack)
+- [Repository layout](#repository-layout)
+- [Deployed on testnet](#deployed-on-testnet)
+- [Run it yourself](#run-it-yourself)
+- [Security posture](#security-posture)
+- [Monetization](#monetization)
+- [Roadmap](#roadmap)
+- [Honest limitations](#honest-limitations)
+- [Acknowledgements](#acknowledgements)
 
-- **Enforced DeepBook composability in one digest.** Smart Bet builds a single sponsored PTB that calls `predict::mint`, `deepbook::pool::swap_exact_base_for_quote<SUI, DBUSDC>`, and Fathom's own `fathom_router::assert_and_record` — which enforces the orderbook filled a real floor (abort reverts the mint too) and emits a linking event. The previous version passed `min_out = 0` and silently no-op'd; this one is on-chain-asserted. The same SUI/DBUSDC orderbook also powers a standalone swap panel and a real maker-order (limit-order) panel in Profile.
-- **No wallet friction.** zkLogin + Enoki sponsorship means a new user is signing on-chain transactions on Sui testnet within seconds of tapping "Continue with Google" — and the user keeps full self-custody of their ephemeral key.
-- **Real on-chain trading.** Every swipe builds a sponsored PTB that calls `predict::mint` or `predict::mint_range` on the canonical [DeepBook Predict deployment](https://github.com/MystenLabs/deepbookv3/tree/predict-testnet-4-16/packages/predict). Solvency is enforced **on-chain** by `predict::max_total_exposure_pct`.
-- **One shared liquidity pool.** Earn-tab LPs supply the same vault that pays Swipe-tab winners — a true dual-sided economy with no intermediary, no Fathom-owned Move package, and no keeper bot. The Earn withdraw flow surfaces Predict's on-chain `available_withdrawal` rate-limiter before submission.
-- **Honest revenue.** Fathom skims a transparent 1% fee on the winning payout — split inside the same `predict::redeem` + `predict_manager::withdraw` PTB and routed straight to a treasury address. Net to the user is itemized in the claim modal: _we only earn when you win_.
+---
+
+## Why Brisk
+
+Card networks skim **2–3%** off every sale and settle to merchants in _days_. "Pay with crypto" was
+supposed to fix this, but in practice it's worse for normal people: gas fees, seed phrases, wallet
+pop‑ups, and confusing UX. Nobody taps a hardware wallet to buy a coffee.
+
+Two things changed on Sui in 2026 that make a genuinely better experience possible:
+
+1. **Protocol‑level gasless stablecoin transfers** (launched May 2026). Supported stablecoins move
+   peer‑to‑peer for **$0.00** via the new _Address Balances_ architecture — the sender doesn't even
+   need any SUI for gas. This isn't a relayer trick; it's built into the protocol.
+2. **zkLogin + Passkey + Enoki sponsorship** — self‑custodial accounts from a Google sign‑in, biometric
+   signing, and gas sponsorship, so a wallet feels like a normal app.
+
+Brisk puts these together into the experience people already understand: **tap your phone, pay, done.**
+Except it's feeless to the customer, settles to the merchant in under a second, runs on open rails, and
+your spending balance earns yield instead of sitting idle.
+
+> **Headline:** _"Tap to pay in stablecoins — feeless to the user, and your idle dollars earn while you spend."_
+
+---
+
+## What makes it different
+
+|                  | Card networks          | Existing crypto wallets (incl. Slush) | **Brisk**                      |
+| ---------------- | ---------------------- | ------------------------------------- | ------------------------------ |
+| Customer fee     | 0 (merchant pays 2–3%) | Gas on every tx                       | **$0 — gasless / sponsored**   |
+| Onboarding       | Bank account           | Seed phrase                           | **Google sign‑in (zkLogin)**   |
+| Pay gesture      | Tap                    | Scan a QR / paste address             | **Tap (NFC), iOS + Android**   |
+| Settlement       | Days                   | Seconds                               | **Sub‑second, on‑chain**       |
+| Idle balance     | 0%                     | 0%                                    | **Earns yield (Save vault)**   |
+| Proof of payment | Statement              | Tx hash                               | **On‑chain `Receipt` object**  |
+| Rewards          | Issuer‑locked points   | —                                     | **Closed‑loop cashback token** |
+
+No existing Sui wallet does NFC tap‑to‑pay. That tap — working on **both** iPhone and Android with **no
+Apple entitlement** — is Brisk's core technical contribution, alongside the on‑chain spending‑vault primitive.
+
+---
+
+## How the tap works (the hard part)
+
+Real phone‑to‑phone NFC is a minefield: **iOS has no peer‑to‑peer NFC**, Android Beam is dead, and iOS
+26's third‑party HCE / device‑to‑device NFC is **EEA‑only and gated behind a regulatory‑approved
+entitlement** (weeks of process). So a naïve "bonk two iPhones together" simply cannot work.
+
+Brisk uses the one **entitlement‑free** path that works across platforms:
+
+```
+  ┌─────────────────────────┐         NFC tap          ┌──────────────────────────┐
+  │   Brisk Terminal         │  ◄───────────────────►   │   Customer (Pay)          │
+  │   (merchant, Android)    │   NDEF Type‑4 tag        │   iPhone OR Android       │
+  │                          │   AID D2760000850101     │                           │
+  │  HCE emulates a tag      │ ───────────────────────► │  reads the invoice        │
+  │  carrying the invoice:   │   brisk://pay?payee=…    │  → Face ID → pays         │
+  │  payee · amount · id     │   &amount=…&invoice=…    │                           │
+  └─────────────────────────┘                          └──────────────────────────┘
+            ▲                                                       │
+            │            on‑chain settlement (sub‑second Sui)       │
+            └───────────────────────────────────────────────────────┘
+                     merchant sees "Paid ✓" from the PaymentMade event
+```
+
+- The **merchant terminal (Android)** uses **Host Card Emulation** to present an **NFC Forum Type‑4 tag**
+  whose NDEF record is the invoice (`brisk://pay?payee=…&amount=…&invoice=…&merchant=…`).
+- The **customer taps** and reads that NDEF — and **reading works on both iOS** (Core NFC, the _standard_
+  "NFC Tag Reading" capability) **and Android** (reader mode).
+- The customer reviews the amount, authorizes with **Face ID / fingerprint**, and the payment settles
+  **on‑chain**. NFC only carries the invoice; the money moves on Sui.
+
+This mirrors how real point‑of‑sale already works — the customer taps the merchant's terminal — and the
+"terminal is an Android device" assumption is exactly what Square/SoftPOS rely on. QR is kept as a
+universal fallback (e.g. a merchant on iPhone).
+
+> We built a **custom native HCE module** (Kotlin `HostApduService` implementing the Type‑4 APDU state
+> machine, see [`plugins/hce-android/`](plugins/hce-android)) because the only off‑the‑shelf RN library,
+> `react-native-hce`, is unmaintained and incompatible with React Native 0.81 / AGP 8.
+
+---
+
+## Feeless by design: gasless vs sponsored
+
+The user **never** pays gas. Two complementary mechanisms make that true:
+
+1. **Native gasless** — a plain stablecoin transfer is a PTB containing only `0x2::balance::send_funds<USDC>`.
+   Sui's protocol treats it as a **zero‑fee** Address‑Balances transfer; the sender needs no SUI. (Used for
+   simple peer‑to‑peer transfers; see `payGasless`.)
+2. **Enoki‑sponsored** — a merchant payment does _more_ than a bare transfer (mints a receipt + cashback),
+   which disqualifies native‑gasless. So it runs as a **single Enoki‑sponsored PTB**: Enoki pays the gas,
+   the user is still charged **exactly** the invoice amount.
+
+Either way the customer is charged `$X` and pays `$0` in fees. This is the load‑bearing design decision and
+it's wired throughout `services/blockchain/paymentTx.ts`.
+
+---
+
+## The on‑chain primitive (Move)
+
+The DeFi & Payments track rewards an **auditable on‑chain primitive** (1st/3rd place are sponsored by
+**OpenZeppelin** and **OtterSec**). Brisk ships six small, focused Move modules ([`move/sources/`](move/sources)):
+
+| Module              | What it is                                                                                                                                                                                                                                         |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `merchant_registry` | Merchant identity: a `Merchant` profile object + a `MerchantCap` capability.                                                                                                                                                                       |
+| `payment_receipt`   | **Verifiable receipts.** `issue<T>` mints an immutable `Receipt` (payer, payee, amount, currency, memo, invoice id, time) to the payer and emits a `PaymentMade` event — the canonical, indexable record a merchant queries for their sales.       |
+| `spending_vault`    | **The novel primitive.** A per‑user `Vault<T>` custodies a lender position so idle USDC earns yield while staying instantly spendable. `deposit` consolidates, `withdraw` re‑supplies the remainder. **Value conservation** is the core invariant. |
+| `mock_lender`       | Testnet lender behind the adapter seam: a shared `LendingPool<T>` accruing deterministic, time‑based yield from an admin‑funded reserve (`supply` / `redeem` / `current_value`).                                                                   |
+| `lender_adapter`    | Documents the **only** testnet→mainnet swap point: replace `mock_lender` with a real Suilend/Scallop adapter exposing the same shape — no app changes.                                                                                             |
+| `loyalty`           | **Closed‑loop cashback.** `Points` has `key` but **not** `store`, so it can only be moved or burned by this module — a regulated loyalty credit with no free transfers. `earn` mints 1% on payment; `redeem` burns.                                |
+
+Every merchant payment is a **single atomic PTB**: move USDC → mint `Receipt` → mint cashback. If any step
+fails, the whole payment reverts.
+
+All four test suites pass (`sui move test`): receipt fields, merchant registration, vault
+`deposit → +1yr → withdraw == principal + 10%`, and cashback mint/redeem.
+
+---
 
 ## Architecture
 
-```mermaid
-flowchart LR
-  User([User]) -- Google OAuth --> App["📱 Fathom App<br/>(Expo / RN)"]
-  App -- POST /api/sponsor --> Backend["Backend<br/>(Express + SQLite)"]
-  Backend -- createSponsoredTransaction --> Enoki["Enoki API"]
-  Backend -- index events --> Predict["DeepBook Predict<br/>(Sui testnet)"]
-  App -- signed bytes --> Backend
-  Backend -- executeSponsoredTransaction --> Enoki
-  Enoki -- execute --> Predict
-  Predict -- vault snapshots / oracle state --> Backend
-  App -- 7d APY / user stats / leaderboard --> Backend
+```
+┌───────────────────────────── Mobile app (Expo / React Native) ─────────────────────────────┐
+│  Pay (iOS+Android)        Charge (Android terminal)        Save (vault)                       │
+│  NFC read → Face ID       amount → HCE emulate tag         deposit / withdraw / yield          │
+│        │                        │                                │                             │
+│        ├── @mysten/sui (PTBs, on‑device) ── zkLogin (Enoki) ── expo-secure-store (keys)        │
+└────────┼────────────────────────┼────────────────────────────────┼────────────────────────────┘
+         │ build PTB               │ HCE (custom native module)     │ devInspect / events
+         ▼                         ▼                                ▼
+┌──────────────────────┐   ┌──────────────────────────────────────────────────────────────────┐
+│  Sponsor relay        │   │                         Sui (testnet)                              │
+│  (Node/Express)       │   │  brisk package: merchant_registry · payment_receipt ·              │
+│  /api/sponsor         │──►│  spending_vault · mock_lender · lender_adapter · loyalty           │
+│  /api/execute (Enoki) │   │  + native gasless 0x2::balance::send_funds<USDC>                   │
+│  /auth/callback relay │   │  + Circle USDC · LendingPool<USDC> @ 10% APY                        │
+└──────────────────────┘   └──────────────────────────────────────────────────────────────────┘
 ```
 
-- **App** (`app/`, `components/`, `hooks/`, `services/`, `store/`) — Expo Router + NativeWind + Zustand + TanStack Query. zkLogin signing happens **on device** via `EnokiKeypair`; the backend never sees the user's ephemeral key.
-- **Backend** (`backend/`) — Enoki sponsorship relay (`/api/sponsor`, `/api/execute`), Google OAuth deep-link relay (`/auth/callback` → `/auth/relay`), event indexer over six Predict event filters, and a 5-minute Predict-vault snapshotter that derives a rolling 7-day APY.
-- **Move layer** — one small Fathom package, [`move/fathom_router`](move/fathom_router) (`router::assert_and_record`), enforces the Smart Bet DeepBook spot fill on-chain and emits a linking event. Everything else targets DeepBook Predict + DeepBook v3's published modules directly.
+- **Mobile** calls the Sui TypeScript SDK directly on‑device (incl. the critical Hermes `Intl.PluralRules`
+  polyfill that makes the SDK work in React Native).
+- **Backend** is a thin sponsor relay only — it holds the Enoki _private_ key (which can't ship in the app)
+  and proxies the Google OAuth redirect to the `brisk://oauth` deep link. It never sees the user's key.
+- **Auth**: zkLogin via Google + Enoki; the ephemeral key lives in `expo-secure-store` and never leaves the
+  device; signing is gated by Face ID / fingerprint (`expo-local-authentication`).
 
-## Stack
+---
 
-Expo Router · TypeScript (strict) · NativeWind · Reanimated · Deck Swiper · Zustand · TanStack Query · `@mysten/sui` · `@mysten/enoki` · `@mysten/deepbook-v3` · Node/Express · SQLite (`better-sqlite3`).
+## Tech stack
 
-## Run it locally
+- **Mobile:** Expo (SDK 54) · React Native 0.81 · expo-router · NativeWind · Zustand · TanStack Query
+- **Sui:** `@mysten/sui` (on‑device PTBs) · `@mysten/enoki` (zkLogin + sponsorship, via HTTP API in RN)
+- **NFC:** custom native Kotlin HCE module (merchant) · `react-native-nfc-manager` (customer read, iOS+Android)
+- **Auth:** zkLogin (Google) · Enoki Gas Pool · `expo-local-authentication` (biometrics)
+- **On‑chain:** Move 2024 (Sui) — 6 modules, `sui move test`
+- **Backend:** Node + Express + Zod (sponsor relay), Enoki TypeScript SDK
 
-Copy env files and install:
+---
+
+## Repository layout
+
+```
+brisk/
+├── app/                      # expo-router screens
+│   ├── (tabs)/index.tsx      #   Pay   — customer NFC tap → Face ID → pay
+│   ├── (tabs)/merchant.tsx   #   Charge — Brisk Terminal (Android HCE)
+│   └── (tabs)/save.tsx       #   Save   — yield vault
+├── hooks/                    # usePay, useCharge, useSave, useAuth
+├── services/
+│   ├── auth/                 # enokiAuth (zkLogin login/restore/sign)
+│   ├── blockchain/           # suiClient, paymentTx, payments, vaultTx, saveAccount, receipts
+│   └── nfc/                  # hce (merchant), reader (customer)
+├── plugins/
+│   ├── withBriskHce.js       # config plugin: inject HCE module + manifest + aid_list
+│   └── hce-android/          # Kotlin: HceNdefService, BriskHceModule, BriskHcePackage
+├── move/
+│   ├── sources/              # 6 Move modules
+│   ├── tests/                # Move unit tests
+│   └── deployments.json      # testnet addresses
+├── backend/                  # Enoki sponsor relay (Express)
+└── docs/PLAN.md              # living implementation plan / status
+```
+
+---
+
+## Deployed on testnet
+
+| Object                            | ID                                                                               |
+| --------------------------------- | -------------------------------------------------------------------------------- |
+| **Package**                       | `0xc7073f8c1f54ece01d81e4b4cd9a16931ddacc43875bf80bf4780112fb72204a`             |
+| **LendingPool\<USDC\>** (10% APY) | `0x2e3c89fa3b757dcbe0ea8242e1368d8662ed6ed0eda2c412cafe0b1380f16457`             |
+| USDC (Circle, testnet)            | `0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdc::USDC` |
+| App bundle id / scheme            | `com.gkouvas.brisk` / `brisk://`                                                 |
+
+Full record (incl. UpgradeCap, AdminCap, publish digest) in [`move/deployments.json`](move/deployments.json).
+
+---
+
+## Run it yourself
+
+> **NFC requires real hardware** — there is no NFC on the iOS Simulator. The full tap needs a merchant
+> Android device + a customer phone. iPhone NFC additionally requires a **paid Apple Developer Program**
+> membership (Apple gates NFC behind it); two Android devices work entirely free.
 
 ```bash
-cp .env.example .env
-cp backend/.env.example backend/.env
+# 0. Install
 npm install
+cp .env.example .env                 # fill in Enoki + Google client id (see below)
+cp backend/.env.example backend/.env # fill in ENOKI_PRIVATE_KEY
 (cd backend && npm install)
+
+# 1. Sponsor relay (holds the Enoki private key)
+cd backend && npm run dev
+# 2. Expose it publicly so devices + Google OAuth can reach it
+cd backend && npm run ngrok
+
+# 3a. Brisk Terminal on an Android device (merchant / HCE)
+npx expo run:android --device
+# 3b. Customer app on a phone (iPhone needs a paid Apple team for NFC)
+npx expo run:ios --device     # or a 2nd Android: npx expo run:android --device
+
+# Move
+cd move && sui move test       # run the on-chain test suites
+cd move && sui move build      # compile
 ```
 
-Required app env (`.env`):
+**Configuration** (`.env`): `EXPO_PUBLIC_ENOKI_API_KEY`, `EXPO_PUBLIC_GOOGLE_CLIENT_ID` (a Google
+_Web_ OAuth client with `<backend>/auth/callback` as an authorized redirect URI),
+`EXPO_PUBLIC_BACKEND_URL` (the public/ngrok URL), `EXPO_PUBLIC_BRISK_PACKAGE_ID`, `EXPO_PUBLIC_BRISK_POOL_ID`.
+Backend (`backend/.env`): `ENOKI_PRIVATE_KEY`.
 
-- `EXPO_PUBLIC_ENOKI_API_KEY`
-- `EXPO_PUBLIC_GOOGLE_CLIENT_ID` and `EXPO_PUBLIC_GOOGLE_REDIRECT_URI`
-- `EXPO_PUBLIC_BACKEND_URL`
+**Demo flow:** sign in with Google on both devices → on Android open **Charge**, enter an amount →
+on the customer phone open **Pay**, tap the terminal → Face ID → the merchant flips to **Paid ✓**, the
+customer holds a `Receipt` + cashback, and idle balances can be parked in **Save** to earn yield.
 
-Required backend env (`backend/.env`):
+---
 
-- `ENOKI_PRIVATE_KEY`
-- `PORT` (default 3001)
+## Security posture
 
-Start the backend, then the app:
+Built for the OpenZeppelin / OtterSec lens:
 
-```bash
-cd backend && npm run dev      # http://localhost:3001
-# in another terminal
-npm run start
-```
+- **Capability‑gated admin** — pool creation/config requires the `mock_lender::AdminCap`.
+- **Closed‑loop loyalty** — `Points` is `key`‑only (no `store`), so it can never be transferred or composed
+  outside its module.
+- **Value conservation** — the vault never mints value: `withdraw` returns exactly principal + accrued, and
+  `redeem` asserts the reserve can cover it (`EInsufficientReserve`). Covered by a unit test; a Move Prover
+  spec is queued.
+- **No custody of user keys** — the backend only sponsors gas; the zkLogin ephemeral key stays in
+  `expo-secure-store` on the device and signs locally.
+- **Sponsorship allow‑lists** — every sponsored PTB declares its exact `allowedMoveCallTargets`; Enoki
+  rejects anything outside the list (anti‑abuse), plus a per‑sender daily cap on the relay.
+- **Atomic payments** — money + receipt + cashback are one PTB; partial failure reverts everything.
 
-To run the deterministic demo loop (no Predict-server / faucet / sponsorship dependencies):
+---
 
-```bash
-EXPO_PUBLIC_DEMO_MODE=true npm run start
-```
+## Monetization
 
-## Quality gates
+Payments are **always free to the user**. Brisk's only take‑rate is a **spread on the yield** generated by
+idle balances in the Save vault — users still net positive versus a bank, and incentives stay aligned (we
+earn only when we earn for you). Configurable via `EXPO_PUBLIC_YIELD_SPREAD_BPS` (default 10% of yield).
 
-```bash
-npm run typecheck && npm run lint
-(cd backend && npm run build && npm test)
-```
+---
 
-All gates pass clean on `main`.
+## Roadmap
 
-## Canonical on-chain identifiers (Sui testnet)
+**Testnet → mainnet** is a single seam: swap `mock_lender` for a real **Suilend/Scallop** adapter behind
+`lender_adapter`, point config at mainnet USDC + the Enoki gas pool, re‑publish, and (with the won audit
+credits) ship. No app‑logic changes.
 
-|                          |                                                                      |
-| ------------------------ | -------------------------------------------------------------------- |
-| Fathom router (ours)     | `0x92555862cc0dbcedfd6f7ff15bc5ebf42e5bc33e81bf87dac0e611bf45e1c89c` |
-| Predict package          | `0xf5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138` |
-| Predict shared object    | `0xc8736204d12f0a7277c86388a68bf8a194b0a14c5538ad13f22cbd8e2a38028a` |
-| Predict registry         | `0x43af14fed5480c20ff77e2263d5f794c35b9fab7e2212903127062f4fe2a6e64` |
-| dUSDC (Predict quote)    | `0xe95040…1a::dusdc::DUSDC`                                          |
-| PLP share type           | `<predict_pkg>::plp::PLP`                                            |
-| DeepBook v3 package      | `0x22be4cade64bf2d02412c7e8d0e8beea2f78828b948118d46735315409371a3c` |
-| DeepBook SUI/DBUSDC pool | `0x1c19362ca52b8ffd7a33cee805a67d40f31e6ba303753fd3a4cfdfacea7163a5` |
-| DBUSDC (DeepBook quote)  | `0xf7152c0…d7::DBUSDC::DBUSDC`                                       |
+- **v2:** fiat on/off‑ramp (Apple Pay / Google Pay via a ramp partner) · cashback redemption marketplace ·
+  merchant analytics · iOS‑as‑terminal once Apple's EEA device‑to‑device NFC entitlement is granted ·
+  enable the yield‑spread fee.
 
-DeepBook Predict source: [`MystenLabs/deepbookv3` branch `predict-testnet-4-16`](https://github.com/MystenLabs/deepbookv3/tree/predict-testnet-4-16/packages/predict). DeepBook v3 testnet ids and pool addresses come from `@mysten/deepbook-v3`'s `testnetPackageIds` / `testnetPools` — pinned and verified by [`scripts/probe-deepbook.ts`](scripts/probe-deepbook.ts).
+---
 
-## Submission docs
+## Honest limitations
 
-- [`docs/demo-script.md`](docs/demo-script.md) — pre-recording checklist and tap-by-tap demo flow.
-- [`docs/build-android.md`](docs/build-android.md) — release APK build + install.
-- [`docs/marketing-prep.md`](docs/marketing-prep.md) — tagline, one-liner, pitch bullets.
-- [`docs/range-markets.md`](docs/range-markets.md) — range-mode product spec.
-- [`TECHNICAL_OVERVIEW.md`](TECHNICAL_OVERVIEW.md) — zkLogin flow, Enoki sponsorship, vault math, APY derivation.
+We'd rather be straight about the edges than oversell:
 
-## Notes
+- **Merchant terminal is Android‑only.** HCE doesn't exist on iOS without a hard entitlement, so the
+  _terminal_ runs on Android; the _customer_ works on iOS + Android. (A merchant on iPhone falls back to QR.)
+- **iOS NFC needs a paid Apple account.** Free/Personal Apple teams can't provision the NFC capability.
+- **Testnet yield is from a mock lender** with an admin‑funded reserve, behind the adapter interface — the
+  mainnet adapter wires a real money market. The reserve must be funded (`mock_lender::fund`) to pay yield.
+- **End‑to‑end on‑device tap** is pending a second NFC device; the app builds, runs, signs in via zkLogin,
+  and loads the HCE module on a Pixel 9 Pro today.
 
-- Targets DeepBook v3 + DeepBook Predict **testnet**. Mainnet readiness is out of scope for this submission.
-- Demo mode covers Welcome, Swipe, Settlement, Claim, and Earn end-to-end — safe to record video against even if Predict server / faucet / RPC are flaky. The Smart Bet spot leg, the maker-order panel, and the DeepBook swap utility require live testnet. Smart Bet engages its enforced spot leg only when the book can fill the size **and** the wallet holds DEEP for the fill fee; otherwise the swipe mints a plain Predict position and shows the reason (no silent no-op).
-- Settlement alone does not auto-transfer funds; users explicitly tap "Claim winnings" on the Settings tab. The redeem PTB itemises Fathom's 1% take-rate before transferring net to the user.
-- `dUSDC` (Predict's quote) and `DBUSDC` (DeepBook's quote) are distinct coin types on testnet with no on-chain wrapper. Smart Bet therefore composes Predict + DeepBook via an enforced spot leg rather than an atomic SUI → dUSDC onramp.
-- On testnet, Predict lists **only BTC** oracles and DeepBook's only liquid book is **SUI/DBUSDC** (the DBTC book is empty). We therefore do **not** price the prediction markets off DeepBook — that would be dishonest — and surface a live DeepBook SUI/DBUSDC ticker instead. The DeepBook spot leg only fills for sizes ≥ ~1 SUI with DEEP held.
+See [`docs/PLAN.md`](docs/PLAN.md) for the full status and the phase‑by‑phase implementation log.
+
+---
+
+## Acknowledgements
+
+Built on [Sui](https://sui.io), [Mysten Labs Enoki](https://docs.enoki.mystenlabs.com/) (zkLogin +
+sponsorship), [Circle USDC](https://www.circle.com/usdc), and Sui's protocol‑level gasless stablecoin
+transfers. The auth + sponsorship spine was adapted from a prior Sui project (`fathom`).
+
+<div align="center">
+
+_Brisk — pay with a tap, keep every cent, earn while you spend._
+
+</div>
