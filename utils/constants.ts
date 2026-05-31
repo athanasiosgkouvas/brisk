@@ -13,10 +13,12 @@ export const ENV = {
   /** Brisk's on-chain Move package (move/). Published to testnet 2026-05-31. */
   briskPackageId:
     process.env.EXPO_PUBLIC_BRISK_PACKAGE_ID ??
-    "0x713f0b6d6251bf8bf557479ceb4a9695ed2d14eea8946d610d23c88d3c5f9934",
+    "0xc7073f8c1f54ece01d81e4b4cd9a16931ddacc43875bf80bf4780112fb72204a",
 
-  /** Shared mock_lender LendingPool<USDC> id (set after republish + create_pool). */
-  briskPoolId: process.env.EXPO_PUBLIC_BRISK_POOL_ID ?? "",
+  /** Shared mock_lender LendingPool<USDC> id (10% APY). */
+  briskPoolId:
+    process.env.EXPO_PUBLIC_BRISK_POOL_ID ??
+    "0x2e3c89fa3b757dcbe0ea8242e1368d8662ed6ed0eda2c412cafe0b1380f16457",
 
   /**
    * Circle USDC — Brisk's stablecoin. Both types VERIFIED (Circle docs) and USDC

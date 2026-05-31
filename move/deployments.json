@@ -1,8 +1,12 @@
 {
   "testnet": {
-    "packageId": "0x713f0b6d6251bf8bf557479ceb4a9695ed2d14eea8946d610d23c88d3c5f9934",
-    "upgradeCap": "0x2f2e2985a84c8e0287ea6426944afbebe2c88854c5f3b29e052b3dcb8a739f12",
-    "publishDigest": "EozEvh5hcCfCiWdn4L72s5Hd82ctbiy4V1iEVCaBA6u4",
+    "packageId": "0xc7073f8c1f54ece01d81e4b4cd9a16931ddacc43875bf80bf4780112fb72204a",
+    "upgradeCap": "0x09d162f6c9688c14fe85bf75df2342aa6ac352591f11d994d5c533d20ba9dc8a",
+    "publishDigest": "G71Dr7QPh2biGDqZcvsed2MfciKwyh5VdwFVbNssaeWr",
+    "mockLenderAdminCap": "0xaa2304057a21eb0689b3d2e6000a82e4e2c183565713cb317be1411d82930e37",
+    "lendingPoolUsdc": "0x2e3c89fa3b757dcbe0ea8242e1368d8662ed6ed0eda2c412cafe0b1380f16457",
+    "lendingPoolApyBps": 1000,
+    "usdcType": "0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdc::USDC",
     "publishedModules": [
       "merchant_registry",
       "payment_receipt",
@@ -10,6 +14,7 @@
       "lender_adapter",
       "mock_lender",
       "loyalty"
-    ]
+    ],
+    "notes": "Fresh publish (Phase 2-4 modules). Prior package 0x713f0b...9934 (Phase 0 scaffold) is superseded. LendingPool reserve is unfunded — fund via mock_lender::fund with testnet USDC to pay yield on withdrawals."
   }
 }

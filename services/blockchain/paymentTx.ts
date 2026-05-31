@@ -170,12 +170,19 @@ export function buildPaymentWithReceiptTx(input: {
   });
   tx.transferObjects([receipt], tx.pure.address(input.payer));
 
+  // Cashback: mint loyalty points to the payer (closed-loop, atomic with the pay).
+  tx.moveCall({
+    target: `${PKG}::loyalty::earn`,
+    arguments: [tx.pure.address(input.payer), tx.pure.u64(BigInt(input.amountMicros))],
+  });
+
   return tx;
 }
 
-/** Allowlist for the sponsored payment-with-receipt PTB. */
+/** Allowlist for the sponsored payment-with-receipt-and-cashback PTB. */
 export const PAY_WITH_RECEIPT_TARGETS = [
   "0x2::balance::send_funds",
   "0x2::coin::into_balance",
   `${PKG}::payment_receipt::issue`,
+  `${PKG}::loyalty::earn`,
 ];
