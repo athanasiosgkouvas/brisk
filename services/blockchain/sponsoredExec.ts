@@ -17,11 +17,13 @@ export async function executeSponsored(input: {
   session: AuthSession;
   txKindBytes: string;
   allowedMoveCallTargets: string[];
+  allowedAddresses?: string[];
 }): Promise<{ digest: string }> {
   const sponsored = await sponsorTransaction({
     sender: input.session.address,
     transactionKindBytes: input.txKindBytes,
     allowedMoveCallTargets: input.allowedMoveCallTargets,
+    allowedAddresses: input.allowedAddresses,
   });
   const signature = await enokiAuthService.signSponsoredTransaction(sponsored.bytes, input.session);
   return executeSponsoredTransaction({ digest: sponsored.digest, signature });

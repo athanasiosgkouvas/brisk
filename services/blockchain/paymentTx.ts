@@ -112,10 +112,12 @@ export function buildGaslessTransferTx(input: {
  * base for the Phase 2 transfer-with-receipt PTB.
  */
 export function buildSponsoredTransferTx(input: {
+  sender: string;
   payee: string;
   amountMicros: number | bigint;
 }): Transaction {
   const tx = new Transaction();
+  tx.setSender(input.sender); // required so the balance source resolves at build time
   const balance = tx.balance({ type: USDC, balance: BigInt(input.amountMicros) });
   tx.moveCall({
     target: "0x2::balance::send_funds",

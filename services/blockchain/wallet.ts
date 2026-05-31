@@ -3,7 +3,7 @@ import { toBase64 } from "@mysten/sui/utils";
 import type { AuthSession } from "@/types/user";
 import { executeSponsored } from "@/services/blockchain/sponsoredExec";
 import { getSuiClientForBuild } from "@/services/blockchain/suiClient";
-import { payGasless, type PayResult } from "@/services/blockchain/payments";
+import { type PayResult } from "@/services/blockchain/payments";
 import { buildSponsoredTransferTx, TRANSFER_TARGETS } from "@/services/blockchain/paymentTx";
 import { ENV } from "@/utils/constants";
 
@@ -28,8 +28,9 @@ export function isValidSuiAddress(addr: string): boolean {
 }
 
 /**
- * Send USDC to an external address — feeless. Tries native-gasless `send_funds`
- * first, falls back to an Enoki-sponsored transfer if that can't be submitted.
+ * Send USDC to an external address — feeless to the user. Uses an Enoki-sponsored
+ * `send_funds` (Enoki pays gas, so the sender needs no SUI), charged exactly the
+ * amount. The recipient is allow-listed for this sponsored tx.
  */
 export async function sendUsdc(
   session: AuthSession,
@@ -37,17 +38,14 @@ export async function sendUsdc(
   amountMicros: number,
 ): Promise<PayResult> {
   const to = toAddress.trim();
-  try {
-    return await payGasless(session, to, amountMicros);
-  } catch {
-    const client = await getSuiClientForBuild();
-    const tx = buildSponsoredTransferTx({ payee: to, amountMicros });
-    const txKindBytes = toBase64(await tx.build({ client, onlyTransactionKind: true }));
-    const { digest } = await executeSponsored({
-      session,
-      txKindBytes,
-      allowedMoveCallTargets: TRANSFER_TARGETS,
-    });
-    return { digest, method: "sponsored" };
-  }
+  const client = await getSuiClientForBuild();
+  const tx = buildSponsoredTransferTx({ sender: session.address, payee: to, amountMicros });
+  const txKindBytes = toBase64(await tx.build({ client, onlyTransactionKind: true }));
+  const { digest } = await executeSponsored({
+    session,
+    txKindBytes,
+    allowedMoveCallTargets: TRANSFER_TARGETS,
+    allowedAddresses: [to],
+  });
+  return { digest, method: "sponsored" };
 }
