@@ -20,7 +20,8 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.gkouvas.brisk"
+      "package": "com.gkouvas.brisk",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",
