@@ -3,6 +3,7 @@ import { toBase64 } from "@mysten/sui/utils";
 
 import type { AuthSession } from "@/types/user";
 import { executeSponsored } from "@/services/blockchain/sponsoredExec";
+import { resolveSpendableCoins } from "@/services/blockchain/coins";
 import { getSuiClientForBuild } from "@/services/blockchain/suiClient";
 import {
   buildDepositTx,
@@ -101,29 +102,9 @@ export async function depositToSave(
   vaultId: string,
   amountMicros: number,
 ): Promise<void> {
-  const client = await getSuiClientForBuild();
-
-  // Deposit must source from owned Coin objects (sponsorable). Funds sitting in
-  // the Address Balance can't be sponsored (the gas station rejects
-  // FundsWithdrawal), so guide the user instead of failing cryptically.
-  const { balance } = await client.core.getBalance({ owner: session.address, coinType: USDC });
-  if (Number(balance.coinBalance) < amountMicros) {
-    throw new Error(
-      "Not enough spendable coins for this deposit. Receive USDC or withdraw to your wallet first, then deposit.",
-    );
-  }
-
-  // Pick coins largest-first until they cover the amount.
-  const { objects } = await client.core.listCoins({ owner: session.address, coinType: USDC });
-  const sorted = [...objects].sort((a, b) => Number(b.balance) - Number(a.balance));
-  const coinObjectIds: string[] = [];
-  let acc = 0n;
-  for (const c of sorted) {
-    coinObjectIds.push(c.objectId);
-    acc += BigInt(c.balance);
-    if (acc >= BigInt(amountMicros)) break;
-  }
-
+  // A sponsored deposit must source from owned Coin objects — see the
+  // TODO(enoki-fundswithdrawal) note in services/blockchain/coins.ts.
+  const coinObjectIds = await resolveSpendableCoins(session.address, amountMicros);
   await sponsor(
     session,
     buildDepositTx({ sender: session.address, vaultId, amountMicros, coinObjectIds }),

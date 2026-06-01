@@ -6,10 +6,13 @@ import { executeSponsored } from "@/services/blockchain/sponsoredExec";
 import { getSuiClientForBuild, suiClient } from "@/services/blockchain/suiClient";
 import {
   buildGaslessTransferTx,
+  buildPaymentWithReceiptTx,
   buildReceiptOnlyTx,
+  PAY_WITH_RECEIPT_TARGETS,
   RECEIPT_LOYALTY_TARGETS,
   type Invoice,
 } from "@/services/blockchain/paymentTx";
+import { coinBalanceMicros, resolveSpendableCoins } from "@/services/blockchain/coins";
 import { ENV } from "@/utils/constants";
 
 export type PayResult = {
@@ -22,36 +25,61 @@ export type PayResult = {
 };
 
 /**
- * Pay a merchant invoice in two legs, both feeless to the user:
- *   1. Move USDC to the merchant via native-gasless `send_funds` (protocol gas
- *      = 0, submitted straight to the fullnode). The fullnode fully supports
- *      withdrawing from the payer's Address Balance.
- *   2. Mint the on-chain Receipt + cashback via a separate Enoki-sponsored tx
- *      that touches no balance (only `Pure` inputs), so it's gas-station-safe.
+ * Pay a merchant invoice, feeless to the user. Two paths:
  *
- * They're split because a single sponsored PTB that withdraws from the Address
- * Balance emits a `CallArg::FundsWithdrawal` the Enoki gas station can't yet
- * deserialize ("Invalid bcs bytes for TransactionData"). The transfer is the
- * source of truth for the payment; the receipt leg is best-effort and never
- * blocks settlement. `now` is the client timestamp stamped into the receipt.
+ *  - PREFERRED (coins available): one atomic Enoki-sponsored PTB does it all —
+ *    transfer USDC to the merchant + mint the on-chain Receipt + cashback. The
+ *    USDC is sourced from owned Coin objects so Enoki's gas station accepts it.
+ *  - FALLBACK (funds only in the Address Balance, no coins): move the money via
+ *    native-gasless `send_funds` to the fullnode, then mint the receipt + cashback
+ *    as a separate best-effort sponsored tx (`receiptIssued` flags if it didn't).
+ *
+ * TODO(enoki-fundswithdrawal): the fallback exists only because Enoki can't yet
+ * sponsor an Address-Balance withdrawal (`CallArg::FundsWithdrawal` →
+ * "Invalid bcs bytes for TransactionData"). When that ships, drop the
+ * coin-sourcing + fallback and always use one sponsored PTB built from
+ * `tx.balance(...)`. See services/blockchain/coins.ts.
+ *
+ * `now` is the client timestamp stamped into the receipt.
  */
 export async function payInvoice(
   session: AuthSession,
   invoice: Invoice,
   now: number,
 ): Promise<PayResult> {
-  // Leg 1 — the money. This is what settles the payment.
-  const transfer = await payGasless(session, invoice.payee, invoice.amountMicros);
+  const amount = invoice.amountMicros;
 
-  // Leg 2 — receipt + cashback. Best-effort: a hiccup here must not fail a
-  // payment whose funds already moved. `receiptIssued` lets the UI flag it.
+  // PREFERRED: atomic transfer + receipt + cashback, sourced from coin objects.
+  if ((await coinBalanceMicros(session.address)) >= amount) {
+    const client = await getSuiClientForBuild();
+    const coinObjectIds = await resolveSpendableCoins(session.address, amount);
+    const tx = buildPaymentWithReceiptTx({
+      payer: session.address,
+      payee: invoice.payee,
+      amountMicros: amount,
+      memo: invoice.merchant,
+      invoiceId: invoice.invoiceId,
+      timestampMs: now,
+      coinObjectIds,
+    });
+    const txKindBytes = toBase64(await tx.build({ client, onlyTransactionKind: true }));
+    const { digest } = await executeSponsored({
+      session,
+      txKindBytes,
+      allowedMoveCallTargets: PAY_WITH_RECEIPT_TARGETS,
+    });
+    return { digest, method: "sponsored", receiptIssued: true };
+  }
+
+  // FALLBACK: native-gasless transfer (the money) + best-effort sponsored receipt.
+  const transfer = await payGasless(session, invoice.payee, amount);
   let receiptIssued = false;
   try {
     const client = await getSuiClientForBuild();
     const tx = buildReceiptOnlyTx({
       payer: session.address,
       payee: invoice.payee,
-      amountMicros: invoice.amountMicros,
+      amountMicros: amount,
       memo: invoice.merchant,
       invoiceId: invoice.invoiceId,
       timestampMs: now,
