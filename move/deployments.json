@@ -1,10 +1,10 @@
 {
   "testnet": {
-    "packageId": "0xc7073f8c1f54ece01d81e4b4cd9a16931ddacc43875bf80bf4780112fb72204a",
-    "upgradeCap": "0x09d162f6c9688c14fe85bf75df2342aa6ac352591f11d994d5c533d20ba9dc8a",
-    "publishDigest": "G71Dr7QPh2biGDqZcvsed2MfciKwyh5VdwFVbNssaeWr",
-    "mockLenderAdminCap": "0xaa2304057a21eb0689b3d2e6000a82e4e2c183565713cb317be1411d82930e37",
-    "lendingPoolUsdc": "0x2e3c89fa3b757dcbe0ea8242e1368d8662ed6ed0eda2c412cafe0b1380f16457",
+    "packageId": "0x2e7adfe10328a4bccf77e1bb6fc1f3b57304c26cfc3dfca61a5664bc23072614",
+    "upgradeCap": "0xb57cedf8d44c3daed219fa13bf1632bedfd8d5624ab9c6636a14aae46a6b4c7f",
+    "publishDigest": "7dJkkCUx9cPw8P27EpHQ5Y5gFtme7AN8wSDHkUBh9GGp",
+    "mockLenderAdminCap": "0x2719f447d595fa1547e694f8bc0d3b8ee7a57cfb9d16a2308d7f48e622a64478",
+    "lendingPoolUsdc": "0x085c625bf691f70058e2d82e50ed8a803cb7b2d8eb4945f6aef1b623b2f4d553",
     "lendingPoolApyBps": 1000,
     "usdcType": "0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdc::USDC",
     "publishedModules": [
@@ -15,6 +15,6 @@
       "mock_lender",
       "loyalty"
     ],
-    "notes": "Fresh publish (Phase 2-4 modules). Prior package 0x713f0b...9934 (Phase 0 scaffold) is superseded. LendingPool reserve funded to 25 USDC on 2026-06-01 via mock_lender::fund (tx 92G9qBYz65i7dTDmjwmUA5rjJVt1opCm7frM9R8Lu6Rs) so redeem covers principal + accrued yield. Top up again via mock_lender::fund if it depletes."
+    "notes": "Republished 2026-06-01 with the redesigned lender: mock_lender now holds principal (1:1, never spent on yield) and yield_reserve (admin-funded buffer) separately, so redeem returns principal always + yield best-effort and never aborts. spending_vault routes through lender_adapter (the testnet->mainnet seam). Fund the yield buffer via mock_lender::fund_yield (gated by AdminCap). Supersedes package 0xc7073f8c... (commingled-reserve design)."
   }
 }
