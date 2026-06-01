@@ -62,8 +62,13 @@ export default function PayScreen() {
               {formatUsd(invoice.amountMicros)} to {invoice.merchant}
             </Text>
             <Text className="mt-1 text-xs text-brisk-subtext">
-              {result.method === "gasless" ? "Gasless transfer" : "Sponsored — you paid no gas"}
+              Gasless — settled on Sui, you paid no gas
             </Text>
+            {!result.receiptIssued ? (
+              <Text className="mt-2 text-center text-xs text-brisk-subtext">
+                Receipt &amp; cashback are still finalizing.
+              </Text>
+            ) : null}
             <View className="mt-8 w-full max-w-[360px]">
               <PrimaryButton label="Done" onPress={reset} />
             </View>

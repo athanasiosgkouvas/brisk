@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react";
 
 import { useAuth } from "@/hooks/useAuth";
 import { startEmulatingInvoice, stopEmulating } from "@/services/nfc/hce";
-import { waitForPaymentEvent } from "@/services/blockchain/receipts";
+import { getUsdcBalanceMicros, waitForSettlement } from "@/services/blockchain/payments";
 import { encodeInvoice, type Invoice } from "@/services/blockchain/paymentTx";
 
 export type ChargeStatus = "idle" | "awaiting" | "paid" | "timeout" | "error";
@@ -36,15 +36,18 @@ export function useCharge() {
         merchant: MERCHANT_NAME,
       };
       try {
-        const sinceMs = Date.now();
+        // Baseline the merchant's balance BEFORE emulating, so we only count
+        // funds that arrive for this charge. Settlement keys on the actual money
+        // landing (robust even if the best-effort receipt leg never mints).
+        const baselineMicros = await getUsdcBalanceMicros(session.address).catch(() => 0);
         await startEmulatingInvoice(encodeInvoice(inv));
         setInvoice(inv);
         setStatus("awaiting");
         activeRef.current = true;
 
-        const settled = await waitForPaymentEvent({
+        const settled = await waitForSettlement({
           merchant: session.address,
-          sinceMs,
+          baselineMicros,
           expectedMicros: amountMicros,
         });
         if (!activeRef.current) return; // cancelled

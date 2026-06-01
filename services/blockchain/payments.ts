@@ -12,7 +12,14 @@ import {
 } from "@/services/blockchain/paymentTx";
 import { ENV } from "@/utils/constants";
 
-export type PayResult = { digest: string; method: "gasless" | "sponsored" };
+export type PayResult = {
+  digest: string;
+  method: "gasless" | "sponsored";
+  /** Whether the on-chain receipt + cashback leg minted. The payment settles
+   *  regardless (leg 1 moves the money); this just tells the UI whether the
+   *  receipt/loyalty record is on-chain yet. */
+  receiptIssued: boolean;
+};
 
 /**
  * Pay a merchant invoice in two legs, both feeless to the user:
@@ -37,7 +44,8 @@ export async function payInvoice(
   const transfer = await payGasless(session, invoice.payee, invoice.amountMicros);
 
   // Leg 2 — receipt + cashback. Best-effort: a hiccup here must not fail a
-  // payment whose funds already moved.
+  // payment whose funds already moved. `receiptIssued` lets the UI flag it.
+  let receiptIssued = false;
   try {
     const client = await getSuiClientForBuild();
     const tx = buildReceiptOnlyTx({
@@ -54,11 +62,12 @@ export async function payInvoice(
       txKindBytes,
       allowedMoveCallTargets: RECEIPT_LOYALTY_TARGETS,
     });
+    receiptIssued = true;
   } catch (e) {
     console.warn("[brisk-pay] receipt/cashback leg failed (payment still settled):", e);
   }
 
-  return { digest: transfer.digest, method: "gasless" };
+  return { digest: transfer.digest, method: "gasless", receiptIssued };
 }
 
 /**
@@ -81,7 +90,8 @@ export async function payGasless(
     signature,
     options: { showEffects: true },
   });
-  return { digest: res.digest, method: "gasless" };
+  // A bare transfer has no receipt leg, so nothing is pending.
+  return { digest: res.digest, method: "gasless", receiptIssued: true };
 }
 
 /** Current USDC balance (micro-units) for an address. */

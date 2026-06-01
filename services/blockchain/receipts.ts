@@ -35,19 +35,6 @@ function parsePaymentEvent(e: any): PaymentEvent | null {
   };
 }
 
-/** Recent payments to a merchant, newest first. */
-export async function queryRecentPayments(merchant: string, limit = 50): Promise<PaymentEvent[]> {
-  const client = await getSuiClientForBuild();
-  const res = await client.queryEvents({
-    query: { MoveEventType: PAYMENT_EVENT_TYPE },
-    limit,
-    order: "descending",
-  });
-  return ((res?.data ?? []) as unknown[])
-    .map(parsePaymentEvent)
-    .filter((e): e is PaymentEvent => !!e && e.payee === merchant);
-}
-
 export type ActivityItem = {
   direction: "sent" | "received";
   counterparty: string;
@@ -87,28 +74,4 @@ export async function queryActivity(address: string, limit = 30): Promise<Activi
     }
   }
   return items;
-}
-
-/**
- * Poll for a payment to `merchant` of at least `expectedMicros`, stamped at/after
- * `sinceMs`. Returns the matching event, or null on timeout.
- */
-export async function waitForPaymentEvent(input: {
-  merchant: string;
-  sinceMs: number;
-  expectedMicros: number;
-  timeoutMs?: number;
-  intervalMs?: number;
-}): Promise<PaymentEvent | null> {
-  const deadline = Date.now() + (input.timeoutMs ?? 60_000);
-  const floor = input.sinceMs - 10_000; // small clock-skew tolerance
-  while (Date.now() < deadline) {
-    const events = await queryRecentPayments(input.merchant, 20).catch(() => []);
-    const match = events.find(
-      (e) => e.timestampMs >= floor && e.amountMicros >= input.expectedMicros,
-    );
-    if (match) return match;
-    await new Promise((r) => setTimeout(r, input.intervalMs ?? 2_000));
-  }
-  return null;
 }
