@@ -1,13 +1,16 @@
 import { Transaction } from "@mysten/sui/transactions";
-import { coinWithBalance } from "@mysten/sui/transactions";
 
 import { CLOCK_OBJECT_ID, ENV } from "@/utils/constants";
 
 /**
  * PTB builders for the Save vault (spending_vault + mock_lender). All run as
  * Enoki-sponsored txs (object creation / Move calls aren't native-gasless), so
- * the user pays no gas. The shared LendingPool id comes from ENV.briskPoolId
- * (set after republish + create_pool).
+ * the user pays no gas. The shared LendingPool id comes from ENV.briskPoolId.
+ *
+ * Deposit sources USDC from explicit Coin objects (split/merge) rather than the
+ * CoinWithBalance helper: the helper prefers the Address Balance and emits a
+ * `CallArg::FundsWithdrawal` the Enoki gas station can't deserialize. A plain
+ * Coin input is `CallArg::Object`, which sponsors fine.
  */
 
 const PKG = ENV.briskPackageId;
@@ -24,21 +27,30 @@ export function buildOpenVaultTx(sender: string): Transaction {
   return tx;
 }
 
-/** Deposit `amountMicros` USDC into Save. */
+/**
+ * Deposit `amountMicros` USDC into Save, sourced from the caller's owned Coin
+ * objects (`coinObjectIds`, which must sum to >= the amount). Coins are merged
+ * then split to the exact amount; the remainder stays in the user's wallet.
+ */
 export function buildDepositTx(input: {
   sender: string;
   vaultId: string;
   amountMicros: number | bigint;
+  coinObjectIds: string[];
 }): Transaction {
   const tx = new Transaction();
   tx.setSender(input.sender);
-  const coin = tx.add(coinWithBalance({ type: USDC, balance: BigInt(input.amountMicros) }));
+
+  const [primary, ...rest] = input.coinObjectIds.map((id) => tx.object(id));
+  if (rest.length > 0) tx.mergeCoins(primary, rest);
+  const [depositCoin] = tx.splitCoins(primary, [tx.pure.u64(BigInt(input.amountMicros))]);
+
   tx.moveCall({
     target: `${PKG}::spending_vault::deposit`,
     typeArguments: [USDC],
     arguments: [
       tx.object(input.vaultId),
-      coin,
+      depositCoin,
       tx.object(ENV.briskPoolId),
       tx.object(CLOCK_OBJECT_ID),
     ],
@@ -46,7 +58,7 @@ export function buildDepositTx(input: {
   return tx;
 }
 
-/** Withdraw `amountMicros` from Save back to the user's spendable balance. */
+/** Withdraw `amountMicros` from Save back to the user's wallet (as a Coin). */
 export function buildWithdrawTx(input: {
   sender: string;
   vaultId: string;
@@ -68,24 +80,9 @@ export function buildWithdrawTx(input: {
   return tx;
 }
 
-// Fully-qualified framework address — Enoki matches allowlist targets by exact
-// string (no normalization), and the tx uses the canonical 32-byte 0x2 address.
-const SUI_FW = "0x0000000000000000000000000000000000000000000000000000000000000002";
-
+// Enoki sponsorship allowlists. The vault entry functions are the only
+// top-level Move-call targets; split/merge/transfer are PTB commands (no
+// allowlist), and the lender calls happen inside `deposit`/`withdraw`.
 export const OPEN_VAULT_TARGETS = [`${PKG}::spending_vault::open`];
-export const DEPOSIT_TARGETS = [
-  `${PKG}::spending_vault::deposit`,
-  `${SUI_FW}::coin::send_funds`,
-  `${SUI_FW}::coin::into_balance`,
-  `${SUI_FW}::coin::from_balance`,
-  `${SUI_FW}::balance::send_funds`,
-  `${SUI_FW}::balance::redeem_funds`,
-  `${SUI_FW}::balance::split`,
-];
-export const WITHDRAW_TARGETS = [
-  `${PKG}::spending_vault::withdraw`,
-  `${SUI_FW}::coin::send_funds`,
-  `${SUI_FW}::coin::from_balance`,
-  `${SUI_FW}::balance::send_funds`,
-  `${SUI_FW}::balance::redeem_funds`,
-];
+export const DEPOSIT_TARGETS = [`${PKG}::spending_vault::deposit`];
+export const WITHDRAW_TARGETS = [`${PKG}::spending_vault::withdraw`];

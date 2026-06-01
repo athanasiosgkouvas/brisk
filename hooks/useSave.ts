@@ -14,7 +14,13 @@ export type SaveStatus = "loading" | "idle" | "working" | "error";
 
 export function useSave() {
   const { session } = useAuth();
-  const [state, setState] = useState<SaveState>({ vaultId: null, valueMicros: 0 });
+  const [state, setState] = useState<SaveState>({
+    vaultId: null,
+    valueMicros: 0,
+    principalMicros: 0,
+    earnedMicros: 0,
+    apyBps: 0,
+  });
   const [status, setStatus] = useState<SaveStatus>("loading");
   const [error, setError] = useState<string | null>(null);
 

@@ -25,8 +25,18 @@ export default function SaveScreen() {
         <Text className="mt-1 text-5xl font-bold text-brisk-text">
           {formatUsd(state.valueMicros)}
         </Text>
+        {state.vaultId && state.valueMicros > 0 ? (
+          <View className="mt-3 flex-row items-center gap-4">
+            <Text className="text-sm text-brisk-subtext">
+              Principal {formatUsd(state.principalMicros)}
+            </Text>
+            <Text className="text-sm font-semibold text-brisk-accent">
+              +{formatUsd(state.earnedMicros)} earned
+            </Text>
+          </View>
+        ) : null}
         <Text className="mt-2 text-center text-sm text-brisk-subtext">
-          Idle dollars earn yield — spend straight from it anytime.
+          Earning {(state.apyBps / 100).toFixed(0)}% APY — spend straight from it anytime.
         </Text>
 
         {status === "loading" ? (

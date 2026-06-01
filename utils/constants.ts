@@ -10,15 +10,19 @@ export const ENV = {
     "testnet",
   backendUrl: process.env.EXPO_PUBLIC_BACKEND_URL ?? "http://localhost:3001",
 
-  /** Brisk's on-chain Move package (move/). Published to testnet 2026-05-31. */
+  /** Brisk's on-chain Move package (move/). Republished to testnet 2026-06-01
+   *  with the separated principal/yield lender design. */
   briskPackageId:
     process.env.EXPO_PUBLIC_BRISK_PACKAGE_ID ??
-    "0xc7073f8c1f54ece01d81e4b4cd9a16931ddacc43875bf80bf4780112fb72204a",
+    "0x2e7adfe10328a4bccf77e1bb6fc1f3b57304c26cfc3dfca61a5664bc23072614",
 
   /** Shared mock_lender LendingPool<USDC> id (10% APY). */
   briskPoolId:
     process.env.EXPO_PUBLIC_BRISK_POOL_ID ??
-    "0x2e3c89fa3b757dcbe0ea8242e1368d8662ed6ed0eda2c412cafe0b1380f16457",
+    "0x085c625bf691f70058e2d82e50ed8a803cb7b2d8eb4945f6aef1b623b2f4d553",
+
+  /** LendingPool APY in basis points (10% = 1000) — for Save yield display. */
+  briskApyBps: Number(process.env.EXPO_PUBLIC_BRISK_APY_BPS ?? "1000"),
 
   /**
    * Circle USDC — Brisk's stablecoin. Both types VERIFIED (Circle docs) and USDC
