@@ -8,7 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "lint": "eslint src --ext .ts",
-    "ngrok": "ngrok http --url=buddy-goldsmith-bolster.ngrok-free.dev 3001"
+    "ngrok": "ngrok http 3001"
   },
   "dependencies": {
     "@mysten/enoki": "^1.0.7",

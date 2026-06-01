@@ -149,8 +149,10 @@ The DeFi & Payments track rewards an **auditable on‑chain primitive** (1st/3rd
 Every merchant payment is a **single atomic PTB**: move USDC → mint `Receipt` → mint cashback. If any step
 fails, the whole payment reverts.
 
-All four test suites pass (`sui move test`): receipt fields, merchant registration, vault
-`deposit → +1yr → withdraw == principal + 10%`, and cashback mint/redeem.
+All five test suites pass (`sui move test`, 9 tests): receipt fields, merchant registration,
+vault `deposit → +1yr → withdraw == principal + 10%` plus partial-withdraw compounding and
+multi-user principal isolation, lender solvency (principal/yield separation + graceful buffer
+depletion), and cashback mint/redeem.
 
 ---
 
