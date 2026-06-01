@@ -8,7 +8,7 @@ export const ENV = {
   suiNetwork:
     (process.env.EXPO_PUBLIC_SUI_NETWORK as "testnet" | "devnet" | "mainnet" | undefined) ??
     "testnet",
-  backendUrl: process.env.EXPO_PUBLIC_BACKEND_URL ?? "http://localhost:3001",
+  backendUrl: process.env.EXPO_PUBLIC_BACKEND_URL ?? "https://brisk-z5bu.onrender.com",
 
   /** Brisk's on-chain Move package (move/). Republished to testnet 2026-06-01
    *  with the separated principal/yield lender design. */
