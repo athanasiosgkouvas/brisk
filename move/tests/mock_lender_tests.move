@@ -93,3 +93,16 @@ fun accrual_is_linear_in_time() {
     ts::return_shared(pool);
     ts::end(sc);
 }
+
+// APY is bounded so the yield-formula u128 intermediate can't overflow.
+#[test, expected_failure(abort_code = brisk::mock_lender::EApyTooHigh)]
+fun create_pool_rejects_excessive_apy() {
+    let admin = @0xA;
+    let mut sc = ts::begin(admin);
+    mock_lender::init_for_testing(ts::ctx(&mut sc));
+    ts::next_tx(&mut sc, admin);
+    let cap = ts::take_from_sender<AdminCap>(&sc);
+    mock_lender::create_pool<SUI>(&cap, 100_001, ts::ctx(&mut sc)); // > 1000% → abort
+    ts::return_to_sender(&sc, cap);
+    ts::end(sc);
+}

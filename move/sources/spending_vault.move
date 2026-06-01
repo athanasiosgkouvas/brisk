@@ -60,7 +60,12 @@ public fun withdraw<T>(
 
     let pos = vault.position.extract();
     let mut all = lender_adapter::redeem(pool, pos, clock, ctx);
-    let out = all.split(amount, ctx);
+    // Clamp to what was actually redeemed: `current_value` reports principal +
+    // full accrued, but `redeem` pays yield only up to the funded buffer, so a
+    // UI asking for the displayed value must never abort on the shortfall.
+    let redeemed = all.value();
+    let take = if (amount > redeemed) redeemed else amount;
+    let out = all.split(take, ctx);
     if (all.value() > 0) {
         vault.position.fill(lender_adapter::supply(pool, all, clock, ctx));
     } else {

@@ -148,3 +148,39 @@ fun multi_user_principal_is_isolated() {
     ts::return_shared(pool);
     ts::end(sc);
 }
+
+// Withdrawing the optimistic current_value when the yield buffer is short must
+// CLAMP to what's redeemable, never abort (the documented UI flow).
+#[test]
+fun withdraw_over_redeemable_clamps_instead_of_aborting() {
+    let admin = @0xA;
+    let mut sc = setup(admin, 1000, 3_000); // buffer (3k) < accrued yield (10k)
+
+    let mut pool = ts::take_shared<LendingPool<SUI>>(&sc);
+    spending_vault::open<SUI>(ts::ctx(&mut sc));
+    ts::next_tx(&mut sc, admin);
+
+    let mut vault = ts::take_from_sender<Vault<SUI>>(&sc);
+    let mut clk = clock::create_for_testing(ts::ctx(&mut sc));
+    spending_vault::deposit(
+        &mut vault,
+        coin::mint_for_testing<SUI>(100_000, ts::ctx(&mut sc)),
+        &mut pool,
+        &clk,
+        ts::ctx(&mut sc),
+    );
+    clk.increment_for_testing(YEAR_MS);
+
+    // current_value is optimistic (110_000); only 103_000 is redeemable.
+    let value = spending_vault::current_value(&vault, &pool, &clk);
+    assert!(value == 110_000, 0);
+    let out = spending_vault::withdraw(&mut vault, value, &mut pool, &clk, ts::ctx(&mut sc));
+    assert!(out.value() == 103_000, 1); // clamped, not aborted
+    assert!(!spending_vault::has_funds(&vault), 2);
+
+    coin::burn_for_testing(out);
+    clk.destroy_for_testing();
+    ts::return_to_sender(&sc, vault);
+    ts::return_shared(pool);
+    ts::end(sc);
+}

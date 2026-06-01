@@ -21,6 +21,11 @@ use sui::event;
 
 const MS_PER_YEAR: u128 = 31_536_000_000;
 const BPS_DENOM: u128 = 10_000;
+/// Max configurable APY: 1000% (100_000 bps). Bounds the yield-formula u128
+/// intermediate well within range for any plausible principal/elapsed.
+const MAX_APY_BPS: u64 = 100_000;
+
+const EApyTooHigh: u64 = 0;
 
 /// Held by the publisher; gates pool creation/config and yield funding.
 public struct AdminCap has key, store {
@@ -60,8 +65,9 @@ fun init(ctx: &mut TxContext) {
     transfer::transfer(AdminCap { id: object::new(ctx) }, ctx.sender());
 }
 
-/// Create a shared, empty pool for coin type `T` at a fixed APY.
+/// Create a shared, empty pool for coin type `T` at a fixed APY (<= 1000%).
 public fun create_pool<T>(_admin: &AdminCap, apy_bps: u64, ctx: &mut TxContext) {
+    assert!(apy_bps <= MAX_APY_BPS, EApyTooHigh);
     let pool = LendingPool<T> {
         id: object::new(ctx),
         principal: balance::zero<T>(),
@@ -95,7 +101,9 @@ public fun supply<T>(
 
 /// Accrued yield for a position as of now: `principal * apy_bps * elapsed / (1e4 * yearMs)`.
 public fun accrued<T>(pool: &LendingPool<T>, pos: &Position<T>, clock: &Clock): u64 {
-    let elapsed = (clock.timestamp_ms() - pos.since_ms) as u128;
+    let now = clock.timestamp_ms();
+    // Defensive: never underflow if the clock somehow reads before `since_ms`.
+    let elapsed = (if (now > pos.since_ms) now - pos.since_ms else 0) as u128;
     let yield_u128 =
         (pos.principal as u128) * (pool.apy_bps as u128) * elapsed / (BPS_DENOM * MS_PER_YEAR);
     yield_u128 as u64

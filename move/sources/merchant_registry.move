@@ -26,11 +26,16 @@ public fun owner(m: &Merchant): address {
     m.owner
 }
 
-/// Register a new merchant. Transfers the profile and its cap to the caller.
-public fun register(name: String, ctx: &mut TxContext) {
-    let owner = ctx.sender();
-    let merchant = Merchant { id: object::new(ctx), owner, name };
+/// True iff `cap` is the capability for `m`. Privileged actions (refunds, etc.)
+/// must check this so one merchant's cap can't authorize action on another's.
+public fun controls(cap: &MerchantCap, m: &Merchant): bool {
+    cap.merchant == object::id(m)
+}
+
+/// Register a new merchant, returning the profile and its cap so the caller (a
+/// PTB) places them — composable, and avoids the self-transfer lint.
+public fun register(name: String, ctx: &mut TxContext): (Merchant, MerchantCap) {
+    let merchant = Merchant { id: object::new(ctx), owner: ctx.sender(), name };
     let cap = MerchantCap { id: object::new(ctx), merchant: object::id(&merchant) };
-    transfer::transfer(merchant, owner);
-    transfer::transfer(cap, owner);
+    (merchant, cap)
 }
