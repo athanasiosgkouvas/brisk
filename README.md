@@ -137,14 +137,14 @@ it's wired through `services/blockchain/payments.ts` + `paymentTx.ts`.
 The DeFi & Payments track rewards an **auditable on‑chain primitive** (1st/3rd place are sponsored by
 **OpenZeppelin** and **OtterSec**). Brisk ships six small, focused Move modules ([`move/sources/`](move/sources)):
 
-| Module              | What it is                                                                                                                                                                                                                                         |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `merchant_registry` | Merchant identity: a `Merchant` profile object + a `MerchantCap` capability.                                                                                                                                                                       |
-| `payment_receipt`   | **Verifiable receipts.** `issue<T>` mints an immutable `Receipt` (payer, payee, amount, currency, memo, invoice id, time) to the payer and emits a `PaymentMade` event — the canonical, indexable record a merchant queries for their sales.       |
-| `spending_vault`    | **The novel primitive.** A per‑user `Vault<T>` custodies a lender position so idle USDC earns yield while staying instantly spendable. `deposit` consolidates, `withdraw` re‑supplies the remainder. **Value conservation** is the core invariant. |
-| `mock_lender`       | Testnet lender behind the adapter seam: a shared `LendingPool<T>` accruing deterministic, time‑based yield from an admin‑funded reserve (`supply` / `redeem` / `current_value`).                                                                   |
-| `lender_adapter`    | Documents the **only** testnet→mainnet swap point: replace `mock_lender` with a real Suilend/Scallop adapter exposing the same shape — no app changes.                                                                                             |
-| `loyalty`           | **Closed‑loop cashback.** `Points` has `key` but **not** `store`, so it can only be moved or burned by this module — a regulated loyalty credit with no free transfers. `earn` mints 1% on payment; `redeem` burns.                                |
+| Module              | What it is                                                                                                                                                                                                                                                                                                                      |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `merchant_registry` | Merchant identity: a `Merchant` profile object + a `MerchantCap` capability.                                                                                                                                                                                                                                                    |
+| `payment_receipt`   | **Verifiable receipts.** `issue<T>` mints an immutable `Receipt` (payer, payee, amount, currency, memo, invoice id, time) to the payer and emits a `PaymentMade` event — the canonical, indexable record a merchant queries for their sales.                                                                                    |
+| `spending_vault`    | **The novel primitive.** A per‑user `Vault<T>` custodies a lender position so idle USDC earns yield while staying instantly spendable. `deposit` consolidates, `withdraw` re‑supplies the remainder. **Value conservation** is the core invariant.                                                                              |
+| `mock_lender`       | Testnet lender behind the adapter seam: a shared `LendingPool<T>` accruing deterministic, time‑based yield. Holds `principal` (1:1, never spent on yield) separate from an admin‑funded `yield_reserve`, so `redeem` returns principal **always** + yield best‑effort and never aborts (`supply` / `redeem` / `current_value`). |
+| `lender_adapter`    | The **only** testnet→mainnet swap point — the vault routes every supply/redeem/value call through it; today it delegates to `mock_lender`, on mainnet you repoint it at a real Suilend/Scallop market with no vault or app changes.                                                                                             |
+| `loyalty`           | **Closed‑loop cashback.** `Points` has `key` but **not** `store`, so it can only be moved or burned by this module — a regulated loyalty credit with no free transfers. `earn` mints 1% on payment; `redeem` burns.                                                                                                             |
 
 Every merchant payment is a **single atomic PTB**: move USDC → mint `Receipt` → mint cashback. If any step
 fails, the whole payment reverts.
@@ -228,12 +228,12 @@ brisk/
 
 | Object                            | ID                                                                                                                                               |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Package**                       | [`0xc7073f8c…fb72204a`](https://suiscan.xyz/testnet/object/0xc7073f8c1f54ece01d81e4b4cd9a16931ddacc43875bf80bf4780112fb72204a)                   |
-| **LendingPool\<USDC\>** (10% APY) | [`0x2e3c89fa…80f16457`](https://suiscan.xyz/testnet/object/0x2e3c89fa3b757dcbe0ea8242e1368d8662ed6ed0eda2c412cafe0b1380f16457)                   |
+| **Package**                       | [`0x2e7adfe1…23072614`](https://suiscan.xyz/testnet/object/0x2e7adfe10328a4bccf77e1bb6fc1f3b57304c26cfc3dfca61a5664bc23072614)                   |
+| **LendingPool\<USDC\>** (10% APY) | [`0x085c625b…b2f4d553`](https://suiscan.xyz/testnet/object/0x085c625bf691f70058e2d82e50ed8a803cb7b2d8eb4945f6aef1b623b2f4d553)                   |
 | USDC (Circle, testnet)            | [`0xa1ec7fc0…::usdc::USDC`](https://suiscan.xyz/testnet/coin/0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdc::USDC/txs) |
 | App bundle id / scheme            | `com.gkouvas.brisk` / `brisk://`                                                                                                                 |
 
-Full record (incl. UpgradeCap, AdminCap, publish digest) in [`move/deployments.json`](move/deployments.json). Browse the live package, pool, and payment events on [Suiscan](https://suiscan.xyz/testnet/object/0xc7073f8c1f54ece01d81e4b4cd9a16931ddacc43875bf80bf4780112fb72204a).
+Full record (incl. UpgradeCap, AdminCap, publish digest) in [`move/deployments.json`](move/deployments.json). Browse the live package, pool, and payment events on [Suiscan](https://suiscan.xyz/testnet/object/0x2e7adfe10328a4bccf77e1bb6fc1f3b57304c26cfc3dfca61a5664bc23072614).
 
 ---
 
@@ -280,12 +280,14 @@ customer holds a `Receipt` + cashback, and idle balances can be parked in **Save
 
 Built for the OpenZeppelin / OtterSec lens:
 
-- **Capability‑gated admin** — pool creation/config requires the `mock_lender::AdminCap`.
+- **Capability‑gated admin** — pool creation/config and yield funding require the `mock_lender::AdminCap`.
 - **Closed‑loop loyalty** — `Points` is `key`‑only (no `store`), so it can never be transferred or composed
   outside its module.
-- **Value conservation** — the vault never mints value: `withdraw` returns exactly principal + accrued, and
-  `redeem` asserts the reserve can cover it (`EInsufficientReserve`). Covered by a unit test; a Move Prover
-  spec is queued.
+- **Solvent by construction** — the lender holds each supplier's `principal` 1:1 in a balance that is never
+  spent on yield, with yield paid from a separate admin‑funded buffer. `redeem` returns principal **always**
+  - accrued yield capped at the buffer, so it can't abort or pay one user's principal as another's yield.
+    Value conservation (`withdraw` returns exactly principal + accrued) is covered by unit tests incl.
+    multi‑user isolation and graceful buffer depletion; a Move Prover spec is queued.
 - **No custody of user keys** — the backend only sponsors gas; the zkLogin ephemeral key stays in
   `expo-secure-store` on the device and signs locally.
 - **Sponsorship allow‑lists** — every sponsored PTB declares its exact `allowedMoveCallTargets`; Enoki
@@ -322,8 +324,12 @@ We'd rather be straight about the edges than oversell:
 - **Merchant terminal is Android‑only.** HCE doesn't exist on iOS without a hard entitlement, so the
   _terminal_ runs on Android; the _customer_ works on iOS + Android. (A merchant on iPhone falls back to QR.)
 - **iOS NFC needs a paid Apple account.** Free/Personal Apple teams can't provision the NFC capability.
-- **Testnet yield is from a mock lender** with an admin‑funded reserve, behind the adapter interface — the
-  mainnet adapter wires a real money market. The reserve must be funded (`mock_lender::fund`) to pay yield.
+- **Testnet yield is from a mock lender** with an admin‑funded yield buffer, behind the adapter seam — the
+  mainnet adapter wires a real money market. Principal is always redeemable; the buffer (`mock_lender::fund_yield`)
+  funds the yield payout (currently 9 USDC).
+- **Deposit needs spendable coins.** A Save deposit is Enoki‑sponsored and the gas station can't sponsor an
+  Address‑Balance withdrawal, so deposits source from owned Coin objects; USDC received via a gasless
+  `send_funds` must be a coin (e.g. after a withdrawal/faucet) before it can be deposited.
 - **End‑to‑end on‑device tap** is pending a second NFC device; the app builds, runs, signs in via zkLogin,
   and loads the HCE module on a Pixel 9 Pro today.
 
