@@ -1,12 +1,11 @@
 import { useCallback, useState } from "react";
-import * as LocalAuthentication from "expo-local-authentication";
 
 import { useAuth } from "@/hooks/useAuth";
 import { readInvoiceTag } from "@/services/nfc/reader";
 import { payInvoice, type PayResult } from "@/services/blockchain/payments";
-import { formatUsd, parseInvoice, type Invoice } from "@/services/blockchain/paymentTx";
+import { parseInvoice, type Invoice } from "@/services/blockchain/paymentTx";
 
-export type PayStatus = "idle" | "reading" | "review" | "authorizing" | "paying" | "done" | "error";
+export type PayStatus = "idle" | "reading" | "review" | "paying" | "done" | "error";
 
 export function usePay() {
   const { session } = useAuth();
@@ -40,19 +39,13 @@ export function usePay() {
     }
   }, []);
 
-  /** Biometric gate, then pay the reviewed invoice. */
+  /** Pay the reviewed invoice. The explicit "Confirm & Pay" tap is the
+   *  authorization — no separate biometric prompt (one less friction point). */
   const confirmAndPay = useCallback(async () => {
     if (!session || !invoice) return;
     setError(null);
-    setStatus("authorizing");
+    setStatus("paying");
     try {
-      const auth = await LocalAuthentication.authenticateAsync({
-        promptMessage: `Pay ${formatUsd(invoice.amountMicros)} to ${invoice.merchant}`,
-        cancelLabel: "Cancel",
-      });
-      if (!auth.success) throw new Error("Payment not authorized.");
-
-      setStatus("paying");
       const res = await payInvoice(session, invoice, Date.now());
       setResult(res);
       setStatus("done");

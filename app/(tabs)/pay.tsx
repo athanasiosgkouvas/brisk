@@ -6,8 +6,8 @@ import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { usePay } from "@/hooks/usePay";
 import { formatUsd } from "@/services/blockchain/paymentTx";
 
-// Customer "Pay" tab (iOS + Android). Tap the Brisk Terminal -> review -> Face ID
-// -> feeless pay. The whole point of the app.
+// Customer "Pay" tab (iOS + Android). Tap the Brisk Terminal -> review ->
+// Confirm & Pay -> feeless settlement. The whole point of the app.
 export default function PayScreen() {
   const { status, invoice, result, error, tapToRead, confirmAndPay, reset } = usePay();
 
@@ -47,12 +47,10 @@ export default function PayScreen() {
           </View>
         ) : null}
 
-        {status === "authorizing" || status === "paying" ? (
+        {status === "paying" ? (
           <View className="items-center">
             <ActivityIndicator color="#00D98B" size="large" />
-            <Text className="mt-4 text-sm text-brisk-subtext">
-              {status === "authorizing" ? "Authorizing…" : "Settling on Sui…"}
-            </Text>
+            <Text className="mt-4 text-sm text-brisk-subtext">Settling on Sui…</Text>
           </View>
         ) : null}
 
