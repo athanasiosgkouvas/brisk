@@ -1,10 +1,6 @@
-import { toBase64 } from "@mysten/sui/utils";
-
 import type { AuthSession } from "@/types/user";
-import { executeSponsored } from "@/services/blockchain/sponsoredExec";
 import { getSuiClientForBuild } from "@/services/blockchain/suiClient";
-import { type PayResult } from "@/services/blockchain/payments";
-import { buildSponsoredTransferTx, TRANSFER_TARGETS } from "@/services/blockchain/paymentTx";
+import { payGasless, type PayResult } from "@/services/blockchain/payments";
 import { ENV } from "@/utils/constants";
 
 /**
@@ -28,24 +24,15 @@ export function isValidSuiAddress(addr: string): boolean {
 }
 
 /**
- * Send USDC to an external address — feeless to the user. Uses an Enoki-sponsored
- * `send_funds` (Enoki pays gas, so the sender needs no SUI), charged exactly the
- * amount. The recipient is allow-listed for this sponsored tx.
+ * Send USDC to an external address — feeless to the user via native-gasless
+ * `send_funds` (protocol gas = 0, no SUI needed, submitted straight to the
+ * fullnode). Charged exactly the amount. This avoids the Enoki gas station,
+ * which can't yet sponsor Address-Balance withdrawals (`FundsWithdrawal`).
  */
 export async function sendUsdc(
   session: AuthSession,
   toAddress: string,
   amountMicros: number,
 ): Promise<PayResult> {
-  const to = toAddress.trim();
-  const client = await getSuiClientForBuild();
-  const tx = buildSponsoredTransferTx({ sender: session.address, payee: to, amountMicros });
-  const txKindBytes = toBase64(await tx.build({ client, onlyTransactionKind: true }));
-  const { digest } = await executeSponsored({
-    session,
-    txKindBytes,
-    allowedMoveCallTargets: TRANSFER_TARGETS,
-    allowedAddresses: [to],
-  });
-  return { digest, method: "sponsored" };
+  return payGasless(session, toAddress.trim(), amountMicros);
 }

@@ -5,14 +5,15 @@ import { ENV } from "@/utils/constants";
 /**
  * Brisk payment transaction builders + invoice codec.
  *
- * Two payment paths, both feeless to the user:
- *  - Native gasless: PTB of solely `0x2::balance::send_funds<USDC>` with gas set
- *    to 0. The protocol treats it as a zero-fee Address-Balances transfer. (Auto
- *    gas=0 detection only fires on gRPC/GraphQL; on our JSON-RPC client we set
- *    gasPrice/gasBudget = 0 manually — eligibility is known since USDC is
- *    allowlisted.)
- *  - Sponsored: the same transfer (and later, +receipt/+cashback) with gas paid
- *    by Enoki. Used whenever the PTB does more than a bare stablecoin transfer.
+ * A merchant payment runs as two feeless legs (see services/blockchain/payments):
+ *  - Native gasless transfer (`buildGaslessTransferTx`): a PTB of solely
+ *    `0x2::balance::send_funds<USDC>` with gas set to 0, submitted straight to
+ *    the fullnode. The protocol treats it as a zero-fee Address-Balances transfer.
+ *    (Auto gas=0 detection only fires on gRPC/GraphQL; on our JSON-RPC client we
+ *    set gasPrice/gasBudget = 0 manually — USDC is allowlisted for send_funds.)
+ *  - Receipt + cashback (`buildReceiptOnlyTx`): a balance-free, Enoki-sponsored
+ *    PTB. Kept separate from the transfer because the gas station can't yet
+ *    sponsor Address-Balance withdrawals — see buildReceiptOnlyTx for the detail.
  *
  * `0x2::balance::send_funds<T>(Balance<T>, recipient: address)` — verified on
  * testnet. `tx.balance({ type, balance })` sources the Balance from the sender's
@@ -105,61 +106,21 @@ export function buildGaslessTransferTx(input: {
   return tx;
 }
 
-/**
- * Sponsored USDC transfer (Enoki pays gas). Returns a kind-only Transaction;
- * the caller serializes its kind bytes and runs it through the sponsor relay.
- * This is the fallback when native-gasless submission isn't available, and the
- * base for the Phase 2 transfer-with-receipt PTB.
- */
-export function buildSponsoredTransferTx(input: {
-  sender: string;
-  payee: string;
-  amountMicros: number | bigint;
-}): Transaction {
-  const tx = new Transaction();
-  tx.setSender(input.sender); // required so the balance source resolves at build time
-  const balance = tx.balance({ type: USDC, balance: BigInt(input.amountMicros) });
-  tx.moveCall({
-    target: "0x2::balance::send_funds",
-    typeArguments: [USDC],
-    arguments: [balance, tx.pure.address(input.payee)],
-  });
-  return tx;
-}
-
-/**
- * Coin/Balance ops the SDK may emit when resolving `tx.balance(...)` + send_funds.
- * Sourcing from the Address Balance resolves to `0x2::coin::send_funds` (not
- * `balance::send_funds`), so the Enoki allowlist must include both families.
- */
-// Enoki matches allowlist targets by EXACT string (no address normalization),
-// and the resolved tx uses the canonical 32-byte framework address — so these
-// MUST be fully-qualified, not the short `0x2::` form.
-const SUI_FW = "0x0000000000000000000000000000000000000000000000000000000000000002";
-const COIN_BALANCE_OPS = [
-  `${SUI_FW}::balance::send_funds`,
-  `${SUI_FW}::balance::redeem_funds`,
-  `${SUI_FW}::balance::withdraw`,
-  `${SUI_FW}::balance::split`,
-  `${SUI_FW}::coin::send_funds`,
-  `${SUI_FW}::coin::into_balance`,
-  `${SUI_FW}::coin::from_balance`,
-];
-
-/** Move-call targets a plain transfer touches — for the Enoki sponsorship allowlist. */
-export const TRANSFER_TARGETS = [...COIN_BALANCE_OPS];
-
 const PKG = ENV.briskPackageId;
 
 /**
- * Atomic merchant payment WITH an on-chain receipt, in one PTB:
- *   1. move `amount` USDC to the merchant (`balance::send_funds`)
- *   2. mint a `Receipt` (`payment_receipt::issue`) and hand it to the payer
- * Runs as an Enoki-sponsored tx (the receipt mint disqualifies native-gasless),
- * so the user still pays $0. Sender is set so the balance source resolves at
- * build time.
+ * Receipt + cashback ONLY — no USDC movement. Used as the second leg of a
+ * payment after the value transfer settles natively-gasless.
+ *
+ * Why split: when the payer's USDC lives in their Address Balance accumulator
+ * (the norm once funds are received via `send_funds`), the SDK sources it with
+ * the new `CallArg::FundsWithdrawal` input. Enoki's sponsor accepts it, but the
+ * gas station can't yet BCS-deserialize that variant → "Invalid bcs bytes for
+ * TransactionData". So the transfer runs natively-gasless straight to the
+ * fullnode (which understands FundsWithdrawal), and ONLY the receipt/cashback —
+ * which touch no balance and use solely `Pure` inputs — go through Enoki.
  */
-export function buildPaymentWithReceiptTx(input: {
+export function buildReceiptOnlyTx(input: {
   payer: string;
   payee: string;
   amountMicros: number | bigint;
@@ -169,13 +130,6 @@ export function buildPaymentWithReceiptTx(input: {
 }): Transaction {
   const tx = new Transaction();
   tx.setSender(input.payer);
-
-  const balance = tx.balance({ type: USDC, balance: BigInt(input.amountMicros) });
-  tx.moveCall({
-    target: "0x2::balance::send_funds",
-    typeArguments: [USDC],
-    arguments: [balance, tx.pure.address(input.payee)],
-  });
 
   const receipt = tx.moveCall({
     target: `${PKG}::payment_receipt::issue`,
@@ -191,7 +145,6 @@ export function buildPaymentWithReceiptTx(input: {
   });
   tx.transferObjects([receipt], tx.pure.address(input.payer));
 
-  // Cashback: mint loyalty points to the payer (closed-loop, atomic with the pay).
   tx.moveCall({
     target: `${PKG}::loyalty::earn`,
     arguments: [tx.pure.address(input.payer), tx.pure.u64(BigInt(input.amountMicros))],
@@ -200,9 +153,5 @@ export function buildPaymentWithReceiptTx(input: {
   return tx;
 }
 
-/** Allowlist for the sponsored payment-with-receipt-and-cashback PTB. */
-export const PAY_WITH_RECEIPT_TARGETS = [
-  ...COIN_BALANCE_OPS,
-  `${PKG}::payment_receipt::issue`,
-  `${PKG}::loyalty::earn`,
-];
+/** Allowlist for the sponsored receipt-and-cashback-only PTB (no balance ops). */
+export const RECEIPT_LOYALTY_TARGETS = [`${PKG}::payment_receipt::issue`, `${PKG}::loyalty::earn`];

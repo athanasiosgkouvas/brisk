@@ -10,6 +10,7 @@ import * as errorService from "./services/errorService.js";
 dotenv.config();
 
 const app = express();
+app.set("trust proxy", true); // behind ngrok — use X-Forwarded-For for client IP
 const port = Number(process.env.PORT ?? 3001);
 
 const enokiPrivateKey = process.env.ENOKI_PRIVATE_KEY;
@@ -50,6 +51,12 @@ app.use(
     legacyHeaders: false,
   }),
 );
+
+// Visibility: log every API request that actually reaches the backend.
+app.use((req, _res, next) => {
+  if (req.path.startsWith("/api/")) console.log(`[req] ${req.method} ${req.path}`);
+  next();
+});
 
 // ─── Validation schemas ─────────────────────────────────────────────────────
 
@@ -255,10 +262,15 @@ app.post("/api/execute", async (req, res) => {
     });
     res.json({ digest: result.digest });
   } catch (error: unknown) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const e = error as any;
+    // Enoki collapses gas-station failures into an opaque 400; unfold the nested
+    // `errors[].data` so logs show the real reason (dry-run abort, bad signature,
+    // unsupported tx shape, …) instead of just "Request to gas station failed".
     console.error("[execute] enoki rejected", {
       message: error instanceof Error ? error.message : String(error),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      cause: (error as any)?.cause,
+      cause: e?.cause?.message ?? e?.cause,
+      errors: JSON.stringify(e?.errors ?? e?.cause?.errors, null, 2),
       digest: parsed.data.digest,
     });
     res.status(500).json({

@@ -15,6 +15,6 @@
       "mock_lender",
       "loyalty"
     ],
-    "notes": "Fresh publish (Phase 2-4 modules). Prior package 0x713f0b...9934 (Phase 0 scaffold) is superseded. LendingPool reserve is unfunded — fund via mock_lender::fund with testnet USDC to pay yield on withdrawals."
+    "notes": "Fresh publish (Phase 2-4 modules). Prior package 0x713f0b...9934 (Phase 0 scaffold) is superseded. LendingPool reserve funded to 25 USDC on 2026-06-01 via mock_lender::fund (tx 92G9qBYz65i7dTDmjwmUA5rjJVt1opCm7frM9R8Lu6Rs) so redeem covers principal + accrued yield. Top up again via mock_lender::fund if it depletes."
   }
 }
