@@ -3,11 +3,8 @@ import * as SecureStore from "expo-secure-store";
 
 import type { AuthSession } from "@/types/user";
 
-const AUTH_SESSION_KEY = "fathom.auth.session";
-const POSITIONS_KEY = "fathom.positions.history";
-const AUTH_SESSION_FALLBACK_KEY = "fathom.auth.session.fallback";
-const BET_AMOUNT_KEY = "fathom.settings.betAmount";
-const EARN_HISTORY_KEY = "fathom.earn.history";
+const AUTH_SESSION_KEY = "brisk.auth.session";
+const AUTH_SESSION_FALLBACK_KEY = "brisk.auth.session.fallback";
 const inMemoryFallback = new Map<string, string>();
 
 async function setLocalValue(key: string, value: string): Promise<void> {
@@ -72,51 +69,4 @@ export async function loadAuthSession(): Promise<AuthSession | null> {
 
 export async function clearAuthSession(): Promise<void> {
   await deleteSecureValue(AUTH_SESSION_KEY);
-}
-
-export async function savePositionHistory(raw: string): Promise<void> {
-  await setLocalValue(POSITIONS_KEY, raw);
-}
-
-export async function loadPositionHistory(): Promise<string | null> {
-  return getLocalValue(POSITIONS_KEY);
-}
-
-export async function saveBetAmount(amount: number): Promise<void> {
-  await setLocalValue(BET_AMOUNT_KEY, String(amount));
-}
-
-export async function loadBetAmount(): Promise<number | null> {
-  const raw = await getLocalValue(BET_AMOUNT_KEY);
-  if (raw === null) return null;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) && parsed >= 0.1 ? parsed : null;
-}
-
-export async function saveEarnHistory(raw: string): Promise<void> {
-  await setLocalValue(EARN_HISTORY_KEY, raw);
-}
-
-export async function loadEarnHistory(): Promise<string | null> {
-  return getLocalValue(EARN_HISTORY_KEY);
-}
-
-const EARN_VAULT_CACHE_KEY = "fathom.earn.vault.cache";
-
-export async function saveEarnVaultCache(raw: string): Promise<void> {
-  await setLocalValue(EARN_VAULT_CACHE_KEY, raw);
-}
-
-export async function loadEarnVaultCache(): Promise<string | null> {
-  return getLocalValue(EARN_VAULT_CACHE_KEY);
-}
-
-const RESPONSIBLE_SETTINGS_KEY = "fathom.settings.responsible";
-
-export async function saveResponsibleSettings(raw: string): Promise<void> {
-  await setLocalValue(RESPONSIBLE_SETTINGS_KEY, raw);
-}
-
-export async function loadResponsibleSettings(): Promise<string | null> {
-  return getLocalValue(RESPONSIBLE_SETTINGS_KEY);
 }

@@ -19,9 +19,9 @@ export function PrimaryButton({
   const bgClass = inactive
     ? "bg-slate-700"
     : variant === "secondary"
-      ? "bg-fathom-bg2 border border-[#2C3E55]"
-      : "bg-fathom-bull";
-  const textClass = variant === "secondary" ? "text-fathom-text" : "text-[#07111A]";
+      ? "bg-brisk-bg2 border border-[#2C3E55]"
+      : "bg-brisk-accent";
+  const textClass = variant === "secondary" ? "text-brisk-text" : "text-[#07111A]";
 
   return (
     <Pressable

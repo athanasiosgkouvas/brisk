@@ -18,7 +18,7 @@ export function getGoogleRedirectUri(): string {
 
   // Native: point to the backend proxy endpoint.
   // Google's web client ID only accepts https:// redirect URIs, not custom schemes.
-  // The backend will bounce the response to fathom://oauth so expo-web-browser can intercept it.
+  // The backend will bounce the response to brisk://oauth so expo-web-browser can intercept it.
   return `${ENV.backendUrl}/auth/callback`;
 }
 

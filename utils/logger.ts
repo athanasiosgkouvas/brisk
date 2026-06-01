@@ -1,11 +1,11 @@
 export const log = {
   info: (message: string, data?: unknown): void => {
-    console.log(`[FATHOM] ${message}`, data ?? "");
+    console.log(`[BRISK] ${message}`, data ?? "");
   },
   warn: (message: string, data?: unknown): void => {
-    console.warn(`[FATHOM] ${message}`, data ?? "");
+    console.warn(`[BRISK] ${message}`, data ?? "");
   },
   error: (message: string, data?: unknown): void => {
-    console.error(`[FATHOM] ${message}`, data ?? "");
+    console.error(`[BRISK] ${message}`, data ?? "");
   },
 };

@@ -195,7 +195,7 @@ export class EnokiAuthService {
 
     const authResult = await WebBrowser.openAuthSessionAsync(
       authUrl,
-      // On native, listen for fathom://oauth (the backend proxy bounces here).
+      // On native, listen for brisk://oauth (the backend proxy bounces here).
       // On web, the redirect_uri IS the destination so pass it directly.
       Platform.OS === "web" ? redirectUri : NATIVE_OAUTH_SCHEME,
       getFastGoogleSessionOptions(),

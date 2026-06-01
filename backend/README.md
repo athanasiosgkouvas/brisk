@@ -1,58 +1,49 @@
-# fathom-backend
+# brisk-backend
 
-Express server that proxies Enoki sponsorship/execution, runs the Sui-event indexer, and serves indexer-derived user/leaderboard/vault data to the app.
+A thin Express relay that lets the Brisk app run **Enoki-sponsored transactions**
+without ever exposing the Enoki private key to the client, plus a few support
+endpoints. It holds no custody and stores no durable state — the chain is the
+source of truth.
 
 ## Run
 
 ```bash
 npm install
-cp .env.example .env       # fill ENOKI_PRIVATE_KEY at minimum
-npm run dev
+cp .env.example .env       # set ENOKI_PRIVATE_KEY (+ optional CORS/limits)
+npm run dev                # tsx watch on :3001
 ```
 
-## Indexer
+Expose it to the device with your tunnel of choice (e.g. ngrok) and point the
+app's `EXPO_PUBLIC_BACKEND_URL` at the public URL.
 
-The indexer polls `suix_queryEvents` every ~2.5s and persists a SQLite cache at `data/fathom.sqlite` (path overridable via `FATHOM_DB_PATH`). The chain is the source of truth — the SQLite store is rebuildable.
+## Endpoints
 
-Disable boot:
+| Method | Path                                  | Purpose                                                                                                                     |
+| ------ | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/api/sponsor`                        | Wrap a `transactionKindBytes` PTB into an Enoki-sponsored tx; returns `{ bytes, digest }` to sign.                          |
+| POST   | `/api/execute`                        | Submit the signed sponsored tx (`{ digest, signature }`) via Enoki; returns the on-chain digest.                            |
+| GET    | `/api/user/:address/sponsorship`      | Best-effort sponsorship usage for an address (per-address daily cap).                                                       |
+| GET    | `/auth/callback`                      | OAuth relay: bounces the Google `id_token` to the `brisk://oauth` deep link (custom schemes can't be Google redirect URIs). |
+| POST   | `/api/faucet/request`                 | Rate-limited redirect to a public testnet USDC faucet.                                                                      |
+| POST   | `/api/analytics/track`, `/api/errors` | In-memory dev telemetry (capped, reset on restart).                                                                         |
+| GET    | `/health`                             | Liveness probe.                                                                                                             |
 
-```bash
-INDEXER_ENABLED=false npm run dev
-```
+The app's two-call sponsorship dance lives in `services/blockchain/sponsoredExec.ts`:
+`/api/sponsor` → sign locally with the zkLogin ephemeral key → `/api/execute`.
+Only the receipt + cashback leg of a payment is sponsored; the USDC transfer
+itself is protocol-level gasless and goes straight to the fullnode.
 
-Operational scripts:
+## Configuration
 
-```bash
-npm run indexer:reset      # drop all tables and rerun migrations
-npm run indexer:replay     # clear cursors + derived rows, refill on next boot
-```
+- `ENOKI_PRIVATE_KEY` — **required**; the Enoki secret key (never sent to clients).
+- `PORT` (default `3001`), `CORS_ALLOWED_ORIGINS`, rate-limit + faucet window envs.
+- Per-address sponsorship cap is in-memory (best-effort). The real backstop is
+  the **Enoki dashboard**: restrict sponsorship to the Brisk package's Move
+  targets and cap the gas budget before exposing the relay publicly.
 
-Switching networks (testnet ↔ mainnet) is a different DB filename:
+## Notes
 
-```bash
-FATHOM_DB_PATH=./data/mainnet.sqlite npm run dev
-```
-
-## Sponsorship cap
-
-Each sponsored tx is logged to `sponsorship_log`. `/api/sponsor` rejects (HTTP 429) when the sender has used more than `SPONSORSHIP_DAILY_LIMIT_TX_COUNT` sponsored txs in the trailing 24h.
-
-## Keeper
-
-The keeper reconciles the indexer-aggregated exposure against `vault.predict_exposure` on chain. When `FATHOM_KEEPER_PRIVATE_KEY` is set, divergences > `FATHOM_KEEPER_DIVERGENCE_MIN_MICRO` (default 1 dUSDC) trigger a signed `vault::keeper_update_exposure` tx, throttled by `FATHOM_KEEPER_COOLDOWN_MS`. Without a key, the keeper logs divergences only ("observe-only").
-
-`GET /api/vault/keeper/status` exposes `lastSubmitMs`, `lastSubmitDigest`, `lastSubmitError`, and `observerOnly` for debugging.
-
-## Observability
-
-- `GET /health` — returns HTTP 503 if the poller hasn't ticked or any cursor hasn't advanced in `INDEXER_STALE_ALARM_MS` (default 30s). Body contains per-filter cursor ages.
-- `GET /api/admin/stats` — position counts, oracle/vault snapshot counts, sponsorship log size, keeper status, oldest unsettled position.
-- `GET /api/themes/active` — curated weekly bundles.
-
-## Tests
-
-```bash
-npm test       # builds then runs tests against dist/
-```
-
-Tests set `INDEXER_ENABLED=false` so the poller does not hit live RPC.
+- All state (sponsorship counts, faucet limits, telemetry) is in-memory and
+  resets on restart — fine for a single-instance hackathon demo.
+- Input is validated with `zod`; body size is capped; a global rate limiter and
+  graceful SIGTERM/SIGINT drain are in place.
