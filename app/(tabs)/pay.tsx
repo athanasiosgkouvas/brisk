@@ -1,6 +1,6 @@
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { CheckCircle2, QrCode, XCircle } from "lucide-react-native";
+import { CheckCircle2, SmartphoneNfc, XCircle } from "lucide-react-native";
 
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { usePay } from "@/hooks/usePay";
@@ -16,7 +16,7 @@ export default function PayScreen() {
       <View className="flex-1 items-center justify-center">
         {status === "idle" || status === "reading" ? (
           <>
-            <QrCode color="#00D98B" size={64} />
+            <SmartphoneNfc color="#00D98B" size={64} />
             <Text className="mt-6 text-2xl font-bold text-brisk-text">Tap to pay</Text>
             <Text className="mt-2 text-center text-sm text-brisk-subtext">
               Hold your phone to the Brisk Terminal. Pay in USDC — no gas, exact amount.

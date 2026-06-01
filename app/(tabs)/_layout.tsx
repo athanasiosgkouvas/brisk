@@ -1,6 +1,6 @@
 import { Tabs } from "expo-router";
 import { Platform, View } from "react-native";
-import { Wallet, QrCode, Store, PiggyBank } from "lucide-react-native";
+import { Wallet, Nfc, Store, PiggyBank } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function TabsLayout() {
@@ -39,7 +39,7 @@ export default function TabsLayout() {
           name="pay"
           options={{
             title: "Pay",
-            tabBarIcon: ({ color, size }) => <QrCode color={color} size={size} />,
+            tabBarIcon: ({ color, size }) => <Nfc color={color} size={size} />,
           }}
         />
         <Tabs.Screen
