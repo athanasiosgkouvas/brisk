@@ -46,7 +46,7 @@ export function usePay() {
     setError(null);
     setStatus("paying");
     try {
-      const res = await payInvoice(session, invoice, Date.now());
+      const res = await payInvoice(session, invoice);
       setResult(res);
       setStatus("done");
       return res;

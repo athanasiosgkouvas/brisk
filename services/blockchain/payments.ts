@@ -7,9 +7,7 @@ import { getSuiClientForBuild, suiClient } from "@/services/blockchain/suiClient
 import {
   buildGaslessTransferTx,
   buildPaymentWithReceiptTx,
-  buildReceiptOnlyTx,
   PAY_WITH_RECEIPT_TARGETS,
-  RECEIPT_LOYALTY_TARGETS,
   type Invoice,
 } from "@/services/blockchain/paymentTx";
 import { coinBalanceMicros, resolveSpendableCoins } from "@/services/blockchain/coins";
@@ -27,26 +25,21 @@ export type PayResult = {
 /**
  * Pay a merchant invoice, feeless to the user. Two paths:
  *
- *  - PREFERRED (coins available): one atomic Enoki-sponsored PTB does it all —
- *    transfer USDC to the merchant + mint the on-chain Receipt + cashback. The
+ *  - PREFERRED (coins available): one atomic Enoki-sponsored PTB —
+ *    `payment_receipt::pay` moves the USDC to the merchant, mints the on-chain
+ *    Receipt, and returns a proof `loyalty::earn` consumes for cashback. The
  *    USDC is sourced from owned Coin objects so Enoki's gas station accepts it.
  *  - FALLBACK (funds only in the Address Balance, no coins): move the money via
- *    native-gasless `send_funds` to the fullnode, then mint the receipt + cashback
- *    as a separate best-effort sponsored tx (`receiptIssued` flags if it didn't).
+ *    native-gasless `send_funds` straight to the fullnode. No on-chain receipt
+ *    is minted (the gated receipt can only come from `pay`), so `receiptIssued`
+ *    is false and the UI flags it.
  *
  * TODO(enoki-fundswithdrawal): the fallback exists only because Enoki can't yet
  * sponsor an Address-Balance withdrawal (`CallArg::FundsWithdrawal` →
- * "Invalid bcs bytes for TransactionData"). When that ships, drop the
- * coin-sourcing + fallback and always use one sponsored PTB built from
- * `tx.balance(...)`. See services/blockchain/coins.ts.
- *
- * `now` is the client timestamp stamped into the receipt.
+ * "Invalid bcs bytes for TransactionData"). When that ships, always take the
+ * atomic path with `tx.balance(...)`. See services/blockchain/coins.ts.
  */
-export async function payInvoice(
-  session: AuthSession,
-  invoice: Invoice,
-  now: number,
-): Promise<PayResult> {
+export async function payInvoice(session: AuthSession, invoice: Invoice): Promise<PayResult> {
   const amount = invoice.amountMicros;
 
   // PREFERRED: atomic transfer + receipt + cashback, sourced from coin objects.
@@ -59,7 +52,6 @@ export async function payInvoice(
       amountMicros: amount,
       memo: invoice.merchant,
       invoiceId: invoice.invoiceId,
-      timestampMs: now,
       coinObjectIds,
     });
     const txKindBytes = toBase64(await tx.build({ client, onlyTransactionKind: true }));
@@ -71,31 +63,9 @@ export async function payInvoice(
     return { digest, method: "sponsored", receiptIssued: true };
   }
 
-  // FALLBACK: native-gasless transfer (the money) + best-effort sponsored receipt.
+  // FALLBACK: native-gasless transfer (the money moves; no on-chain receipt).
   const transfer = await payGasless(session, invoice.payee, amount);
-  let receiptIssued = false;
-  try {
-    const client = await getSuiClientForBuild();
-    const tx = buildReceiptOnlyTx({
-      payer: session.address,
-      payee: invoice.payee,
-      amountMicros: amount,
-      memo: invoice.merchant,
-      invoiceId: invoice.invoiceId,
-      timestampMs: now,
-    });
-    const txKindBytes = toBase64(await tx.build({ client, onlyTransactionKind: true }));
-    await executeSponsored({
-      session,
-      txKindBytes,
-      allowedMoveCallTargets: RECEIPT_LOYALTY_TARGETS,
-    });
-    receiptIssued = true;
-  } catch (e) {
-    console.warn("[brisk-pay] receipt/cashback leg failed (payment still settled):", e);
-  }
-
-  return { digest: transfer.digest, method: "gasless", receiptIssued };
+  return { digest: transfer.digest, method: "gasless", receiptIssued: false };
 }
 
 /**

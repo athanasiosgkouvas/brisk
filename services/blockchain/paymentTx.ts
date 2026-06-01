@@ -1,6 +1,6 @@
 import { Transaction } from "@mysten/sui/transactions";
 
-import { ENV } from "@/utils/constants";
+import { CLOCK_OBJECT_ID, ENV } from "@/utils/constants";
 
 /**
  * Brisk payment transaction builders + invoice codec.
@@ -11,9 +11,10 @@ import { ENV } from "@/utils/constants";
  *    the fullnode. The protocol treats it as a zero-fee Address-Balances transfer.
  *    (Auto gas=0 detection only fires on gRPC/GraphQL; on our JSON-RPC client we
  *    set gasPrice/gasBudget = 0 manually — USDC is allowlisted for send_funds.)
- *  - Receipt + cashback (`buildReceiptOnlyTx`): a balance-free, Enoki-sponsored
- *    PTB. Kept separate from the transfer because the gas station can't yet
- *    sponsor Address-Balance withdrawals — see buildReceiptOnlyTx for the detail.
+ *  - Atomic sponsored payment (`buildPaymentWithReceiptTx`): one Enoki-sponsored
+ *    PTB that runs `payment_receipt::pay` (moves USDC + mints a soulbound receipt)
+ *    then `loyalty::earn`. Used when the payer holds spendable Coin objects; see
+ *    that builder for why the funds are coin-sourced.
  *
  * `0x2::balance::send_funds<T>(Balance<T>, recipient: address)` — verified on
  * testnet. `tx.balance({ type, balance })` sources the Balance from the sender's
@@ -108,25 +109,22 @@ export function buildGaslessTransferTx(input: {
 
 const PKG = ENV.briskPackageId;
 
-// Fully-qualified framework address — Enoki matches allowlist targets by exact
-// string (no normalization).
-const SUI_FW = "0x0000000000000000000000000000000000000000000000000000000000000002";
-
 /**
  * Atomic merchant payment — transfer + on-chain receipt + cashback in ONE
  * Enoki-sponsored PTB:
- *   1. split `amount` from the payer's USDC coins → `coin::into_balance` →
- *      `balance::send_funds` to the merchant
- *   2. mint a `Receipt` (`payment_receipt::issue`) to the payer
- *   3. mint loyalty cashback (`loyalty::earn`)
+ *   1. split `amount` from the payer's coins and hand it to
+ *      `payment_receipt::pay`, which transfers it to the merchant, mints a
+ *      soulbound `Receipt`, emits `PaymentMade`, and returns a `PaymentProof`.
+ *   2. `loyalty::earn` consumes that proof and mints cashback to the payer.
  *
- * The USDC is sourced from explicit Coin objects (`coinObjectIds`, merged +
- * split) rather than the Address Balance, so the sponsored tx uses
- * `CallArg::Object` and clears Enoki's gas station.
+ * `amount`/`timestamp` on the receipt are authenticated on-chain (coin value +
+ * `Clock`), and cashback is bound to this exact payment by the hot-potato proof
+ * — neither can be forged or replayed.
  *
+ * USDC is sourced from explicit Coin objects (`coinObjectIds`, merged + split)
+ * so the sponsored tx uses `CallArg::Object` and clears Enoki's gas station.
  * TODO(enoki-fundswithdrawal): once Enoki sponsors Address-Balance withdrawals,
- * replace the coin-sourcing with `tx.balance({ type: USDC, balance: amount })`
- * (works regardless of where the funds live) and drop `coinObjectIds`. See
+ * source the coin with `tx.balance(...)` and drop `coinObjectIds`. See
  * services/blockchain/coins.ts.
  */
 export function buildPaymentWithReceiptTx(input: {
@@ -135,7 +133,6 @@ export function buildPaymentWithReceiptTx(input: {
   amountMicros: number | bigint;
   memo: string;
   invoiceId: string;
-  timestampMs: number | bigint;
   coinObjectIds: string[];
 }): Transaction {
   const tx = new Transaction();
@@ -144,92 +141,22 @@ export function buildPaymentWithReceiptTx(input: {
   const [primary, ...rest] = input.coinObjectIds.map((id) => tx.object(id));
   if (rest.length > 0) tx.mergeCoins(primary, rest);
   const [paymentCoin] = tx.splitCoins(primary, [tx.pure.u64(BigInt(input.amountMicros))]);
-  const balance = tx.moveCall({
-    target: `${SUI_FW}::coin::into_balance`,
-    typeArguments: [USDC],
-    arguments: [paymentCoin],
-  });
-  tx.moveCall({
-    target: `${SUI_FW}::balance::send_funds`,
-    typeArguments: [USDC],
-    arguments: [balance, tx.pure.address(input.payee)],
-  });
 
-  const receipt = tx.moveCall({
-    target: `${PKG}::payment_receipt::issue`,
+  const proof = tx.moveCall({
+    target: `${PKG}::payment_receipt::pay`,
     typeArguments: [USDC],
     arguments: [
-      tx.pure.address(input.payer),
+      paymentCoin,
       tx.pure.address(input.payee),
-      tx.pure.u64(BigInt(input.amountMicros)),
       tx.pure.string(input.memo),
       tx.pure.string(input.invoiceId),
-      tx.pure.u64(BigInt(input.timestampMs)),
+      tx.object(CLOCK_OBJECT_ID),
     ],
   });
-  tx.transferObjects([receipt], tx.pure.address(input.payer));
-
-  tx.moveCall({
-    target: `${PKG}::loyalty::earn`,
-    arguments: [tx.pure.address(input.payer), tx.pure.u64(BigInt(input.amountMicros))],
-  });
+  tx.moveCall({ target: `${PKG}::loyalty::earn`, arguments: [proof] });
 
   return tx;
 }
 
-/** Allowlist for the atomic sponsored payment-with-receipt-and-cashback PTB. */
-export const PAY_WITH_RECEIPT_TARGETS = [
-  `${SUI_FW}::coin::into_balance`,
-  `${SUI_FW}::balance::send_funds`,
-  `${PKG}::payment_receipt::issue`,
-  `${PKG}::loyalty::earn`,
-];
-
-/**
- * Receipt + cashback ONLY — no USDC movement. The fallback second leg of a
- * payment whose value transfer settled natively-gasless (used when the payer's
- * USDC is only in the Address Balance, so coin-sourcing isn't possible).
- *
- * Why split: when the payer's USDC lives in their Address Balance accumulator
- * (the norm once funds are received via `send_funds`), the SDK sources it with
- * the new `CallArg::FundsWithdrawal` input. Enoki's sponsor accepts it, but the
- * gas station can't yet BCS-deserialize that variant → "Invalid bcs bytes for
- * TransactionData". So the transfer runs natively-gasless straight to the
- * fullnode (which understands FundsWithdrawal), and ONLY the receipt/cashback —
- * which touch no balance and use solely `Pure` inputs — go through Enoki.
- */
-export function buildReceiptOnlyTx(input: {
-  payer: string;
-  payee: string;
-  amountMicros: number | bigint;
-  memo: string;
-  invoiceId: string;
-  timestampMs: number | bigint;
-}): Transaction {
-  const tx = new Transaction();
-  tx.setSender(input.payer);
-
-  const receipt = tx.moveCall({
-    target: `${PKG}::payment_receipt::issue`,
-    typeArguments: [USDC],
-    arguments: [
-      tx.pure.address(input.payer),
-      tx.pure.address(input.payee),
-      tx.pure.u64(BigInt(input.amountMicros)),
-      tx.pure.string(input.memo),
-      tx.pure.string(input.invoiceId),
-      tx.pure.u64(BigInt(input.timestampMs)),
-    ],
-  });
-  tx.transferObjects([receipt], tx.pure.address(input.payer));
-
-  tx.moveCall({
-    target: `${PKG}::loyalty::earn`,
-    arguments: [tx.pure.address(input.payer), tx.pure.u64(BigInt(input.amountMicros))],
-  });
-
-  return tx;
-}
-
-/** Allowlist for the sponsored receipt-and-cashback-only PTB (no balance ops). */
-export const RECEIPT_LOYALTY_TARGETS = [`${PKG}::payment_receipt::issue`, `${PKG}::loyalty::earn`];
+/** Allowlist for the atomic sponsored payment PTB (pay moves funds internally). */
+export const PAY_WITH_RECEIPT_TARGETS = [`${PKG}::payment_receipt::pay`, `${PKG}::loyalty::earn`];
