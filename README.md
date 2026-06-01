@@ -116,17 +116,19 @@ universal fallback (e.g. a merchant on iPhone).
 
 ## Feeless by design: gasless vs sponsored
 
-The user **never** pays gas. Two complementary mechanisms make that true:
+The user **never** pays gas. Two complementary mechanisms make that true, and a merchant payment uses
+**both** as two legs:
 
-1. **Native gasless** — a plain stablecoin transfer is a PTB containing only `0x2::balance::send_funds<USDC>`.
-   Sui's protocol treats it as a **zero‑fee** Address‑Balances transfer; the sender needs no SUI. (Used for
-   simple peer‑to‑peer transfers; see `payGasless`.)
-2. **Enoki‑sponsored** — a merchant payment does _more_ than a bare transfer (mints a receipt + cashback),
-   which disqualifies native‑gasless. So it runs as a **single Enoki‑sponsored PTB**: Enoki pays the gas,
-   the user is still charged **exactly** the invoice amount.
+1. **Native gasless** (the money) — the USDC transfer is a PTB containing only `0x2::balance::send_funds<USDC>`,
+   submitted straight to the fullnode. Sui's protocol treats it as a **zero‑fee** Address‑Balances transfer;
+   the sender needs no SUI. This leg is the source of truth for the payment (see `payGasless`).
+2. **Enoki‑sponsored** (the record) — the on‑chain `Receipt` + cashback mint as a **separate** sponsored PTB
+   that touches no balance, so Enoki pays its gas. It's split from the transfer because Enoki's gas station
+   can't yet sponsor an Address‑Balance withdrawal (`CallArg::FundsWithdrawal`); keeping the value movement
+   native‑gasless sidesteps that entirely. The receipt leg is best‑effort and never blocks settlement.
 
 Either way the customer is charged `$X` and pays `$0` in fees. This is the load‑bearing design decision and
-it's wired throughout `services/blockchain/paymentTx.ts`.
+it's wired through `services/blockchain/payments.ts` + `paymentTx.ts`.
 
 ---
 
@@ -224,14 +226,14 @@ brisk/
 
 ## Deployed on testnet
 
-| Object                            | ID                                                                               |
-| --------------------------------- | -------------------------------------------------------------------------------- |
-| **Package**                       | `0xc7073f8c1f54ece01d81e4b4cd9a16931ddacc43875bf80bf4780112fb72204a`             |
-| **LendingPool\<USDC\>** (10% APY) | `0x2e3c89fa3b757dcbe0ea8242e1368d8662ed6ed0eda2c412cafe0b1380f16457`             |
-| USDC (Circle, testnet)            | `0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdc::USDC` |
-| App bundle id / scheme            | `com.gkouvas.brisk` / `brisk://`                                                 |
+| Object                            | ID                                                                                                                                               |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Package**                       | [`0xc7073f8c…fb72204a`](https://suiscan.xyz/testnet/object/0xc7073f8c1f54ece01d81e4b4cd9a16931ddacc43875bf80bf4780112fb72204a)                   |
+| **LendingPool\<USDC\>** (10% APY) | [`0x2e3c89fa…80f16457`](https://suiscan.xyz/testnet/object/0x2e3c89fa3b757dcbe0ea8242e1368d8662ed6ed0eda2c412cafe0b1380f16457)                   |
+| USDC (Circle, testnet)            | [`0xa1ec7fc0…::usdc::USDC`](https://suiscan.xyz/testnet/coin/0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdc::USDC/txs) |
+| App bundle id / scheme            | `com.gkouvas.brisk` / `brisk://`                                                                                                                 |
 
-Full record (incl. UpgradeCap, AdminCap, publish digest) in [`move/deployments.json`](move/deployments.json).
+Full record (incl. UpgradeCap, AdminCap, publish digest) in [`move/deployments.json`](move/deployments.json). Browse the live package, pool, and payment events on [Suiscan](https://suiscan.xyz/testnet/object/0xc7073f8c1f54ece01d81e4b4cd9a16931ddacc43875bf80bf4780112fb72204a).
 
 ---
 

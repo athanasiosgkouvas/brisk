@@ -1,5 +1,12 @@
 # Brisk — Project Plan & Status
 
+> ⚠️ **Historical planning log.** This file captures the original phased plan and
+> may lag the shipped code. For the authoritative current architecture and run
+> instructions, see the [README](../README.md). Notably: NFC uses a **custom
+> native Kotlin HCE module** (`plugins/withBriskHce.js`), **not** `react-native-hce`
+> (which is unusable on RN 0.81 / AGP 8); and merchant payments settle via a
+> native-gasless transfer + a separate sponsored receipt leg.
+
 > **Brisk**: a decentralized **tap-to-pay** PoS on Sui. A customer taps their phone
 > (iPhone **or** Android) to a merchant's **Brisk Terminal** and pays in USDC —
 > charged the exact amount, **no gas, no card fees** — merchant paid instantly.
@@ -67,7 +74,7 @@ Test devices available: **Android phone + iPhone** (Android = Brisk Terminal, iP
 | Thing                  | Value                                                                                                                |
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | Repo                   | `/Users/agkouvas/sui_repos/brisk` (monorepo: app root / `backend/` / `move/`)                                        |
-| Built on               | fork of `/Users/agkouvas/sui_repos/fathom` (auth + sponsor spine reused)                                             |
+| Built on               | a prior RN project's zkLogin + Enoki sponsor spine (reused)                                                          |
 | Move package (testnet) | `0xc7073f8c1f54ece01d81e4b4cd9a16931ddacc43875bf80bf4780112fb72204a` (all 6 modules; supersedes 0x713f… scaffold)    |
 | LendingPool<USDC>      | `0x2e3c89fa3b757dcbe0ea8242e1368d8662ed6ed0eda2c412cafe0b1380f16457` (10% APY; reserve UNFUNDED — fund to pay yield) |
 | mock_lender AdminCap   | `0xaa2304057a21eb0689b3d2e6000a82e4e2c183565713cb317be1411d82930e37`                                                 |
@@ -76,7 +83,7 @@ Test devices available: **Android phone + iPhone** (Android = Brisk Terminal, iP
 | Dev Sui address        | `0x076a67589159074d5c29ccddc1c24f7c34a4c3527502e55f182e10f5bc0bd606`                                                 |
 | Network                | testnet (gasless `send_funds` confirmed on testnet)                                                                  |
 | Bundle id / scheme     | `com.gkouvas.brisk` / `brisk://` (OAuth deep link `brisk://oauth`; invoice `brisk://pay?...`)                        |
-| Backend URL (ngrok)    | `https://buddy-goldsmith-bolster.ngrok-free.dev` → local `:3001`                                                     |
+| Backend URL (ngrok)    | `https://<your-tunnel>.ngrok-free.dev` → local `:3001` (set `EXPO_PUBLIC_BACKEND_URL`)                               |
 | ngrok command          | `cd backend && npm run ngrok` (reserved domain)                                                                      |
 | NFC libs               | `react-native-hce` (Android terminal, HCE) · `react-native-nfc-manager` (customer read, iOS+Android)                 |
 | NDEF tag               | Type-4, AID `D2760000850101`; payload = `brisk://pay?payee=<addr>&amount=<micros>&invoice=<id>&merchant=<name>`      |
@@ -116,7 +123,7 @@ The iOS **simulator** is still fine for non-NFC work (auth, UI, Save). Backend `
 | QR              | **Fallback only** (merchant-on-iPhone, or NFC failure). Not the headline.                                           |
 | Merchant device | **Android** (HCE is Android-only). Framed as the "Brisk Terminal".                                                  |
 | Customer device | **iOS + Android** (Core NFC / reader mode).                                                                         |
-| Mobile stack    | Expo + RN, fork of fathom. On-device `@mysten/sui`.                                                                 |
+| Mobile stack    | Expo + RN (built on a prior RN project's auth spine). On-device `@mysten/sui`.                                      |
 | Backend         | Minimal sponsor relay (Enoki private key server-side).                                                              |
 | Auth            | zkLogin (Google) + Enoki + device biometric gate.                                                                   |
 | Stablecoin      | USDC.                                                                                                               |
@@ -171,7 +178,7 @@ Clean sponsor relay: `/api/sponsor` + `/api/execute` (Enoki), `/api/faucet/reque
 
 ---
 
-## Reused from the fathom fork (don't rebuild)
+## Reused from the upstream fork (don't rebuild)
 
 - `services/auth/enokiAuth.ts` — zkLogin login/restore/sign.
 - `services/blockchain/suiClient.ts` — **keep `patchIntlPluralRules()`** (RPC silently fails on Hermes without it).
@@ -183,8 +190,9 @@ Gotchas: `@mysten/enoki` misbehaves in RN → use the Enoki HTTP API. Enoki reje
 whose move targets aren't in `BRISK_ALLOWED_TARGETS`. `@mysten/sui` v2.16: client is
 `SuiJsonRpcClient` from `@mysten/sui/jsonRpc` (not `SuiClient`).
 
-Reference templates (in fathom, not copied): `earnTransactions.ts` (→ vault deposit/withdraw),
-`useSendDusdc.ts` (→ plain transfer), `move/fathom_router/sources/router.move` `assert_and_record`.
+Reference templates lived only in the upstream fork (not copied into Brisk): an
+earn-transactions builder (→ vault deposit/withdraw) and a plain-transfer hook
+(→ `payGasless`).
 
 ---
 
@@ -195,7 +203,7 @@ Cut order if time-tight: **cashback → vault** (the tap is the core, never cut;
 
 ### ✅ Phase 0 — Foundations (DONE)
 
-- [x] Fork fathom → brisk; strip Predict/DeepBook/Earn; Pay/Charge/Save shell; typechecks clean.
+- [x] Bootstrap Brisk from the upstream fork; strip unrelated features; Pay/Charge/Save shell; typechecks clean.
 - [x] Move package scaffolded + published to testnet (`0x713f0b…9934`).
 - [x] Backend stripped to a clean sponsor relay; boots; OAuth → `brisk://oauth`.
 - [x] Env wired; Google client + Enoki keys; **sponsor round-trip verified**.
