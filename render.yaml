@@ -1,0 +1,33 @@
+# Render Blueprint — Brisk Enoki sponsor relay (backend/).
+#
+# Deploy:
+#   1. Push this repo to GitHub.
+#   2. Render dashboard → New + → Blueprint → pick the repo. Render reads this file.
+#   3. When prompted, paste ENOKI_PRIVATE_KEY (it's a secret — sync:false, not committed).
+#   4. After it goes live you get a URL like https://brisk-backend.onrender.com.
+#
+# The backend reads PORT from the environment (Render sets it) and binds all
+# interfaces, exposes GET /health for the health check, and needs no .env file
+# (env vars come from the dashboard).
+services:
+  - type: web
+    name: brisk-backend
+    runtime: node
+    plan: free
+    rootDir: backend
+    # tsx/typescript are devDependencies; --include=dev ensures they're present
+    # for the tsc build even when Render sets NODE_ENV=production.
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: ENOKI_PRIVATE_KEY
+        sync: false # set in the Render dashboard (secret)
+      - key: SPONSORSHIP_DAILY_LIMIT_TX_COUNT
+        value: "100"
+      # CORS is intentionally left unset → permissive. The native app sends no
+      # Origin header, so CORS is moot; set CORS_ALLOWED_ORIGINS only if you add
+      # a web client.
