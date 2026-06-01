@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { useAuth } from "@/hooks/useAuth";
+import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { queryActivity, type ActivityItem } from "@/services/blockchain/receipts";
 
 export function useActivity() {
@@ -23,6 +24,8 @@ export function useActivity() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
   }, [refresh]);
+
+  useRefreshOnFocus(refresh);
 
   return { items, loading, refresh };
 }

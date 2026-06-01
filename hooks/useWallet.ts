@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { useAuth } from "@/hooks/useAuth";
+import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import { getSpendableUsdcMicros } from "@/services/blockchain/wallet";
 
 export function useWallet() {
@@ -23,6 +24,8 @@ export function useWallet() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
   }, [refresh]);
+
+  useRefreshOnFocus(refresh);
 
   return { usdcMicros, address: session?.address ?? "", loading, refresh };
 }

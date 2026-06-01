@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { useAuth } from "@/hooks/useAuth";
+import { useRefreshOnFocus } from "@/hooks/useRefreshOnFocus";
 import {
   depositToSave,
   getSaveState,
@@ -33,6 +34,10 @@ export function useSave() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
   }, [refresh]);
+
+  // Keep the Save figure live across tabs (e.g. the Wallet summary after a
+  // withdraw, or this tab after a pay drew the balance down).
+  useRefreshOnFocus(refresh);
 
   const run = useCallback(
     async (fn: () => Promise<void>) => {
