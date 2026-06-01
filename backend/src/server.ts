@@ -255,6 +255,12 @@ app.post("/api/execute", async (req, res) => {
     });
     res.json({ digest: result.digest });
   } catch (error: unknown) {
+    console.error("[execute] enoki rejected", {
+      message: error instanceof Error ? error.message : String(error),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      cause: (error as any)?.cause,
+      digest: parsed.data.digest,
+    });
     res.status(500).json({
       error: "Failed to execute sponsored transaction",
       details: error instanceof Error ? error.message : "unknown error",

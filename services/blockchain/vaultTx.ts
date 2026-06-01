@@ -68,17 +68,24 @@ export function buildWithdrawTx(input: {
   return tx;
 }
 
+// Fully-qualified framework address — Enoki matches allowlist targets by exact
+// string (no normalization), and the tx uses the canonical 32-byte 0x2 address.
+const SUI_FW = "0x0000000000000000000000000000000000000000000000000000000000000002";
+
 export const OPEN_VAULT_TARGETS = [`${PKG}::spending_vault::open`];
 export const DEPOSIT_TARGETS = [
   `${PKG}::spending_vault::deposit`,
-  "0x2::coin::send_funds",
-  "0x2::coin::into_balance",
-  "0x2::coin::from_balance",
-  "0x2::balance::send_funds",
-  "0x2::balance::split",
+  `${SUI_FW}::coin::send_funds`,
+  `${SUI_FW}::coin::into_balance`,
+  `${SUI_FW}::coin::from_balance`,
+  `${SUI_FW}::balance::send_funds`,
+  `${SUI_FW}::balance::redeem_funds`,
+  `${SUI_FW}::balance::split`,
 ];
 export const WITHDRAW_TARGETS = [
   `${PKG}::spending_vault::withdraw`,
-  "0x2::coin::send_funds",
-  "0x2::balance::send_funds",
+  `${SUI_FW}::coin::send_funds`,
+  `${SUI_FW}::coin::from_balance`,
+  `${SUI_FW}::balance::send_funds`,
+  `${SUI_FW}::balance::redeem_funds`,
 ];

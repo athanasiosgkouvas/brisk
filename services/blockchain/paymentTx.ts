@@ -132,14 +132,18 @@ export function buildSponsoredTransferTx(input: {
  * Sourcing from the Address Balance resolves to `0x2::coin::send_funds` (not
  * `balance::send_funds`), so the Enoki allowlist must include both families.
  */
+// Enoki matches allowlist targets by EXACT string (no address normalization),
+// and the resolved tx uses the canonical 32-byte framework address — so these
+// MUST be fully-qualified, not the short `0x2::` form.
+const SUI_FW = "0x0000000000000000000000000000000000000000000000000000000000000002";
 const COIN_BALANCE_OPS = [
-  "0x2::balance::send_funds",
-  "0x2::balance::redeem_funds",
-  "0x2::balance::withdraw",
-  "0x2::balance::split",
-  "0x2::coin::send_funds",
-  "0x2::coin::into_balance",
-  "0x2::coin::from_balance",
+  `${SUI_FW}::balance::send_funds`,
+  `${SUI_FW}::balance::redeem_funds`,
+  `${SUI_FW}::balance::withdraw`,
+  `${SUI_FW}::balance::split`,
+  `${SUI_FW}::coin::send_funds`,
+  `${SUI_FW}::coin::into_balance`,
+  `${SUI_FW}::coin::from_balance`,
 ];
 
 /** Move-call targets a plain transfer touches — for the Enoki sponsorship allowlist. */

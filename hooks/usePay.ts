@@ -58,6 +58,7 @@ export function usePay() {
       setStatus("done");
       return res;
     } catch (e) {
+      console.error("[brisk-pay] failed:", e instanceof Error ? e.message : e, e);
       setError(e instanceof Error ? e.message : "Payment failed");
       setStatus("error");
       return null;
