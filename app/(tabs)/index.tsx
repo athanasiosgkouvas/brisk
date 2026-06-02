@@ -5,13 +5,12 @@ import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
-import { ArrowDownLeft, ArrowUpRight, Check, Copy, PiggyBank, Sparkles } from "lucide-react-native";
+import { ArrowDownLeft, ArrowUpRight, Check, Copy, PiggyBank } from "lucide-react-native";
 
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { useWallet } from "@/hooks/useWallet";
 import { useSave } from "@/hooks/useSave";
 import { useActivity } from "@/hooks/useActivity";
-import { useCashback } from "@/hooks/useCashback";
 import { useCountUp } from "@/hooks/useCountUp";
 import { formatUsd } from "@/services/blockchain/paymentTx";
 import { type ActivityItem } from "@/services/blockchain/receipts";
@@ -79,19 +78,12 @@ export default function HomeScreen() {
   const { usdcMicros, loading, refresh } = useWallet();
   const { state: save, refresh: refreshSave } = useSave();
   const { items, refresh: refreshActivity } = useActivity();
-  const {
-    totalMicros: cashbackMicros,
-    count: cashbackCount,
-    status: cashbackStatus,
-    refresh: refreshCashback,
-    redeem: redeemCashback,
-  } = useCashback();
   const [refreshing, setRefreshing] = useState(false);
   const shownMicros = useCountUp(usdcMicros);
 
   const refreshAll = useCallback(
-    () => Promise.all([refresh(), refreshSave(), refreshActivity(), refreshCashback()]),
-    [refresh, refreshSave, refreshActivity, refreshCashback],
+    () => Promise.all([refresh(), refreshSave(), refreshActivity()]),
+    [refresh, refreshSave, refreshActivity],
   );
 
   const onRefresh = useCallback(async () => {
@@ -151,32 +143,6 @@ export default function HomeScreen() {
             {formatUsd(save.valueMicros)}
           </Text>
         </Pressable>
-
-        {/* Cashback */}
-        <View className="mt-3 flex-row items-center rounded-2xl border border-[#1C2A3A] bg-brisk-bg1 px-4 py-4">
-          <Sparkles color="#00D98B" size={24} />
-          <View className="ml-3 flex-1">
-            <Text className="text-sm text-brisk-text">Cashback</Text>
-            <Text className="text-xs text-brisk-subtext">1% back on every payment</Text>
-          </View>
-          <View className="items-end">
-            <Text className="text-base font-semibold text-brisk-accent">
-              {formatUsd(cashbackMicros)}
-            </Text>
-            {cashbackCount > 0 ? (
-              <Pressable
-                onPress={() => void redeemCashback()}
-                disabled={cashbackStatus === "redeeming"}
-                hitSlop={8}
-                className="mt-0.5"
-              >
-                <Text className="text-xs font-semibold text-brisk-accent">
-                  {cashbackStatus === "redeeming" ? "Redeeming…" : "Redeem"}
-                </Text>
-              </Pressable>
-            ) : null}
-          </View>
-        </View>
 
         {/* Activity */}
         <Text className="mt-8 text-sm uppercase tracking-[2px] text-brisk-subtext">Activity</Text>

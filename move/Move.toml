@@ -4,8 +4,8 @@ edition = "2024.beta"
 version = "0.1.0"
 
 # Brisk's on-chain primitive: gasless-friendly stablecoin payments with
-# verifiable receipts, a yield-bearing spending vault (lender behind an
-# adapter interface), and a closed-loop cashback token.
+# verifiable receipts and a yield-bearing spending vault (lender behind an
+# adapter interface).
 #
 # The Sui framework + MoveStdlib are auto-added by the toolchain, matching the
 # CLI's bundled framework version — so no explicit [dependencies] are needed.

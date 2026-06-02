@@ -69,14 +69,11 @@ export default function PayScreen() {
               {formatUsd(Math.round(paidShown))}
             </Text>
             <Text className="mt-1 text-base text-brisk-subtext">to {invoice.merchant}</Text>
-            <Text className="mt-2 text-xs text-brisk-subtext">
-              Gasless — settled on Sui, you paid no gas
+            <Text className="mt-2 text-center text-xs text-brisk-subtext">
+              {result.receiptIssued
+                ? "Settled on Sui — on-chain receipt minted, you paid no gas"
+                : "Gasless — settled on Sui, you paid no gas"}
             </Text>
-            {!result.receiptIssued ? (
-              <Text className="mt-2 text-center text-xs text-brisk-subtext">
-                Receipt &amp; cashback are still finalizing.
-              </Text>
-            ) : null}
             <View className="mt-8 w-full max-w-[360px]">
               <PrimaryButton label="Done" onPress={reset} />
             </View>

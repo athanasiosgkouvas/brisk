@@ -17,7 +17,7 @@ fun pay_moves_funds_and_mints_authentic_receipt() {
     let funds = coin::mint_for_testing<SUI>(4_500_000, ts::ctx(&mut sc));
 
     // amount + timestamp are derived from the coin/clock, not caller args.
-    let proof = payment_receipt::pay<SUI>(
+    payment_receipt::pay<SUI>(
         funds,
         payee,
         string::utf8(b"coffee"),
@@ -25,7 +25,6 @@ fun pay_moves_funds_and_mints_authentic_receipt() {
         &clk,
         ts::ctx(&mut sc),
     );
-    payment_receipt::discard_proof(proof);
 
     // Receipt is soulbound to the payer with the real amount.
     ts::next_tx(&mut sc, payer);

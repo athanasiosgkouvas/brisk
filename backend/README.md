@@ -30,8 +30,9 @@ app's `EXPO_PUBLIC_BACKEND_URL` at the public URL.
 
 The app's two-call sponsorship dance lives in `services/blockchain/sponsoredExec.ts`:
 `/api/sponsor` → sign locally with the zkLogin ephemeral key → `/api/execute`.
-Only the receipt + cashback leg of a payment is sponsored; the USDC transfer
-itself is protocol-level gasless and goes straight to the fullnode.
+A merchant payment is one atomic sponsored PTB (`payment_receipt::pay` — moves
+the USDC + mints the receipt); a plain transfer/Send is protocol-level gasless
+and goes straight to the fullnode (no relay).
 
 ## Configuration
 

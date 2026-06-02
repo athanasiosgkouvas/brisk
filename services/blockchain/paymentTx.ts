@@ -12,9 +12,9 @@ import { CLOCK_OBJECT_ID, ENV } from "@/utils/constants";
  *    (Auto gas=0 detection only fires on gRPC/GraphQL; on our JSON-RPC client we
  *    set gasPrice/gasBudget = 0 manually — USDC is allowlisted for send_funds.)
  *  - Atomic sponsored payment (`buildPaymentWithReceiptTx`): one Enoki-sponsored
- *    PTB that runs `payment_receipt::pay` (moves USDC + mints a soulbound receipt)
- *    then `loyalty::earn`. Used when the payer holds spendable Coin objects; see
- *    that builder for why the funds are coin-sourced.
+ *    PTB that runs `payment_receipt::pay` (moves USDC + mints a soulbound receipt).
+ *    Used when the payer holds spendable Coin objects; see that builder for why
+ *    the funds are coin-sourced.
  *
  * `0x2::balance::send_funds<T>(Balance<T>, recipient: address)` — verified on
  * testnet. `tx.balance({ type, balance })` sources the Balance from the sender's
@@ -113,16 +113,11 @@ export function buildGaslessTransferTx(input: {
 const PKG = ENV.briskPackageId;
 
 /**
- * Atomic merchant payment — transfer + on-chain receipt + cashback in ONE
- * Enoki-sponsored PTB:
- *   1. split `amount` from the payer's coins and hand it to
- *      `payment_receipt::pay`, which transfers it to the merchant, mints a
- *      soulbound `Receipt`, emits `PaymentMade`, and returns a `PaymentProof`.
- *   2. `loyalty::earn` consumes that proof and mints cashback to the payer.
- *
- * `amount`/`timestamp` on the receipt are authenticated on-chain (coin value +
- * `Clock`), and cashback is bound to this exact payment by the hot-potato proof
- * — neither can be forged or replayed.
+ * Atomic merchant payment — transfer + on-chain receipt in ONE Enoki-sponsored
+ * PTB: split `amount` from the payer's coins and hand it to
+ * `payment_receipt::pay`, which transfers it to the merchant, mints a soulbound
+ * `Receipt`, and emits `PaymentMade`. `amount`/`timestamp` are authenticated
+ * on-chain (coin value + `Clock`), never caller-supplied.
  *
  * USDC is sourced from explicit Coin objects (`coinObjectIds`, merged + split)
  * so the sponsored tx uses `CallArg::Object` and clears Enoki's gas station.
@@ -145,7 +140,7 @@ export function buildPaymentWithReceiptTx(input: {
   if (rest.length > 0) tx.mergeCoins(primary, rest);
   const [paymentCoin] = tx.splitCoins(primary, [tx.pure.u64(BigInt(input.amountMicros))]);
 
-  const proof = tx.moveCall({
+  tx.moveCall({
     target: `${PKG}::payment_receipt::pay`,
     typeArguments: [USDC],
     arguments: [
@@ -156,10 +151,9 @@ export function buildPaymentWithReceiptTx(input: {
       tx.object(CLOCK_OBJECT_ID),
     ],
   });
-  tx.moveCall({ target: `${PKG}::loyalty::earn`, arguments: [proof] });
 
   return tx;
 }
 
 /** Allowlist for the atomic sponsored payment PTB (pay moves funds internally). */
-export const PAY_WITH_RECEIPT_TARGETS = [`${PKG}::payment_receipt::pay`, `${PKG}::loyalty::earn`];
+export const PAY_WITH_RECEIPT_TARGETS = [`${PKG}::payment_receipt::pay`];

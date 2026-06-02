@@ -3,9 +3,7 @@
 /// event) is unforgeable proof that the payment actually happened: the `amount`
 /// is taken from the transferred coin and the `timestamp_ms` from the on-chain
 /// `Clock`, never from caller-supplied args. The `Receipt` is soulbound
-/// (`key`-only) to the payer. `pay` also returns a `PaymentProof` hot-potato
-/// that `loyalty::earn` must consume in the same transaction — that's how
-/// cashback is bound to a real, single payment (no forgery, no replay).
+/// (`key`-only) to the payer.
 module brisk::payment_receipt;
 
 use std::string::String;
@@ -27,15 +25,6 @@ public struct Receipt has key {
     timestamp_ms: u64,
 }
 
-/// Hot potato proving a payment of `amount` by `payer` just settled. Has NO
-/// abilities, so it cannot be stored, copied, dropped, or transferred — it MUST
-/// be consumed in the same tx (by `loyalty::earn`, or discarded via
-/// `discard_proof`). Only `pay` can mint one, so cashback can't be faked.
-public struct PaymentProof {
-    payer: address,
-    amount: u64,
-}
-
 /// Indexable record of a settled payment. `copy + drop` (no String) so it can
 /// live in an event; full detail (memo, invoice) is on the `Receipt`.
 public struct PaymentMade has copy, drop {
@@ -48,9 +37,8 @@ public struct PaymentMade has copy, drop {
 }
 
 /// Settle a payment: transfer `funds` to `payee`, mint a soulbound `Receipt` to
-/// the payer, emit `PaymentMade`, and return a `PaymentProof` for cashback.
-/// `amount` is the coin's value and `timestamp_ms` is the on-chain clock — both
-/// authentic, neither caller-supplied.
+/// the payer, and emit `PaymentMade`. `amount` is the coin's value and
+/// `timestamp_ms` is the on-chain clock — both authentic, neither caller-supplied.
 public fun pay<T>(
     funds: Coin<T>,
     payee: address,
@@ -58,7 +46,7 @@ public fun pay<T>(
     invoice_id: String,
     clock: &Clock,
     ctx: &mut TxContext,
-): PaymentProof {
+) {
     let payer = ctx.sender();
     let amount = funds.value();
     let timestamp_ms = clock.timestamp_ms();
@@ -86,21 +74,6 @@ public fun pay<T>(
         },
         payer,
     );
-
-    PaymentProof { payer, amount }
-}
-
-/// Consume a `PaymentProof`, returning (payer, amount). Used by `loyalty::earn`
-/// to mint cashback bound to this exact payment.
-public fun consume_proof(proof: PaymentProof): (address, u64) {
-    let PaymentProof { payer, amount } = proof;
-    (payer, amount)
-}
-
-/// Discard a `PaymentProof` without earning cashback (keeps `pay` usable in
-/// flows that don't mint points).
-public fun discard_proof(proof: PaymentProof) {
-    let PaymentProof { payer: _, amount: _ } = proof;
 }
 
 public fun amount(r: &Receipt): u64 {

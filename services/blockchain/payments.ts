@@ -16,9 +16,9 @@ import { ENV } from "@/utils/constants";
 export type PayResult = {
   digest: string;
   method: "gasless" | "sponsored";
-  /** Whether the on-chain receipt + cashback leg minted. The payment settles
-   *  regardless (leg 1 moves the money); this just tells the UI whether the
-   *  receipt/loyalty record is on-chain yet. */
+  /** Whether the on-chain receipt was minted. The payment settles regardless
+   *  (the money always moves); this tells the UI whether the receipt is on-chain
+   *  (atomic path) or the gasless fallback was used (no receipt). */
   receiptIssued: boolean;
 };
 
@@ -26,13 +26,12 @@ export type PayResult = {
  * Pay a merchant invoice, feeless to the user. Two paths:
  *
  *  - PREFERRED (coins available): one atomic Enoki-sponsored PTB —
- *    `payment_receipt::pay` moves the USDC to the merchant, mints the on-chain
- *    Receipt, and returns a proof `loyalty::earn` consumes for cashback. The
- *    USDC is sourced from owned Coin objects so Enoki's gas station accepts it.
+ *    `payment_receipt::pay` moves the USDC to the merchant and mints the
+ *    on-chain Receipt. The USDC is sourced from owned Coin objects so Enoki's
+ *    gas station accepts it.
  *  - FALLBACK (funds only in the Address Balance, no coins): move the money via
  *    native-gasless `send_funds` straight to the fullnode. No on-chain receipt
- *    is minted (the gated receipt can only come from `pay`), so `receiptIssued`
- *    is false and the UI flags it.
+ *    is minted (it can only come from `pay`), so `receiptIssued` is false.
  *
  * TODO(enoki-fundswithdrawal): the fallback exists only because Enoki can't yet
  * sponsor an Address-Balance withdrawal (`CallArg::FundsWithdrawal` →
@@ -42,7 +41,7 @@ export type PayResult = {
 export async function payInvoice(session: AuthSession, invoice: Invoice): Promise<PayResult> {
   const amount = invoice.amountMicros;
 
-  // PREFERRED: atomic transfer + receipt + cashback, sourced from coin objects.
+  // PREFERRED: atomic transfer + on-chain receipt, sourced from coin objects.
   if ((await coinBalanceMicros(session.address)) >= amount) {
     const client = await getSuiClientForBuild();
     const coinObjectIds = await resolveSpendableCoins(session.address, amount);

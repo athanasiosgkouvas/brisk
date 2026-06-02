@@ -141,8 +141,6 @@ const SUI_FW = "0x00000000000000000000000000000000000000000000000000000000000000
 const briskPkg = process.env.BRISK_PACKAGE_ID ?? "";
 const serverAllowedTargets = new Set<string>([
   `${briskPkg}::payment_receipt::pay`,
-  `${briskPkg}::loyalty::earn`,
-  `${briskPkg}::loyalty::redeem`,
   `${briskPkg}::spending_vault::open`,
   `${briskPkg}::spending_vault::deposit`,
   `${briskPkg}::spending_vault::withdraw`,

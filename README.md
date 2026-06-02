@@ -59,15 +59,14 @@ your spending balance earns yield instead of sitting idle.
 
 ## What makes it different
 
-|                  | Card networks          | Existing crypto wallets (incl. Slush) | **Brisk**                      |
-| ---------------- | ---------------------- | ------------------------------------- | ------------------------------ |
-| Customer fee     | 0 (merchant pays 2–3%) | Gas on every tx                       | **$0 — gasless / sponsored**   |
-| Onboarding       | Bank account           | Seed phrase                           | **Google sign‑in (zkLogin)**   |
-| Pay gesture      | Tap                    | Scan a QR / paste address             | **Tap (NFC), iOS + Android**   |
-| Settlement       | Days                   | Seconds                               | **Sub‑second, on‑chain**       |
-| Idle balance     | 0%                     | 0%                                    | **Earns yield (Save vault)**   |
-| Proof of payment | Statement              | Tx hash                               | **On‑chain `Receipt` object**  |
-| Rewards          | Issuer‑locked points   | —                                     | **Closed‑loop cashback token** |
+|                  | Card networks          | Existing crypto wallets (incl. Slush) | **Brisk**                     |
+| ---------------- | ---------------------- | ------------------------------------- | ----------------------------- |
+| Customer fee     | 0 (merchant pays 2–3%) | Gas on every tx                       | **$0 — gasless / sponsored**  |
+| Onboarding       | Bank account           | Seed phrase                           | **Google sign‑in (zkLogin)**  |
+| Pay gesture      | Tap                    | Scan a QR / paste address             | **Tap (NFC), iOS + Android**  |
+| Settlement       | Days                   | Seconds                               | **Sub‑second, on‑chain**      |
+| Idle balance     | 0%                     | 0%                                    | **Earns yield (Save vault)**  |
+| Proof of payment | Statement              | Tx hash                               | **On‑chain `Receipt` object** |
 
 No existing Sui wallet does NFC tap‑to‑pay. That tap — working on **both** iPhone and Android with **no
 Apple entitlement** — is Brisk's core technical contribution, alongside the on‑chain spending‑vault primitive.
@@ -122,10 +121,10 @@ The user **never** pays gas. Two complementary mechanisms make that true:
    straight to the fullnode. Sui treats it as a **zero‑fee** Address‑Balances transfer; the sender needs
    no SUI. (Used for Send, and as the payment fallback for funds held only in the Address Balance.)
 2. **Enoki‑sponsored** — a merchant payment is one **atomic** sponsored PTB: `payment_receipt::pay` moves
-   the USDC, mints the on‑chain `Receipt`, and returns a proof that `loyalty::earn` consumes for cashback —
-   all or nothing, with Enoki paying the gas. The USDC is sourced from the payer's coins so the sponsored tx
-   clears Enoki's gas station (which can't yet sponsor an Address‑Balance withdrawal, `CallArg::FundsWithdrawal`
-   — a one‑line revert once Enoki ships it; see the `TODO(enoki-fundswithdrawal)` markers).
+   the USDC and mints the on‑chain `Receipt` — with Enoki paying the gas. The USDC is sourced from the
+   payer's coins so the sponsored tx clears Enoki's gas station (which can't yet sponsor an Address‑Balance
+   withdrawal, `CallArg::FundsWithdrawal` — a one‑line revert once Enoki ships it; see the
+   `TODO(enoki-fundswithdrawal)` markers).
 
 Either way the customer is charged `$X` and pays `$0` in fees. Wired through
 `services/blockchain/payments.ts` + `paymentTx.ts`.
@@ -135,24 +134,23 @@ Either way the customer is charged `$X` and pays `$0` in fees. Wired through
 ## The on‑chain primitive (Move)
 
 The DeFi & Payments track rewards an **auditable on‑chain primitive** (1st/3rd place are sponsored by
-**OpenZeppelin** and **OtterSec**). Brisk ships six small, focused Move modules ([`move/sources/`](move/sources)):
+**OpenZeppelin** and **OtterSec**). Brisk ships five small, focused Move modules ([`move/sources/`](move/sources)):
 
 | Module              | What it is                                                                                                                                                                                                                                                                                                                      |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `merchant_registry` | Merchant identity: a `Merchant` profile object + a `MerchantCap` capability.                                                                                                                                                                                                                                                    |
-| `payment_receipt`   | **Unforgeable receipts.** `pay<T>` is the _only_ way to mint a `Receipt`/emit `PaymentMade`: it moves the funds itself, so `amount` (coin value) and `timestamp` (`Clock`) are authentic, never caller‑supplied. The `Receipt` is soulbound (`key`‑only) to the payer; `pay` returns a hot‑potato `PaymentProof` for cashback.  |
+| `payment_receipt`   | **Unforgeable receipts.** `pay<T>` is the _only_ way to mint a `Receipt`/emit `PaymentMade`: it moves the funds itself, so `amount` (coin value) and `timestamp` (`Clock`) are authentic, never caller‑supplied. The `Receipt` is soulbound (`key`‑only) to the payer.                                                          |
 | `spending_vault`    | **The novel primitive.** A per‑user `Vault<T>` custodies a lender position so idle USDC earns yield while staying instantly spendable. `deposit` consolidates, `withdraw` re‑supplies the remainder. **Value conservation** is the core invariant.                                                                              |
 | `mock_lender`       | Testnet lender behind the adapter seam: a shared `LendingPool<T>` accruing deterministic, time‑based yield. Holds `principal` (1:1, never spent on yield) separate from an admin‑funded `yield_reserve`, so `redeem` returns principal **always** + yield best‑effort and never aborts (`supply` / `redeem` / `current_value`). |
 | `lender_adapter`    | The **only** testnet→mainnet swap point — the vault routes every supply/redeem/value call through it; today it delegates to `mock_lender`, on mainnet you repoint it at a real Suilend/Scallop market with no vault or app changes.                                                                                             |
-| `loyalty`           | **Closed‑loop cashback.** `Points` has `key` but **not** `store`, so it can only be moved or burned by this module. `earn` mints 1% but **only by consuming a `PaymentProof`** from `payment_receipt::pay` — so cashback maps 1:1 to a real payment and can't be forged or replayed; `redeem` burns.                            |
 
-Every merchant payment is a **single atomic PTB**: move USDC → mint `Receipt` → mint cashback. If any step
-fails, the whole payment reverts.
+Every merchant payment is a **single atomic PTB**: move USDC → mint `Receipt`. If it fails, the whole
+payment reverts.
 
-All five test suites pass (`sui move test`, 9 tests): receipt fields, merchant registration,
-vault `deposit → +1yr → withdraw == principal + 10%` plus partial-withdraw compounding and
-multi-user principal isolation, lender solvency (principal/yield separation + graceful buffer
-depletion), and cashback mint/redeem.
+All five test suites pass (`sui move test`, 10 tests): receipt fields (authentic amount/time),
+merchant registration, vault `deposit → +1yr → withdraw == principal + 10%` plus partial-withdraw
+compounding and multi-user principal isolation, and lender solvency (principal/yield separation,
+APY bound, graceful buffer depletion + withdraw clamp).
 
 ---
 
@@ -170,7 +168,7 @@ depletion), and cashback mint/redeem.
 ┌──────────────────────┐   ┌──────────────────────────────────────────────────────────────────┐
 │  Sponsor relay        │   │                         Sui (testnet)                              │
 │  (Node/Express)       │   │  brisk package: merchant_registry · payment_receipt ·              │
-│  /api/sponsor         │──►│  spending_vault · mock_lender · lender_adapter · loyalty           │
+│  /api/sponsor         │──►│  spending_vault · mock_lender · lender_adapter           │
 │  /api/execute (Enoki) │   │  + native gasless 0x2::balance::send_funds<USDC>                   │
 │  /auth/callback relay │   │  + Circle USDC · LendingPool<USDC> @ 10% APY                        │
 └──────────────────────┘   └──────────────────────────────────────────────────────────────────┘
@@ -230,12 +228,12 @@ brisk/
 
 | Object                            | ID                                                                                                                                               |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Package**                       | [`0x5b0bb1e6…1f8be08a`](https://suiscan.xyz/testnet/object/0x5b0bb1e60ae43b411e2ed92c51c210fa674cd70ce162116a8bf9497c1f8be08a)                   |
-| **LendingPool\<USDC\>** (10% APY) | [`0xfaf55b51…41c492aa`](https://suiscan.xyz/testnet/object/0xfaf55b512f8f73d4b40b053ecf0a0f882d15d1d16f2b2b0d3c16b9c641c492aa)                   |
+| **Package**                       | [`0x6a6222e8…1f1c80ae`](https://suiscan.xyz/testnet/object/0x6a6222e8ce112dfce635474559483666213598a209edcde47a33557e1f1c80ae)                   |
+| **LendingPool\<USDC\>** (10% APY) | [`0x639f0aab…5363be70`](https://suiscan.xyz/testnet/object/0x639f0aab7ed795ab9f47a7b9e855891a43fbdbcb7dfabc83cf52c61e5363be70)                   |
 | USDC (Circle, testnet)            | [`0xa1ec7fc0…::usdc::USDC`](https://suiscan.xyz/testnet/coin/0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdc::USDC/txs) |
 | App bundle id / scheme            | `com.gkouvas.brisk` / `brisk://`                                                                                                                 |
 
-Full record (incl. UpgradeCap, AdminCap, publish digest) in [`move/deployments.json`](move/deployments.json). Browse the live package, pool, and payment events on [Suiscan](https://suiscan.xyz/testnet/object/0x5b0bb1e60ae43b411e2ed92c51c210fa674cd70ce162116a8bf9497c1f8be08a).
+Full record (incl. UpgradeCap, AdminCap, publish digest) in [`move/deployments.json`](move/deployments.json). Browse the live package, pool, and payment events on [Suiscan](https://suiscan.xyz/testnet/object/0x6a6222e8ce112dfce635474559483666213598a209edcde47a33557e1f1c80ae).
 
 ---
 
@@ -273,8 +271,8 @@ _Web_ OAuth client with `<backend>/auth/callback` as an authorized redirect URI)
 Backend (`backend/.env`): `ENOKI_PRIVATE_KEY`.
 
 **Demo flow:** sign in with Google on both devices → on Android open **Charge**, enter an amount →
-on the customer phone open **Pay**, tap the terminal → Face ID → the merchant flips to **Paid ✓**, the
-customer holds a `Receipt` + cashback, and idle balances can be parked in **Save** to earn yield.
+on the customer phone open **Pay**, tap the terminal → the merchant flips to **Paid ✓**, the customer
+holds an on‑chain `Receipt`, and idle balances can be parked in **Save** to earn yield.
 
 ---
 
@@ -283,8 +281,8 @@ customer holds a `Receipt` + cashback, and idle balances can be parked in **Save
 Built for the OpenZeppelin / OtterSec lens:
 
 - **Capability‑gated admin** — pool creation/config and yield funding require the `mock_lender::AdminCap`.
-- **Closed‑loop loyalty** — `Points` is `key`‑only (no `store`), so it can never be transferred or composed
-  outside its module.
+- **Unforgeable receipts** — a `Receipt`/`PaymentMade` can only come from `payment_receipt::pay`, which moves
+  the funds itself, so the amount/timestamp are authentic and soulbound to the payer.
 - **Solvent by construction** — the lender holds each supplier's `principal` 1:1 in a balance that is never
   spent on yield, with yield paid from a separate admin‑funded buffer. `redeem` returns principal **always**
   - accrued yield capped at the buffer, so it can't abort or pay one user's principal as another's yield.
@@ -294,7 +292,7 @@ Built for the OpenZeppelin / OtterSec lens:
   `expo-secure-store` on the device and signs locally.
 - **Sponsorship allow‑lists** — every sponsored PTB declares its exact `allowedMoveCallTargets`; Enoki
   rejects anything outside the list (anti‑abuse), plus a per‑sender daily cap on the relay.
-- **Atomic payments** — money + receipt + cashback are one PTB; partial failure reverts everything.
+- **Atomic payments** — the transfer + on‑chain receipt are one PTB; partial failure reverts everything.
 
 ---
 
@@ -313,8 +311,8 @@ earn only when we earn for you). Configurable via `EXPO_PUBLIC_YIELD_SPREAD_BPS`
 credits) ship. No app‑logic changes.
 
 - **v2:** fiat **on/off‑ramp** (Apple Pay / Google Pay via a ramp partner) — flow analyzed in
-  [`docs/ONRAMP_OFFRAMP.md`](docs/ONRAMP_OFFRAMP.md) · cashback redemption marketplace · merchant
-  analytics · iOS‑as‑terminal once Apple's EEA device‑to‑device NFC entitlement is granted · enable the
+  [`docs/ONRAMP_OFFRAMP.md`](docs/ONRAMP_OFFRAMP.md) · closed‑loop rewards · merchant analytics ·
+  iOS‑as‑terminal once Apple's EEA device‑to‑device NFC entitlement is granted · enable the
   yield‑spread fee.
 
 ---
