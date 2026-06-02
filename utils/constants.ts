@@ -14,12 +14,12 @@ export const ENV = {
    *  with the separated principal/yield lender design. */
   briskPackageId:
     process.env.EXPO_PUBLIC_BRISK_PACKAGE_ID ??
-    "0x2e7adfe10328a4bccf77e1bb6fc1f3b57304c26cfc3dfca61a5664bc23072614",
+    "0x5b0bb1e60ae43b411e2ed92c51c210fa674cd70ce162116a8bf9497c1f8be08a",
 
   /** Shared mock_lender LendingPool<USDC> id (10% APY). */
   briskPoolId:
     process.env.EXPO_PUBLIC_BRISK_POOL_ID ??
-    "0x085c625bf691f70058e2d82e50ed8a803cb7b2d8eb4945f6aef1b623b2f4d553",
+    "0xfaf55b512f8f73d4b40b053ecf0a0f882d15d1d16f2b2b0d3c16b9c641c492aa",
 
   /** LendingPool APY in basis points (10% = 1000) — for Save yield display. */
   briskApyBps: Number(process.env.EXPO_PUBLIC_BRISK_APY_BPS ?? "1000"),

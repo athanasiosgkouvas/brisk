@@ -116,19 +116,19 @@ universal fallback (e.g. a merchant on iPhone).
 
 ## Feeless by design: gasless vs sponsored
 
-The user **never** pays gas. Two complementary mechanisms make that true, and a merchant payment uses
-**both** as two legs:
+The user **never** pays gas. Two complementary mechanisms make that true:
 
-1. **Native gasless** (the money) — the USDC transfer is a PTB containing only `0x2::balance::send_funds<USDC>`,
-   submitted straight to the fullnode. Sui's protocol treats it as a **zero‑fee** Address‑Balances transfer;
-   the sender needs no SUI. This leg is the source of truth for the payment (see `payGasless`).
-2. **Enoki‑sponsored** (the record) — the on‑chain `Receipt` + cashback mint as a **separate** sponsored PTB
-   that touches no balance, so Enoki pays its gas. It's split from the transfer because Enoki's gas station
-   can't yet sponsor an Address‑Balance withdrawal (`CallArg::FundsWithdrawal`); keeping the value movement
-   native‑gasless sidesteps that entirely. The receipt leg is best‑effort and never blocks settlement.
+1. **Native gasless** — a bare transfer is a PTB of only `0x2::balance::send_funds<USDC>`, submitted
+   straight to the fullnode. Sui treats it as a **zero‑fee** Address‑Balances transfer; the sender needs
+   no SUI. (Used for Send, and as the payment fallback for funds held only in the Address Balance.)
+2. **Enoki‑sponsored** — a merchant payment is one **atomic** sponsored PTB: `payment_receipt::pay` moves
+   the USDC, mints the on‑chain `Receipt`, and returns a proof that `loyalty::earn` consumes for cashback —
+   all or nothing, with Enoki paying the gas. The USDC is sourced from the payer's coins so the sponsored tx
+   clears Enoki's gas station (which can't yet sponsor an Address‑Balance withdrawal, `CallArg::FundsWithdrawal`
+   — a one‑line revert once Enoki ships it; see the `TODO(enoki-fundswithdrawal)` markers).
 
-Either way the customer is charged `$X` and pays `$0` in fees. This is the load‑bearing design decision and
-it's wired through `services/blockchain/payments.ts` + `paymentTx.ts`.
+Either way the customer is charged `$X` and pays `$0` in fees. Wired through
+`services/blockchain/payments.ts` + `paymentTx.ts`.
 
 ---
 
@@ -140,11 +140,11 @@ The DeFi & Payments track rewards an **auditable on‑chain primitive** (1st/3rd
 | Module              | What it is                                                                                                                                                                                                                                                                                                                      |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `merchant_registry` | Merchant identity: a `Merchant` profile object + a `MerchantCap` capability.                                                                                                                                                                                                                                                    |
-| `payment_receipt`   | **Verifiable receipts.** `issue<T>` mints an immutable `Receipt` (payer, payee, amount, currency, memo, invoice id, time) to the payer and emits a `PaymentMade` event — the canonical, indexable record a merchant queries for their sales.                                                                                    |
+| `payment_receipt`   | **Unforgeable receipts.** `pay<T>` is the _only_ way to mint a `Receipt`/emit `PaymentMade`: it moves the funds itself, so `amount` (coin value) and `timestamp` (`Clock`) are authentic, never caller‑supplied. The `Receipt` is soulbound (`key`‑only) to the payer; `pay` returns a hot‑potato `PaymentProof` for cashback.  |
 | `spending_vault`    | **The novel primitive.** A per‑user `Vault<T>` custodies a lender position so idle USDC earns yield while staying instantly spendable. `deposit` consolidates, `withdraw` re‑supplies the remainder. **Value conservation** is the core invariant.                                                                              |
 | `mock_lender`       | Testnet lender behind the adapter seam: a shared `LendingPool<T>` accruing deterministic, time‑based yield. Holds `principal` (1:1, never spent on yield) separate from an admin‑funded `yield_reserve`, so `redeem` returns principal **always** + yield best‑effort and never aborts (`supply` / `redeem` / `current_value`). |
 | `lender_adapter`    | The **only** testnet→mainnet swap point — the vault routes every supply/redeem/value call through it; today it delegates to `mock_lender`, on mainnet you repoint it at a real Suilend/Scallop market with no vault or app changes.                                                                                             |
-| `loyalty`           | **Closed‑loop cashback.** `Points` has `key` but **not** `store`, so it can only be moved or burned by this module — a regulated loyalty credit with no free transfers. `earn` mints 1% on payment; `redeem` burns.                                                                                                             |
+| `loyalty`           | **Closed‑loop cashback.** `Points` has `key` but **not** `store`, so it can only be moved or burned by this module. `earn` mints 1% but **only by consuming a `PaymentProof`** from `payment_receipt::pay` — so cashback maps 1:1 to a real payment and can't be forged or replayed; `redeem` burns.                            |
 
 Every merchant payment is a **single atomic PTB**: move USDC → mint `Receipt` → mint cashback. If any step
 fails, the whole payment reverts.
@@ -230,12 +230,12 @@ brisk/
 
 | Object                            | ID                                                                                                                                               |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Package**                       | [`0x2e7adfe1…23072614`](https://suiscan.xyz/testnet/object/0x2e7adfe10328a4bccf77e1bb6fc1f3b57304c26cfc3dfca61a5664bc23072614)                   |
-| **LendingPool\<USDC\>** (10% APY) | [`0x085c625b…b2f4d553`](https://suiscan.xyz/testnet/object/0x085c625bf691f70058e2d82e50ed8a803cb7b2d8eb4945f6aef1b623b2f4d553)                   |
+| **Package**                       | [`0x5b0bb1e6…1f8be08a`](https://suiscan.xyz/testnet/object/0x5b0bb1e60ae43b411e2ed92c51c210fa674cd70ce162116a8bf9497c1f8be08a)                   |
+| **LendingPool\<USDC\>** (10% APY) | [`0xfaf55b51…41c492aa`](https://suiscan.xyz/testnet/object/0xfaf55b512f8f73d4b40b053ecf0a0f882d15d1d16f2b2b0d3c16b9c641c492aa)                   |
 | USDC (Circle, testnet)            | [`0xa1ec7fc0…::usdc::USDC`](https://suiscan.xyz/testnet/coin/0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdc::USDC/txs) |
 | App bundle id / scheme            | `com.gkouvas.brisk` / `brisk://`                                                                                                                 |
 
-Full record (incl. UpgradeCap, AdminCap, publish digest) in [`move/deployments.json`](move/deployments.json). Browse the live package, pool, and payment events on [Suiscan](https://suiscan.xyz/testnet/object/0x2e7adfe10328a4bccf77e1bb6fc1f3b57304c26cfc3dfca61a5664bc23072614).
+Full record (incl. UpgradeCap, AdminCap, publish digest) in [`move/deployments.json`](move/deployments.json). Browse the live package, pool, and payment events on [Suiscan](https://suiscan.xyz/testnet/object/0x5b0bb1e60ae43b411e2ed92c51c210fa674cd70ce162116a8bf9497c1f8be08a).
 
 ---
 
