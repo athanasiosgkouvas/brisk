@@ -10,7 +10,9 @@ import * as errorService from "./services/errorService.js";
 dotenv.config();
 
 const app = express();
-app.set("trust proxy", true); // behind ngrok — use X-Forwarded-For for client IP
+// Behind a single Render/ngrok proxy — trust exactly one hop so the rate
+// limiter keys on the real client IP without letting clients spoof XFF.
+app.set("trust proxy", 1);
 const port = Number(process.env.PORT ?? 3001);
 
 const enokiPrivateKey = process.env.ENOKI_PRIVATE_KEY;
@@ -129,6 +131,48 @@ function logSponsorship(sender: string) {
   sponsorshipLog.set(sender, list);
 }
 
+// ─── Sponsorship guardrails ─────────────────────────────────────────────────
+// The per-sender cap is bypassable (anyone can rotate zkLogin addresses), so the
+// real protections are: (1) only sponsor calls into the Brisk package + the few
+// framework coin/balance ops the SDK emits, and (2) a global daily ceiling that
+// caps total sponsored txs regardless of how many addresses are used.
+
+const SUI_FW = "0x0000000000000000000000000000000000000000000000000000000000000002";
+const briskPkg = process.env.BRISK_PACKAGE_ID ?? "";
+const serverAllowedTargets = new Set<string>([
+  `${briskPkg}::payment_receipt::pay`,
+  `${briskPkg}::loyalty::earn`,
+  `${briskPkg}::spending_vault::open`,
+  `${briskPkg}::spending_vault::deposit`,
+  `${briskPkg}::spending_vault::withdraw`,
+  // Framework coin/balance ops the CoinWithBalance resolver may emit.
+  `${SUI_FW}::coin::into_balance`,
+  `${SUI_FW}::coin::from_balance`,
+  `${SUI_FW}::balance::send_funds`,
+  `${SUI_FW}::balance::redeem_funds`,
+]);
+
+function targetsAllowed(targets: string[] | undefined): boolean {
+  // A PTB with no Move calls (e.g. a pure transfer) is fine. Otherwise every
+  // requested target must be in the server set — the client can't widen it.
+  if (!briskPkg) return true; // misconfigured env → don't hard-fail the demo
+  return (targets ?? []).every((t) => serverAllowedTargets.has(t));
+}
+
+const globalDailyCeiling = Number(process.env.SPONSORSHIP_GLOBAL_DAILY_MAX ?? 5000);
+let globalDay = "";
+let globalCount = 0;
+function withinGlobalCeiling(): boolean {
+  const today = new Date().toISOString().slice(0, 10);
+  if (today !== globalDay) {
+    globalDay = today;
+    globalCount = 0;
+  }
+  if (globalCount >= globalDailyCeiling) return false;
+  globalCount += 1;
+  return true;
+}
+
 // ─── Faucet proxy (rate-limited) ────────────────────────────────────────────
 
 const faucetTracker = new Map<string, number[]>();
@@ -207,6 +251,17 @@ app.post("/api/sponsor", async (req, res) => {
     return;
   }
 
+  // Only sponsor calls into Brisk's own package + the framework coin/balance ops.
+  if (!targetsAllowed(parsed.data.allowedMoveCallTargets)) {
+    res.status(403).json({ error: "Requested move-call targets are not sponsorable" });
+    return;
+  }
+  // Global circuit breaker (caps total daily sponsorships across all senders).
+  if (!withinGlobalCeiling()) {
+    res.status(429).json({ error: "Sponsorship temporarily unavailable, try again later" });
+    return;
+  }
+
   try {
     assertWithinDailyLimit(parsed.data.sender);
   } catch (err) {
@@ -241,10 +296,8 @@ app.post("/api/sponsor", async (req, res) => {
       targets: parsed.data.allowedMoveCallTargets,
       txKindLen: parsed.data.transactionKindBytes?.length,
     });
-    res.status(500).json({
-      error: "Failed to create sponsored transaction",
-      details: error instanceof Error ? error.message : "unknown error",
-    });
+    // Detail stays in the server log above; clients get a generic message.
+    res.status(500).json({ error: "Failed to create sponsored transaction" });
   }
 });
 
@@ -273,10 +326,7 @@ app.post("/api/execute", async (req, res) => {
       errors: JSON.stringify(e?.errors ?? e?.cause?.errors, null, 2),
       digest: parsed.data.digest,
     });
-    res.status(500).json({
-      error: "Failed to execute sponsored transaction",
-      details: error instanceof Error ? error.message : "unknown error",
-    });
+    res.status(500).json({ error: "Failed to execute sponsored transaction" });
   }
 });
 
