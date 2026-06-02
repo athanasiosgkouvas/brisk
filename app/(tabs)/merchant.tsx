@@ -48,10 +48,11 @@ export default function ChargeScreen() {
             <Text className="mt-2 text-center text-sm text-brisk-subtext">
               Enter the amount, then have the customer tap.
             </Text>
-            <View className="mt-8 w-full flex-row items-center justify-center rounded-2xl border border-[#2C3E55] bg-brisk-bg1 px-4 py-3">
+            <View className="mt-8 w-full flex-row items-center rounded-2xl border border-[#2C3E55] bg-brisk-bg1 px-5 py-4">
               <Text className="text-3xl font-bold text-brisk-subtext">$</Text>
               <TextInput
-                className="ml-1 min-w-[120px] text-3xl font-bold text-brisk-text"
+                className="ml-2 flex-1 text-3xl font-bold text-brisk-text"
+                style={{ padding: 0 }}
                 placeholder="0.00"
                 placeholderTextColor="#5A6B7B"
                 keyboardType="decimal-pad"
