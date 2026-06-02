@@ -41,21 +41,21 @@ const SLIDES = [
 export default function WelcomeRoute() {
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const { errorMessage, login, session } = useAuth();
+  const { status, errorMessage, login, session } = useAuth();
   const [page, setPage] = useState(0);
-  // True only during a user-initiated sign-in (not the passive cold-start
-  // session restore). Stays true through the post-redirect zkLogin work + the
-  // brief beat before routing, so the overlay covers that whole window.
-  const [signingIn, setSigningIn] = useState(false);
-  const busy = signingIn || !!session;
+  // Drive the overlay from GLOBAL auth state, not local state: the Welcome
+  // screen remounts when the OAuth webview returns, which would reset any local
+  // flag. `status === "loading"` is set by login() and lives in the store, so it
+  // survives the remount and covers the whole post-redirect zkLogin window. No
+  // cold-start flash: Welcome only renders after auth has hydrated (see _layout).
+  const busy = status === "loading" || !!session;
 
   const onPress = async () => {
-    setSigningIn(true);
     try {
       await login();
       router.replace("/");
     } catch {
-      setSigningIn(false); // surfaced via errorMessage
+      // surfaced via errorMessage
     }
   };
 

@@ -19,7 +19,11 @@ export function useAuth() {
 
   useEffect(() => {
     let mounted = true;
-    if (session) return;
+    // Restore once. Skip if a session already exists or another useAuth instance
+    // already hydrated — otherwise a fresh mount (e.g. the Welcome screen
+    // remounting after the OAuth webview returns) would re-flip status to
+    // "loading" and clobber the in-progress login's state.
+    if (session || hydrated) return;
     setStatus("loading");
     enokiAuthService
       .restoreSession()
@@ -38,7 +42,7 @@ export function useAuth() {
     return () => {
       mounted = false;
     };
-  }, [session, setErrorMessage, setHydrated, setSession, setStatus]);
+  }, [session, hydrated, setErrorMessage, setHydrated, setSession, setStatus]);
 
   const login = useCallback(async () => {
     setStatus("loading");
