@@ -1,5 +1,12 @@
 import { useState } from "react";
-import { Image, ScrollView, Text, View, useWindowDimensions } from "react-native";
+import {
+  ActivityIndicator,
+  Image,
+  ScrollView,
+  Text,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Nfc, Coins, PiggyBank, ShieldCheck } from "lucide-react-native";
@@ -34,16 +41,21 @@ const SLIDES = [
 export default function WelcomeRoute() {
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const { status, errorMessage, login, session } = useAuth();
+  const { errorMessage, login, session } = useAuth();
   const [page, setPage] = useState(0);
-  const loading = status === "loading" || !!session;
+  // True only during a user-initiated sign-in (not the passive cold-start
+  // session restore). Stays true through the post-redirect zkLogin work + the
+  // brief beat before routing, so the overlay covers that whole window.
+  const [signingIn, setSigningIn] = useState(false);
+  const busy = signingIn || !!session;
 
   const onPress = async () => {
+    setSigningIn(true);
     try {
       await login();
       router.replace("/");
     } catch {
-      // surfaced via errorMessage
+      setSigningIn(false); // surfaced via errorMessage
     }
   };
 
@@ -87,9 +99,9 @@ export default function WelcomeRoute() {
 
       <View className="px-6 pb-4">
         <PrimaryButton
-          label={loading ? "Connecting…" : "Continue with Google"}
+          label={busy ? "Connecting…" : "Continue with Google"}
           onPress={onPress}
-          loading={loading}
+          loading={busy}
         />
         {errorMessage ? (
           <View className="mt-3">
@@ -100,6 +112,19 @@ export default function WelcomeRoute() {
           No seed phrase. No gas. Just pay.
         </Text>
       </View>
+
+      {/* Full-screen overlay while signing in — covers the post-redirect zkLogin
+          work so the user knows to wait, not that the app is stuck. */}
+      {busy ? (
+        <View
+          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+          className="items-center justify-center bg-brisk-bg0"
+        >
+          <ActivityIndicator color="#00D98B" size="large" />
+          <Text className="mt-5 text-lg font-semibold text-brisk-text">Signing you in…</Text>
+          <Text className="mt-1 text-sm text-brisk-subtext">Setting up your wallet</Text>
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
