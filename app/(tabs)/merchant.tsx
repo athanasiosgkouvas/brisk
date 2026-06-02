@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { ActivityIndicator, Text, TextInput, View } from "react-native";
+import { Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { CheckCircle2, Smartphone, Store } from "lucide-react-native";
+import { Smartphone, Store } from "lucide-react-native";
 
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
+import { AnimatedCheck } from "@/components/ui/AnimatedCheck";
+import { PulseRing } from "@/components/ui/PulseRing";
 import { useCharge } from "@/hooks/useCharge";
+import { useCountUp } from "@/hooks/useCountUp";
 import { isHceAvailable } from "@/services/nfc/hce";
 import { formatUsd, usdToMicros } from "@/services/blockchain/paymentTx";
 
@@ -14,6 +17,8 @@ import { formatUsd, usdToMicros } from "@/services/blockchain/paymentTx";
 export default function ChargeScreen() {
   const { status, invoice, error, startCharge, cancel } = useCharge();
   const [amountText, setAmountText] = useState("");
+  // Count the received amount up on the paid screen.
+  const paidShown = useCountUp(status === "paid" && invoice ? invoice.amountMicros : 0, 700);
 
   if (!isHceAvailable) {
     return (
@@ -67,7 +72,9 @@ export default function ChargeScreen() {
 
         {status === "awaiting" && invoice ? (
           <View className="items-center">
-            <ActivityIndicator color="#00D98B" size="large" />
+            <PulseRing size={56}>
+              <Smartphone color="#00D98B" size={56} />
+            </PulseRing>
             <Text className="mt-6 text-sm uppercase tracking-[2px] text-brisk-subtext">
               Tap to pay
             </Text>
@@ -85,11 +92,12 @@ export default function ChargeScreen() {
 
         {status === "paid" && invoice ? (
           <View className="items-center">
-            <CheckCircle2 color="#00D98B" size={64} />
-            <Text className="mt-4 text-2xl font-bold text-brisk-text">Paid</Text>
-            <Text className="mt-1 text-base text-brisk-subtext">
-              {formatUsd(invoice.amountMicros)} received
+            <AnimatedCheck size={72} />
+            <Text className="mt-5 text-2xl font-bold text-brisk-text">Paid</Text>
+            <Text className="mt-1 text-3xl font-bold text-brisk-accent">
+              {formatUsd(Math.round(paidShown))}
             </Text>
+            <Text className="mt-1 text-base text-brisk-subtext">received</Text>
             <View className="mt-8 w-full max-w-[360px]">
               <PrimaryButton label="New charge" onPress={() => void cancel()} />
             </View>

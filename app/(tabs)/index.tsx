@@ -11,6 +11,7 @@ import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { useWallet } from "@/hooks/useWallet";
 import { useSave } from "@/hooks/useSave";
 import { useActivity } from "@/hooks/useActivity";
+import { useCountUp } from "@/hooks/useCountUp";
 import { formatUsd } from "@/services/blockchain/paymentTx";
 import { type ActivityItem } from "@/services/blockchain/receipts";
 import { formatRelativeTime } from "@/utils/time";
@@ -78,6 +79,7 @@ export default function HomeScreen() {
   const { state: save, refresh: refreshSave } = useSave();
   const { items, refresh: refreshActivity } = useActivity();
   const [refreshing, setRefreshing] = useState(false);
+  const shownMicros = useCountUp(usdcMicros);
 
   const refreshAll = useCallback(
     () => Promise.all([refresh(), refreshSave(), refreshActivity()]),
@@ -111,7 +113,7 @@ export default function HomeScreen() {
           Balance
         </Text>
         <Text className="mt-1 text-center text-6xl font-bold text-brisk-text">
-          {loading ? "…" : formatUsd(usdcMicros)}
+          {loading ? "…" : formatUsd(Math.round(shownMicros))}
         </Text>
         <Text className="mt-1 text-center text-sm text-brisk-subtext">USDC · feeless on Sui</Text>
 

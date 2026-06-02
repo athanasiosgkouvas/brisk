@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ScrollView, Text, View, useWindowDimensions } from "react-native";
+import { Image, ScrollView, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Nfc, Coins, PiggyBank, ShieldCheck } from "lucide-react-native";
@@ -49,9 +49,15 @@ export default function WelcomeRoute() {
 
   return (
     <SafeAreaView edges={["top", "bottom"]} className="flex-1 bg-brisk-bg0">
-      <Text className="mt-6 text-center text-xl font-bold tracking-[2px] text-brisk-accent">
-        BRISK
-      </Text>
+      <View className="mt-6 flex-row items-center justify-center gap-2">
+        <Image
+          source={require("../assets/images/icon.png")}
+          style={{ width: 26, height: 26, borderRadius: 6 }}
+        />
+        <Text className="text-center text-xl font-bold tracking-[2px] text-brisk-accent">
+          BRISK
+        </Text>
+      </View>
 
       <ScrollView
         horizontal

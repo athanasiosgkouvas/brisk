@@ -3,6 +3,7 @@ import { useCallback, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { startEmulatingInvoice, stopEmulating } from "@/services/nfc/hce";
 import { getUsdcBalanceMicros, waitForSettlement } from "@/services/blockchain/payments";
+import { hapticTxSuccess } from "@/utils/haptics";
 import { encodeInvoice, type Invoice } from "@/services/blockchain/paymentTx";
 
 export type ChargeStatus = "idle" | "awaiting" | "paid" | "timeout" | "error";
@@ -53,6 +54,7 @@ export function useCharge() {
         if (!activeRef.current) return; // cancelled
         await stopEmulating();
         setStatus(settled ? "paid" : "timeout");
+        if (settled) void hapticTxSuccess();
       } catch (e) {
         await stopEmulating();
         setError(e instanceof Error ? e.message : "Charge failed");

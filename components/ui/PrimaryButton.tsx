@@ -1,5 +1,7 @@
 import { ActivityIndicator, Pressable, Text } from "react-native";
 
+import { hapticButtonPress } from "@/utils/haptics";
+
 type Props = {
   label: string;
   onPress: () => void;
@@ -25,8 +27,18 @@ export function PrimaryButton({
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        void hapticButtonPress();
+        onPress();
+      }}
       disabled={inactive}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: inactive, busy: loading }}
+      // Subtle press feedback — scale + dim while held.
+      style={({ pressed }) => [
+        pressed && !inactive ? { transform: [{ scale: 0.97 }], opacity: 0.9 } : null,
+      ]}
       className={`items-center justify-center rounded-2xl px-4 py-3 ${bgClass}`}
     >
       {loading ? (

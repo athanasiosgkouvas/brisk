@@ -79,7 +79,10 @@ export function microsToUsd(micros: number): number {
 }
 
 export function formatUsd(micros: number): string {
-  return `$${microsToUsd(micros).toFixed(2)}`;
+  // Manual thousands separators — Hermes' Intl/toLocaleString is only partial.
+  const [int, dec] = microsToUsd(micros).toFixed(2).split(".");
+  const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return `$${grouped}.${dec}`;
 }
 
 // ─── Payment PTB builders ───────────────────────────────────────────────────

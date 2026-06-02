@@ -1,22 +1,29 @@
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { CheckCircle2, SmartphoneNfc, XCircle } from "lucide-react-native";
+import { SmartphoneNfc, XCircle } from "lucide-react-native";
 
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
+import { AnimatedCheck } from "@/components/ui/AnimatedCheck";
+import { PulseRing } from "@/components/ui/PulseRing";
 import { usePay } from "@/hooks/usePay";
+import { useCountUp } from "@/hooks/useCountUp";
 import { formatUsd } from "@/services/blockchain/paymentTx";
 
 // Customer "Pay" tab (iOS + Android). Tap the Brisk Terminal -> review ->
 // Confirm & Pay -> feeless settlement. The whole point of the app.
 export default function PayScreen() {
   const { status, invoice, result, error, tapToRead, confirmAndPay, reset } = usePay();
+  // Count the paid amount up from 0 on the success screen.
+  const paidShown = useCountUp(status === "done" && invoice ? invoice.amountMicros : 0, 700);
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-brisk-bg0 px-5 pt-10">
       <View className="flex-1 items-center justify-center">
         {status === "idle" || status === "reading" ? (
           <>
-            <SmartphoneNfc color="#00D98B" size={64} />
+            <PulseRing size={64} color={status === "reading" ? "#00D98B" : "#13202E"}>
+              <SmartphoneNfc color="#00D98B" size={64} />
+            </PulseRing>
             <Text className="mt-6 text-2xl font-bold text-brisk-text">Tap to pay</Text>
             <Text className="mt-2 text-center text-sm text-brisk-subtext">
               Hold your phone to the Brisk Terminal. Pay in USDC — no gas, exact amount.
@@ -56,12 +63,13 @@ export default function PayScreen() {
 
         {status === "done" && result && invoice ? (
           <View className="items-center">
-            <CheckCircle2 color="#00D98B" size={64} />
-            <Text className="mt-4 text-2xl font-bold text-brisk-text">Paid</Text>
-            <Text className="mt-1 text-base text-brisk-subtext">
-              {formatUsd(invoice.amountMicros)} to {invoice.merchant}
+            <AnimatedCheck size={72} />
+            <Text className="mt-5 text-2xl font-bold text-brisk-text">Paid</Text>
+            <Text className="mt-1 text-3xl font-bold text-brisk-accent">
+              {formatUsd(Math.round(paidShown))}
             </Text>
-            <Text className="mt-1 text-xs text-brisk-subtext">
+            <Text className="mt-1 text-base text-brisk-subtext">to {invoice.merchant}</Text>
+            <Text className="mt-2 text-xs text-brisk-subtext">
               Gasless — settled on Sui, you paid no gas
             </Text>
             {!result.receiptIssued ? (

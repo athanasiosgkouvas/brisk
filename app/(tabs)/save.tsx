@@ -5,6 +5,7 @@ import { PiggyBank } from "lucide-react-native";
 
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { useSave } from "@/hooks/useSave";
+import { useCountUp } from "@/hooks/useCountUp";
 import { formatUsd, usdToMicros } from "@/services/blockchain/paymentTx";
 
 // "Save" tab: the yield vault. Idle USDC earns in a blue-chip lender (mock on
@@ -12,6 +13,7 @@ import { formatUsd, usdToMicros } from "@/services/blockchain/paymentTx";
 export default function SaveScreen() {
   const { state, status, error, activate, deposit, withdraw } = useSave();
   const [amountText, setAmountText] = useState("");
+  const shownValue = useCountUp(state.valueMicros);
   const micros = usdToMicros(Number(amountText || "0"));
   const busy = status === "working" || status === "loading";
 
@@ -23,7 +25,7 @@ export default function SaveScreen() {
           Save balance
         </Text>
         <Text className="mt-1 text-5xl font-bold text-brisk-text">
-          {formatUsd(state.valueMicros)}
+          {formatUsd(Math.round(shownValue))}
         </Text>
         {state.vaultId && state.valueMicros > 0 ? (
           <View className="mt-3 flex-row items-center gap-4">

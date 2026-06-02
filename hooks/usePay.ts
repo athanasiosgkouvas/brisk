@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 
 import { useAuth } from "@/hooks/useAuth";
+import { hapticError, hapticTxSuccess } from "@/utils/haptics";
 import { readInvoiceTag } from "@/services/nfc/reader";
 import { payInvoice, type PayResult } from "@/services/blockchain/payments";
 import { parseInvoice, type Invoice } from "@/services/blockchain/paymentTx";
@@ -49,11 +50,13 @@ export function usePay() {
       const res = await payInvoice(session, invoice);
       setResult(res);
       setStatus("done");
+      void hapticTxSuccess();
       return res;
     } catch (e) {
       console.error("[brisk-pay] failed:", e instanceof Error ? e.message : e, e);
       setError(e instanceof Error ? e.message : "Payment failed");
       setStatus("error");
+      void hapticError();
       return null;
     }
   }, [session, invoice]);
