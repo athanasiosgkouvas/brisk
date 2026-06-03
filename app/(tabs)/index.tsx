@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import * as Clipboard from "expo-clipboard";
@@ -8,6 +9,9 @@ import * as Haptics from "expo-haptics";
 import { ArrowDownLeft, ArrowUpRight, Check, Copy, PiggyBank } from "lucide-react-native";
 
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
+import { AuroraText } from "@/components/ui/AuroraText";
+import { AuroraBackground } from "@/components/ui/AuroraBackground";
+import { GlassCard } from "@/components/ui/GlassCard";
 import { useWallet } from "@/hooks/useWallet";
 import { useSave } from "@/hooks/useSave";
 import { useActivity } from "@/hooks/useActivity";
@@ -15,6 +19,7 @@ import { useCountUp } from "@/hooks/useCountUp";
 import { formatUsd } from "@/services/blockchain/paymentTx";
 import { type ActivityItem } from "@/services/blockchain/receipts";
 import { formatRelativeTime } from "@/utils/time";
+import { BRISK } from "@/theme/tokens";
 
 function shortAddr(a: string): string {
   return a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
@@ -23,7 +28,7 @@ function shortAddr(a: string): string {
 // Live-refresh cadence while the Wallet tab is focused.
 const POLL_MS = 10_000;
 
-function ActivityRow({ item }: { item: ActivityItem }) {
+function ActivityRow({ item, index }: { item: ActivityItem; index: number }) {
   const received = item.direction === "received";
   const [copied, setCopied] = useState(false);
 
@@ -36,46 +41,56 @@ function ActivityRow({ item }: { item: ActivityItem }) {
   }, [item.digest]);
 
   return (
-    <View className="mb-2 flex-row items-center rounded-2xl border border-[#1C2A3A] bg-brisk-bg1 px-4 py-3">
-      {received ? (
-        <ArrowDownLeft color="#00D98B" size={20} />
-      ) : (
-        <ArrowUpRight color="#8B98A5" size={20} />
-      )}
-      <View className="ml-3 flex-1">
-        <View className="flex-row items-center">
-          <Text className="text-sm text-brisk-text">{received ? "Received" : "Sent"}</Text>
-          <Text className="ml-2 text-xs text-brisk-subtext">
-            {formatRelativeTime(item.timestampMs)}
-          </Text>
-        </View>
-        <Text className="text-xs text-brisk-subtext">
-          {received ? "from" : "to"} {shortAddr(item.counterparty)}
-        </Text>
-        {item.digest ? (
-          <Pressable
-            onPress={copyTx}
-            hitSlop={8}
-            className="mt-1 flex-row items-center"
-            accessibilityRole="button"
-            accessibilityLabel={copied ? "Transaction digest copied" : "Copy transaction digest"}
-          >
-            {copied ? <Check color="#00D98B" size={12} /> : <Copy color="#5A6B7B" size={12} />}
-            <Text
-              className={`ml-1 text-[11px] ${copied ? "text-brisk-accent" : "text-brisk-subtext"}`}
-            >
-              {copied ? "Copied tx" : shortAddr(item.digest)}
+    <Animated.View
+      entering={FadeInDown.duration(400).delay(Math.min(index, 8) * 55)}
+      className="mb-2"
+    >
+      {/* Translucent (no blur) — keeps the scrolling list smooth on Android. */}
+      <GlassCard className="flex-row items-center px-4 py-3">
+        {received ? (
+          <ArrowDownLeft color={BRISK.accent} size={20} />
+        ) : (
+          <ArrowUpRight color={BRISK.subtext} size={20} />
+        )}
+        <View className="ml-3 flex-1">
+          <View className="flex-row items-center">
+            <Text className="text-sm text-brisk-text">{received ? "Received" : "Sent"}</Text>
+            <Text className="ml-2 text-xs text-brisk-subtext">
+              {formatRelativeTime(item.timestampMs)}
             </Text>
-          </Pressable>
-        ) : null}
-      </View>
-      <Text
-        className={`text-base font-semibold ${received ? "text-brisk-accent" : "text-brisk-text"}`}
-      >
-        {received ? "+" : "−"}
-        {formatUsd(item.amountMicros)}
-      </Text>
-    </View>
+          </View>
+          <Text className="text-xs text-brisk-subtext">
+            {received ? "from" : "to"} {shortAddr(item.counterparty)}
+          </Text>
+          {item.digest ? (
+            <Pressable
+              onPress={copyTx}
+              hitSlop={8}
+              className="mt-1 flex-row items-center"
+              accessibilityRole="button"
+              accessibilityLabel={copied ? "Transaction digest copied" : "Copy transaction digest"}
+            >
+              {copied ? (
+                <Check color={BRISK.accent} size={12} />
+              ) : (
+                <Copy color={BRISK.placeholder} size={12} />
+              )}
+              <Text
+                className={`ml-1 text-[11px] ${copied ? "text-brisk-accent" : "text-brisk-subtext"}`}
+              >
+                {copied ? "Copied tx" : shortAddr(item.digest)}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+        <Text
+          className={`text-base font-inter-semibold ${received ? "text-brisk-accent" : "text-brisk-text"}`}
+        >
+          {received ? "+" : "−"}
+          {formatUsd(item.amountMicros)}
+        </Text>
+      </GlassCard>
+    </Animated.View>
   );
 }
 
@@ -107,61 +122,91 @@ export default function HomeScreen() {
   );
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1 bg-brisk-bg0">
-      <ScrollView
-        contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00D98B" />
-        }
-      >
-        {/* Balance */}
-        <Text className="text-center text-sm uppercase tracking-[2px] text-brisk-subtext">
-          Balance
-        </Text>
-        <Text className="mt-1 text-center text-6xl font-bold text-brisk-text">
-          {loading ? "…" : formatUsd(Math.round(shownMicros))}
-        </Text>
-        <Text className="mt-1 text-center text-sm text-brisk-subtext">USDC · feeless on Sui</Text>
+    <View className="flex-1 bg-brisk-bg0">
+      <AuroraBackground>
+        <SafeAreaView edges={["top"]} className="flex-1">
+          <ScrollView
+            contentContainerStyle={{ padding: 20, paddingBottom: 120 }}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={BRISK.accent}
+              />
+            }
+          >
+            {/* Balance */}
+            <Animated.View entering={FadeInDown.duration(500).springify()} className="items-center">
+              <Text className="text-center text-sm uppercase tracking-[2px] text-brisk-subtext">
+                Balance
+              </Text>
+              <View className="mt-1 items-center">
+                {loading ? (
+                  <Text className="text-6xl font-inter-extrabold text-brisk-text">…</Text>
+                ) : (
+                  <AuroraText className="text-6xl font-inter-extrabold">
+                    {formatUsd(Math.round(shownMicros))}
+                  </AuroraText>
+                )}
+              </View>
+              <Text className="mt-1 text-center text-sm text-brisk-subtext">
+                USDC · feeless on Sui
+              </Text>
+            </Animated.View>
 
-        {/* Receive / Send */}
-        <View className="mt-8 flex-row gap-3">
-          <View className="flex-1">
-            <PrimaryButton label="Receive" onPress={() => router.push("/receive")} />
-          </View>
-          <View className="flex-1">
-            <PrimaryButton label="Send" variant="secondary" onPress={() => router.push("/send")} />
-          </View>
-        </View>
+            {/* Receive / Send */}
+            <Animated.View
+              entering={FadeInDown.duration(500).delay(80).springify()}
+              className="mt-8 flex-row gap-3"
+            >
+              <View className="flex-1">
+                <PrimaryButton label="Receive" onPress={() => router.push("/receive")} />
+              </View>
+              <View className="flex-1">
+                <PrimaryButton
+                  label="Send"
+                  variant="secondary"
+                  onPress={() => router.push("/send")}
+                />
+              </View>
+            </Animated.View>
 
-        {/* Save summary */}
-        <Pressable
-          onPress={() => router.push("/save")}
-          className="mt-5 flex-row items-center rounded-2xl border border-[#1C2A3A] bg-brisk-bg1 px-4 py-4"
-        >
-          <PiggyBank color="#00D98B" size={24} />
-          <View className="ml-3 flex-1">
-            <Text className="text-sm text-brisk-text">Save</Text>
-            <Text className="text-xs text-brisk-subtext">
-              {save.vaultId ? "Earning yield on idle dollars" : "Not active yet"}
-            </Text>
-          </View>
-          <Text className="text-base font-semibold text-brisk-text">
-            {formatUsd(save.valueMicros)}
-          </Text>
-        </Pressable>
+            {/* Save summary */}
+            <Animated.View entering={FadeInDown.duration(500).delay(140).springify()}>
+              <Pressable className="mt-5" onPress={() => router.push("/save")}>
+                <GlassCard className="flex-row items-center px-4 py-4" blur={false}>
+                  <PiggyBank color={BRISK.accent} size={24} />
+                  <View className="ml-3 flex-1">
+                    <Text className="text-sm font-inter-semibold text-brisk-text">Save</Text>
+                    <Text className="text-xs text-brisk-subtext">
+                      {save.vaultId ? "Earning yield on idle dollars" : "Not active yet"}
+                    </Text>
+                  </View>
+                  <Text className="text-base font-inter-semibold text-brisk-text">
+                    {formatUsd(save.valueMicros)}
+                  </Text>
+                </GlassCard>
+              </Pressable>
+            </Animated.View>
 
-        {/* Activity */}
-        <Text className="mt-8 text-sm uppercase tracking-[2px] text-brisk-subtext">Activity</Text>
-        {items.length === 0 ? (
-          <Text className="mt-3 text-sm text-brisk-subtext">No payments yet.</Text>
-        ) : (
-          <View className="mt-3">
-            {items.map((it, i) => (
-              <ActivityRow key={`${it.digest}-${i}`} item={it} />
-            ))}
-          </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+            {/* Activity */}
+            <Animated.View entering={FadeInDown.duration(500).delay(200)}>
+              <Text className="mt-8 text-sm uppercase tracking-[2px] text-brisk-subtext">
+                Activity
+              </Text>
+            </Animated.View>
+            {items.length === 0 ? (
+              <Text className="mt-3 text-sm text-brisk-subtext">No payments yet.</Text>
+            ) : (
+              <View className="mt-3">
+                {items.map((it, i) => (
+                  <ActivityRow key={`${it.digest}-${i}`} item={it} index={i} />
+                ))}
+              </View>
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      </AuroraBackground>
+    </View>
   );
 }

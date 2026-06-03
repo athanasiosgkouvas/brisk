@@ -9,11 +9,16 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { Nfc, Coins, PiggyBank, ShieldCheck } from "lucide-react-native";
+import MaskedView from "@react-native-masked-view/masked-view";
+import { LinearGradient } from "expo-linear-gradient";
+import { Nfc, Coins, PiggyBank, ShieldCheck, type LucideIcon } from "lucide-react-native";
 
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
+import { AuroraText } from "@/components/ui/AuroraText";
+import { AuroraBackground } from "@/components/ui/AuroraBackground";
 import { ErrorBanner } from "@/components/common/ErrorBanner";
 import { useAuth } from "@/hooks/useAuth";
+import { BRISK } from "@/theme/tokens";
 
 const SLIDES = [
   {
@@ -38,6 +43,27 @@ const SLIDES = [
   },
 ];
 
+// A lucide icon filled with the aurora gradient (mask = the icon's strokes).
+function AuroraIcon({ Icon }: { Icon: LucideIcon }) {
+  return (
+    <MaskedView
+      style={{ width: 88, height: 88 }}
+      maskElement={
+        <View style={{ alignItems: "center", justifyContent: "center", flex: 1 }}>
+          <Icon color="#000" size={88} strokeWidth={1.5} />
+        </View>
+      }
+    >
+      <LinearGradient
+        colors={BRISK.aurora}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{ flex: 1 }}
+      />
+    </MaskedView>
+  );
+}
+
 export default function WelcomeRoute() {
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -60,71 +86,98 @@ export default function WelcomeRoute() {
   };
 
   return (
-    <SafeAreaView edges={["top", "bottom"]} className="flex-1 bg-brisk-bg0">
-      <View className="mt-6 flex-row items-center justify-center gap-2">
-        <Image
-          source={require("../assets/images/icon.png")}
-          style={{ width: 26, height: 26, borderRadius: 6 }}
-        />
-        <Text className="text-center text-xl font-bold tracking-[2px] text-brisk-accent">
-          BRISK
-        </Text>
-      </View>
-
-      <ScrollView
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={(e) => setPage(Math.round(e.nativeEvent.contentOffset.x / width))}
-        className="flex-1"
-      >
-        {SLIDES.map(({ Icon, title, body }) => (
-          <View key={title} style={{ width }} className="flex-1 items-center justify-center px-10">
-            <Icon color="#00D98B" size={88} strokeWidth={1.5} />
-            <Text className="mt-10 text-center text-3xl font-bold text-brisk-text">{title}</Text>
-            <Text className="mt-3 text-center text-base leading-6 text-brisk-subtext">{body}</Text>
+    <View className="flex-1 bg-brisk-bg0">
+      <AuroraBackground>
+        <SafeAreaView edges={["top", "bottom"]} className="flex-1">
+          <View className="mt-6 flex-row items-center justify-center gap-2">
+            <Image
+              source={require("../assets/images/icon.png")}
+              style={{ width: 26, height: 26, borderRadius: 6 }}
+            />
+            <AuroraText className="text-center text-xl font-inter-extrabold tracking-[2px]">
+              BRISK
+            </AuroraText>
           </View>
-        ))}
-      </ScrollView>
 
-      {/* Dots */}
-      <View className="mb-6 flex-row justify-center gap-2">
-        {SLIDES.map((s, i) => (
-          <View
-            key={s.title}
-            className={`h-2 rounded-full ${i === page ? "w-6 bg-brisk-accent" : "w-2 bg-[#2C3E55]"}`}
-          />
-        ))}
-      </View>
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={(e) => setPage(Math.round(e.nativeEvent.contentOffset.x / width))}
+            className="flex-1"
+          >
+            {SLIDES.map(({ Icon, title, body }) => (
+              <View
+                key={title}
+                style={{ width }}
+                className="flex-1 items-center justify-center px-10"
+              >
+                <AuroraIcon Icon={Icon} />
+                <Text className="mt-10 text-center text-3xl font-inter-extrabold text-brisk-text">
+                  {title}
+                </Text>
+                <Text className="mt-3 text-center text-base leading-6 text-brisk-subtext">
+                  {body}
+                </Text>
+              </View>
+            ))}
+          </ScrollView>
 
-      <View className="px-6 pb-4">
-        <PrimaryButton
-          label={busy ? "Connecting…" : "Continue with Google"}
-          onPress={onPress}
-          loading={busy}
-        />
-        {errorMessage ? (
-          <View className="mt-3">
-            <ErrorBanner message={errorMessage} />
+          {/* Dots */}
+          <View className="mb-6 flex-row items-center justify-center gap-2">
+            {SLIDES.map((s, i) =>
+              i === page ? (
+                <LinearGradient
+                  key={s.title}
+                  colors={BRISK.aurora}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={{ width: 24, height: 8, borderRadius: 4 }}
+                />
+              ) : (
+                <View key={s.title} className="h-2 w-2 rounded-full bg-brisk-borderStrong" />
+              ),
+            )}
           </View>
-        ) : null}
-        <Text className="mt-3 text-center text-xs text-brisk-subtext">
-          No seed phrase. No gas. Just pay.
-        </Text>
-      </View>
 
-      {/* Full-screen overlay while signing in — covers the post-redirect zkLogin
-          work so the user knows to wait, not that the app is stuck. */}
-      {busy ? (
-        <View
-          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-          className="items-center justify-center bg-brisk-bg0"
-        >
-          <ActivityIndicator color="#00D98B" size="large" />
-          <Text className="mt-5 text-lg font-semibold text-brisk-text">Signing you in…</Text>
-          <Text className="mt-1 text-sm text-brisk-subtext">Setting up your wallet</Text>
-        </View>
-      ) : null}
-    </SafeAreaView>
+          <View className="px-6 pb-4">
+            <PrimaryButton
+              label={busy ? "Connecting…" : "Continue with Google"}
+              onPress={onPress}
+              loading={busy}
+            />
+            {errorMessage ? (
+              <View className="mt-3">
+                <ErrorBanner message={errorMessage} />
+              </View>
+            ) : null}
+            <Text className="mt-3 text-center text-xs text-brisk-subtext">
+              No seed phrase. No gas. Just pay.
+            </Text>
+          </View>
+
+          {/* Full-screen overlay while signing in — covers the post-redirect zkLogin
+              work so the user knows to wait, not that the app is stuck. */}
+          {busy ? (
+            <View
+              style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+              className="bg-brisk-bg0"
+            >
+              <AuroraBackground>
+                <View className="flex-1 items-center justify-center">
+                  <ActivityIndicator color={BRISK.accent} size="large" />
+                  <Text className="mt-5 text-lg font-inter-semibold text-brisk-text">
+                    Signing you in…
+                  </Text>
+                  <Text className="mt-1 text-sm text-brisk-subtext">
+                    Creating your self-custodial wallet
+                  </Text>
+                </View>
+              </AuroraBackground>
+            </View>
+          ) : null}
+        </SafeAreaView>
+      </AuroraBackground>
+    </View>
   );
 }

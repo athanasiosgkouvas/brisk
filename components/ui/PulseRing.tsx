@@ -1,36 +1,45 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { Animated, Easing, View } from "react-native";
+import { useEffect, type ReactNode } from "react";
+import { View } from "react-native";
+import Animated, {
+  Easing,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from "react-native-reanimated";
+
+import { SoftGlow } from "@/components/ui/SoftGlow";
+import { BRISK } from "@/theme/tokens";
 
 /**
- * A looping pulse ring around its children — signals "live, hold near terminal"
- * during the NFC tap (Pay reading / merchant awaiting). RN Animated, native driver.
+ * A looping pulse ring + soft inner glow around its children — signals
+ * "live, hold near terminal" during the NFC tap (Pay reading / merchant
+ * awaiting). Reanimated, runs on the UI thread.
  */
 export function PulseRing({
   size = 64,
-  color = "#00D98B",
+  color = BRISK.accent,
   children,
 }: {
   size?: number;
   color?: string;
   children: ReactNode;
 }) {
-  const [v] = useState(() => new Animated.Value(0));
+  const v = useSharedValue(0);
 
   useEffect(() => {
-    const loop = Animated.loop(
-      Animated.timing(v, {
-        toValue: 1,
-        duration: 1500,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }),
+    v.value = withRepeat(
+      withTiming(1, { duration: 1500, easing: Easing.out(Easing.ease) }),
+      -1,
+      false,
     );
-    loop.start();
-    return () => loop.stop();
   }, [v]);
 
-  const scale = v.interpolate({ inputRange: [0, 1], outputRange: [1, 2.3] });
-  const opacity = v.interpolate({ inputRange: [0, 1], outputRange: [0.4, 0] });
+  const ringStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: interpolate(v.value, [0, 1], [1, 2.3]) }],
+    opacity: interpolate(v.value, [0, 1], [0.4, 0]),
+  }));
 
   return (
     <View
@@ -41,17 +50,20 @@ export function PulseRing({
         justifyContent: "center",
       }}
     >
+      {/* Soft glow behind the icon so it reads as "glowing". */}
+      <SoftGlow color={color} size={size * 2.4} opacity={0.4} style={{ position: "absolute" }} />
       <Animated.View
-        style={{
-          position: "absolute",
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: 2,
-          borderColor: color,
-          transform: [{ scale }],
-          opacity,
-        }}
+        style={[
+          {
+            position: "absolute",
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            borderWidth: 2,
+            borderColor: color,
+          },
+          ringStyle,
+        ]}
       />
       {children}
     </View>

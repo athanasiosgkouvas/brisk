@@ -1,6 +1,9 @@
-import { ActivityIndicator, Pressable, Text } from "react-native";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 
 import { hapticButtonPress } from "@/utils/haptics";
+import { BRISK } from "@/theme/tokens";
 
 type Props = {
   label: string;
@@ -10,6 +13,9 @@ type Props = {
   variant?: "primary" | "secondary";
 };
 
+// Aurora CTA: the primary variant is a gradient pill with a soft glow; secondary
+// is frosted glass. Press feedback is a Reanimated spring scale. The public API
+// is unchanged so every call site inherits the new look untouched.
 export function PrimaryButton({
   label,
   onPress,
@@ -18,34 +24,87 @@ export function PrimaryButton({
   variant = "primary",
 }: Props) {
   const inactive = loading || disabled;
-  const bgClass = inactive
-    ? "bg-slate-700"
-    : variant === "secondary"
-      ? "bg-brisk-bg2 border border-[#2C3E55]"
-      : "bg-brisk-accent";
-  const textClass = variant === "secondary" ? "text-brisk-text" : "text-[#07111A]";
+  // Keep the styled background (gradient/glass) while loading — only a truly
+  // disabled button drops to flat slate.
+  const showSlate = disabled && !loading;
+  const isPrimary = variant === "primary";
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  const content = loading ? (
+    <ActivityIndicator color={isPrimary ? BRISK.bg0 : BRISK.text} />
+  ) : (
+    <Text
+      className={`font-inter-semibold text-base ${isPrimary ? "text-brisk-bg0" : "text-brisk-text"}`}
+    >
+      {label}
+    </Text>
+  );
+
+  const innerStyle = {
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  };
 
   return (
-    <Pressable
-      onPress={() => {
-        void hapticButtonPress();
-        onPress();
-      }}
-      disabled={inactive}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled: inactive, busy: loading }}
-      // Subtle press feedback — scale + dim while held.
-      style={({ pressed }) => [
-        pressed && !inactive ? { transform: [{ scale: 0.97 }], opacity: 0.9 } : null,
+    <Animated.View
+      style={[
+        animatedStyle,
+        isPrimary && !showSlate
+          ? {
+              shadowColor: BRISK.glow,
+              shadowOpacity: 0.32,
+              shadowRadius: 24,
+              shadowOffset: { width: 0, height: 8 },
+              elevation: 10,
+            }
+          : null,
       ]}
-      className={`items-center justify-center rounded-2xl px-4 py-3 ${bgClass}`}
     >
-      {loading ? (
-        <ActivityIndicator color={variant === "secondary" ? "#F5F7FA" : "#07111A"} />
-      ) : (
-        <Text className={`font-semibold ${textClass}`}>{label}</Text>
-      )}
-    </Pressable>
+      <Pressable
+        onPress={() => {
+          void hapticButtonPress();
+          onPress();
+        }}
+        onPressIn={() => {
+          // Mutating a Reanimated shared value in a handler is the intended API.
+          // eslint-disable-next-line react-hooks/immutability
+          if (!inactive) scale.value = withSpring(0.97, { damping: 15, stiffness: 400 });
+        }}
+        onPressOut={() => {
+          // eslint-disable-next-line react-hooks/immutability
+          scale.value = withSpring(1, { damping: 15, stiffness: 400 });
+        }}
+        disabled={inactive}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ disabled: inactive, busy: loading }}
+        className="overflow-hidden rounded-2xl"
+      >
+        {showSlate ? (
+          <View style={innerStyle} className="rounded-2xl bg-slate-700">
+            {content}
+          </View>
+        ) : isPrimary ? (
+          <LinearGradient
+            colors={BRISK.aurora}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={innerStyle}
+          >
+            {content}
+          </LinearGradient>
+        ) : (
+          <View
+            style={innerStyle}
+            className="rounded-2xl border border-brisk-glassBorder bg-brisk-bg2/60"
+          >
+            {content}
+          </View>
+        )}
+      </Pressable>
+    </Animated.View>
   );
 }

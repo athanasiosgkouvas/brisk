@@ -1,61 +1,106 @@
-import { useEffect, useState } from "react";
-import { Animated, Easing, View } from "react-native";
+import { useEffect } from "react";
+import { StyleSheet, View } from "react-native";
 import { Check } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import Animated, {
+  Easing,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
+
+import { SoftGlow } from "@/components/ui/SoftGlow";
+import { BRISK } from "@/theme/tokens";
 
 /**
- * Success check that springs in with an expanding ring behind it — the
- * "Paid ✓" hero moment. Built on RN's Animated (native driver), no extra deps.
+ * Success check that springs in over an aurora disc, with an expanding ring and
+ * a looping shimmer sweep — the "Paid ✓" hero moment. Reanimated, UI thread.
  */
-export function AnimatedCheck({ size = 72, color = "#00D98B" }: { size?: number; color?: string }) {
-  const [scale] = useState(() => new Animated.Value(0));
-  const [ring] = useState(() => new Animated.Value(0));
+export function AnimatedCheck({ size = 72 }: { size?: number; color?: string }) {
+  const scale = useSharedValue(0);
+  const ring = useSharedValue(0);
+  const shimmer = useSharedValue(0);
 
   useEffect(() => {
-    Animated.spring(scale, {
-      toValue: 1,
-      friction: 5,
-      tension: 140,
-      useNativeDriver: true,
-    }).start();
-    Animated.timing(ring, {
-      toValue: 1,
-      duration: 700,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
-  }, [scale, ring]);
+    scale.value = withSpring(1, { damping: 9, stiffness: 140, mass: 0.6 });
+    ring.value = withTiming(1, { duration: 700, easing: Easing.out(Easing.quad) });
+    shimmer.value = withDelay(
+      300,
+      withRepeat(withTiming(1, { duration: 1600, easing: Easing.inOut(Easing.ease) }), -1, false),
+    );
+  }, [scale, ring, shimmer]);
 
-  const ringScale = ring.interpolate({ inputRange: [0, 1], outputRange: [0.7, 2.1] });
-  const ringOpacity = ring.interpolate({ inputRange: [0, 1], outputRange: [0.5, 0] });
+  const discStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const ringStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: interpolate(ring.value, [0, 1], [0.7, 2.1]) }],
+    opacity: interpolate(ring.value, [0, 1], [0.5, 0]),
+  }));
+  const shimmerStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: interpolate(shimmer.value, [0, 1], [-size, size]) },
+      { rotate: "20deg" },
+    ],
+  }));
 
   return (
     <View
       style={{ width: size * 2, height: size * 2, alignItems: "center", justifyContent: "center" }}
     >
-      <Animated.View
-        style={{
-          position: "absolute",
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: 2,
-          borderColor: color,
-          transform: [{ scale: ringScale }],
-          opacity: ringOpacity,
-        }}
+      {/* Soft aurora halo behind the check. */}
+      <SoftGlow
+        color={BRISK.aurora[0]}
+        size={size * 2}
+        opacity={0.5}
+        style={{ position: "absolute" }}
       />
       <Animated.View
-        style={{
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: color,
-          alignItems: "center",
-          justifyContent: "center",
-          transform: [{ scale }],
-        }}
+        style={[
+          {
+            position: "absolute",
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            borderWidth: 2,
+            borderColor: BRISK.aurora[0],
+          },
+          ringStyle,
+        ]}
+      />
+      <Animated.View
+        style={[
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            overflow: "hidden",
+            alignItems: "center",
+            justifyContent: "center",
+          },
+          discStyle,
+        ]}
       >
-        <Check color="#07111A" size={size * 0.6} strokeWidth={3} />
+        <LinearGradient
+          colors={BRISK.aurora}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+        <Animated.View
+          style={[
+            {
+              position: "absolute",
+              width: size * 0.45,
+              height: size * 2,
+              backgroundColor: "rgba(255,255,255,0.35)",
+            },
+            shimmerStyle,
+          ]}
+        />
+        <Check color={BRISK.bg0} size={size * 0.6} strokeWidth={3} />
       </Animated.View>
     </View>
   );

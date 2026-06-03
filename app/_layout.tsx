@@ -1,13 +1,21 @@
 import { Stack, usePathname, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { useFonts } from "expo-font";
+import {
+  useFonts,
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  Inter_800ExtraBold,
+} from "@expo-google-fonts/inter";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 import "../global.css";
 
 import { AppProviders } from "@/components/common/AppProviders";
 import { useAuth } from "@/hooks/useAuth";
+import { BRISK } from "@/theme/tokens";
 
 // Hold the native splash until auth + fonts are both ready. We deliberately
 // don't hide on font-load alone — letting the splash linger through auth
@@ -40,12 +48,12 @@ function RootNavigator({ readyToReveal }: { readyToReveal: () => void }) {
 
   return (
     <>
-      <StatusBar style="light" backgroundColor="#07111A" />
+      <StatusBar style="light" backgroundColor={BRISK.bg0} />
       <Stack
         screenOptions={{
           headerShown: false,
           animation: "fade",
-          contentStyle: { backgroundColor: "#07111A" },
+          contentStyle: { backgroundColor: BRISK.bg0 },
         }}
       >
         <Stack.Screen name="(tabs)" />
@@ -59,7 +67,11 @@ function RootNavigator({ readyToReveal }: { readyToReveal: () => void }) {
 
 export default function RootLayout() {
   const [loaded] = useFonts({
-    Inter: require("../assets/fonts/SpaceMono-Regular.ttf"),
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    Inter_800ExtraBold,
   });
 
   const hideSplash = () => {
