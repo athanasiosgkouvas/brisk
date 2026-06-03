@@ -139,8 +139,15 @@ function logSponsorship(sender: string) {
 
 const SUI_FW = "0x0000000000000000000000000000000000000000000000000000000000000002";
 const briskPkg = process.env.BRISK_PACKAGE_ID ?? "";
+if (!briskPkg) {
+  console.warn(
+    "[config] BRISK_PACKAGE_ID is unset — the sponsor relay will fail CLOSED " +
+      "and sponsor no transactions. Set it (see render.yaml / .env.example).",
+  );
+}
 const serverAllowedTargets = new Set<string>([
   `${briskPkg}::payment_receipt::pay`,
+  `${briskPkg}::merchant_registry::register_and_share`,
   `${briskPkg}::spending_vault::open`,
   `${briskPkg}::spending_vault::deposit`,
   `${briskPkg}::spending_vault::withdraw`,
@@ -152,10 +159,15 @@ const serverAllowedTargets = new Set<string>([
 ]);
 
 function targetsAllowed(targets: string[] | undefined): boolean {
-  // A PTB with no Move calls (e.g. a pure transfer) is fine. Otherwise every
-  // requested target must be in the server set — the client can't widen it.
-  if (!briskPkg) return true; // misconfigured env → don't hard-fail the demo
-  return (targets ?? []).every((t) => serverAllowedTargets.has(t));
+  // Fail closed: the relay holds the Enoki gas key, so it sponsors ONLY calls
+  // into Brisk's own package + the framework coin/balance ops. A sponsor request
+  // must declare a non-empty target list that is a subset of the server set — the
+  // client can never widen it, and an unconfigured relay sponsors nothing. (All
+  // sponsored flows — pay-with-receipt, vault open/deposit/withdraw — carry Move
+  // calls; pure P2P transfers go the unsponsored native-gasless route.)
+  if (!briskPkg) return false; // not configured → sponsor nothing
+  if (!targets || targets.length === 0) return false;
+  return targets.every((t) => serverAllowedTargets.has(t));
 }
 
 const globalDailyCeiling = Number(process.env.SPONSORSHIP_GLOBAL_DAILY_MAX ?? 5000);

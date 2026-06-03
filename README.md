@@ -31,7 +31,6 @@ Idle balances earn yield in a one‑tap **Save** vault.
 - [Monetization](#monetization)
 - [Roadmap](#roadmap)
 - [Honest limitations](#honest-limitations)
-- [Acknowledgements](#acknowledgements)
 
 ---
 
@@ -136,21 +135,23 @@ Either way the customer is charged `$X` and pays `$0` in fees. Wired through
 The DeFi & Payments track rewards an **auditable on‑chain primitive** (1st/3rd place are sponsored by
 **OpenZeppelin** and **OtterSec**). Brisk ships five small, focused Move modules ([`move/sources/`](move/sources)):
 
-| Module              | What it is                                                                                                                                                                                                                                                                                                                      |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `merchant_registry` | Merchant identity: a `Merchant` profile object + a `MerchantCap` capability.                                                                                                                                                                                                                                                    |
-| `payment_receipt`   | **Unforgeable receipts.** `pay<T>` is the _only_ way to mint a `Receipt`/emit `PaymentMade`: it moves the funds itself, so `amount` (coin value) and `timestamp` (`Clock`) are authentic, never caller‑supplied. The `Receipt` is soulbound (`key`‑only) to the payer.                                                          |
-| `spending_vault`    | **The novel primitive.** A per‑user `Vault<T>` custodies a lender position so idle USDC earns yield while staying instantly spendable. `deposit` consolidates, `withdraw` re‑supplies the remainder. **Value conservation** is the core invariant.                                                                              |
-| `mock_lender`       | Testnet lender behind the adapter seam: a shared `LendingPool<T>` accruing deterministic, time‑based yield. Holds `principal` (1:1, never spent on yield) separate from an admin‑funded `yield_reserve`, so `redeem` returns principal **always** + yield best‑effort and never aborts (`supply` / `redeem` / `current_value`). |
-| `lender_adapter`    | The **only** testnet→mainnet swap point — the vault routes every supply/redeem/value call through it; today it delegates to `mock_lender`, on mainnet you repoint it at a real Suilend/Scallop market with no vault or app changes.                                                                                             |
+| Module              | What it is                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `merchant_registry` | Merchant identity: a shared `Merchant` profile + a `MerchantCap`. `register_and_share` onboards a merchant (shares the profile so a customer's pay PTB can reference it; the cap goes to the merchant). `controls(cap, merchant)` gates merchant‑only actions.                                                                                                                                                                                                                                                                                 |
+| `payment_receipt`   | **Unforgeable, merchant‑bound receipts.** `pay<T>(&Merchant, …)` is the _only_ way to mint a `Receipt`/emit `PaymentMade`: it splits exactly `amount` from the payer's coin (asserts `value ≥ amount`, returns change — no silent over‑payment), pays the merchant's profile address, and records the `merchant` id — so `amount`/`payee`/`merchant`/`timestamp` are all authentic, never caller‑supplied. The `Receipt` is soulbound (`key`‑only) to the payer. `refund<T>` returns funds to a customer, gated by `MerchantCap` (`controls`). |
+| `spending_vault`    | **The novel primitive.** A per‑user `Vault<T>` custodies a lender position so idle USDC earns yield while staying instantly spendable. `deposit` consolidates, `withdraw` re‑supplies the remainder. **Value conservation** is the core invariant.                                                                                                                                                                                                                                                                                             |
+| `mock_lender`       | Testnet lender behind the adapter seam: a shared `LendingPool<T>` accruing deterministic, time‑based yield. Holds `principal` (1:1, never spent on yield) separate from an admin‑funded `yield_reserve`, so `redeem` returns principal **always** + yield best‑effort and never aborts (`supply` / `redeem` / `current_value`).                                                                                                                                                                                                                |
+| `lender_adapter`    | The **only** testnet→mainnet swap point — the vault routes every supply/redeem/value call through it; today it delegates to `mock_lender`, on mainnet you repoint it at a real Suilend/Scallop market with no vault or app changes.                                                                                                                                                                                                                                                                                                            |
 
 Every merchant payment is a **single atomic PTB**: move USDC → mint `Receipt`. If it fails, the whole
 payment reverts.
 
-All four test suites pass (`sui move test`, 10 tests): receipt fields (authentic amount/time),
-merchant registration, vault `deposit → +1yr → withdraw == principal + 10%` plus partial-withdraw
-compounding and multi-user principal isolation, and lender solvency (principal/yield separation,
-APY bound, graceful buffer depletion + withdraw clamp).
+All four test suites pass (`sui move test`, 14 tests): receipt fields (authentic amount/time/merchant
+link, exact-amount split returns change, aborts when funds < amount), the `MerchantCap`-gated refund
+(works with the controlling cap, aborts with a foreign one), merchant registration, vault
+`deposit → +1yr → withdraw == principal + 10%` plus partial-withdraw compounding and multi-user
+principal isolation, and lender solvency (principal/yield separation, APY bound, graceful buffer
+depletion + withdraw clamp).
 
 ---
 
@@ -228,12 +229,12 @@ brisk/
 
 | Object                            | ID                                                                                                                                               |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Package**                       | [`0x6a6222e8…1f1c80ae`](https://suiscan.xyz/testnet/object/0x6a6222e8ce112dfce635474559483666213598a209edcde47a33557e1f1c80ae)                   |
-| **LendingPool\<USDC\>** (10% APY) | [`0x639f0aab…5363be70`](https://suiscan.xyz/testnet/object/0x639f0aab7ed795ab9f47a7b9e855891a43fbdbcb7dfabc83cf52c61e5363be70)                   |
+| **Package**                       | [`0x2c778e1d…a4d2515a`](https://suiscan.xyz/testnet/object/0x2c778e1d5f02baa51a6a3c08c3849626bb090058752a237c56717f1fa4d2515a)                   |
+| **LendingPool\<USDC\>** (10% APY) | [`0x8cb6bd49…8419ffee`](https://suiscan.xyz/testnet/object/0x8cb6bd492be2c79efc26c46ac55ce420c8d9ad1ff48ab684e829ea1b8419ffee)                   |
 | USDC (Circle, testnet)            | [`0xa1ec7fc0…::usdc::USDC`](https://suiscan.xyz/testnet/coin/0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdc::USDC/txs) |
 | App bundle id / scheme            | `com.gkouvas.brisk` / `brisk://`                                                                                                                 |
 
-Full record (incl. UpgradeCap, AdminCap, publish digest) in [`move/deployments.json`](move/deployments.json). Browse the live package, pool, and payment events on [Suiscan](https://suiscan.xyz/testnet/object/0x6a6222e8ce112dfce635474559483666213598a209edcde47a33557e1f1c80ae).
+Full record (incl. UpgradeCap, AdminCap, publish digest) in [`move/deployments.json`](move/deployments.json). Browse the live package, pool, and payment events on [Suiscan](https://suiscan.xyz/testnet/object/0x2c778e1d5f02baa51a6a3c08c3849626bb090058752a237c56717f1fa4d2515a).
 
 ---
 
@@ -280,9 +281,13 @@ holds an on‑chain `Receipt`, and idle balances can be parked in **Save** to ea
 
 Built for the OpenZeppelin / OtterSec lens:
 
-- **Capability‑gated admin** — pool creation/config and yield funding require the `mock_lender::AdminCap`.
-- **Unforgeable receipts** — a `Receipt`/`PaymentMade` can only come from `payment_receipt::pay`, which moves
-  the funds itself, so the amount/timestamp are authentic and soulbound to the payer.
+- **Capability‑gated actions** — pool creation/config and yield funding require the `mock_lender::AdminCap`;
+  a merchant `refund` requires the `MerchantCap` that `controls` that `Merchant`, so no merchant can refund
+  "as" another.
+- **Unforgeable, merchant‑bound receipts** — a `Receipt`/`PaymentMade` can only come from
+  `payment_receipt::pay`, which moves the funds itself and reads the payee/merchant from the on‑chain
+  `Merchant` profile, so the amount (split + asserted, change returned), payee, merchant, and timestamp are
+  all authentic and soulbound to the payer — never caller‑supplied.
 - **Solvent by construction** — the lender holds each supplier's `principal` 1:1 in a balance that is never
   spent on yield, with yield paid from a separate admin‑funded buffer. `redeem` returns principal **always**
   - accrued yield capped at the buffer, so it can't abort or pay one user's principal as another's yield.

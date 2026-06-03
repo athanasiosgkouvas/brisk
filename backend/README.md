@@ -18,15 +18,16 @@ app's `EXPO_PUBLIC_BACKEND_URL` at the public URL.
 
 ## Endpoints
 
-| Method | Path                                  | Purpose                                                                                                                     |
-| ------ | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| POST   | `/api/sponsor`                        | Wrap a `transactionKindBytes` PTB into an Enoki-sponsored tx; returns `{ bytes, digest }` to sign.                          |
-| POST   | `/api/execute`                        | Submit the signed sponsored tx (`{ digest, signature }`) via Enoki; returns the on-chain digest.                            |
-| GET    | `/api/user/:address/sponsorship`      | Best-effort sponsorship usage for an address (per-address daily cap).                                                       |
-| GET    | `/auth/callback`                      | OAuth relay: bounces the Google `id_token` to the `brisk://oauth` deep link (custom schemes can't be Google redirect URIs). |
-| POST   | `/api/faucet/request`                 | Rate-limited redirect to a public testnet USDC faucet.                                                                      |
-| POST   | `/api/analytics/track`, `/api/errors` | In-memory dev telemetry (capped, reset on restart).                                                                         |
-| GET    | `/health`                             | Liveness probe.                                                                                                             |
+| Method | Path                                         | Purpose                                                                                                                     |
+| ------ | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/api/sponsor`                               | Wrap a `transactionKindBytes` PTB into an Enoki-sponsored tx; returns `{ bytes, digest }` to sign.                          |
+| POST   | `/api/execute`                               | Submit the signed sponsored tx (`{ digest, signature }`) via Enoki; returns the on-chain digest.                            |
+| GET    | `/api/user/:address/sponsorship`             | Best-effort sponsorship usage for an address (per-address daily cap).                                                       |
+| GET    | `/auth/callback`                             | OAuth relay: bounces the Google `id_token` to the `brisk://oauth` deep link (custom schemes can't be Google redirect URIs). |
+| GET    | `/auth/relay`                                | Companion relay endpoint that forwards `id_token`/`error` query params to the `brisk://oauth` deep link.                    |
+| POST   | `/api/faucet/request`                        | Rate-limited redirect to a public testnet USDC faucet.                                                                      |
+| POST   | `/api/analytics/track`, `/api/errors/report` | In-memory dev telemetry (capped, reset on restart).                                                                         |
+| GET    | `/health`                                    | Liveness probe.                                                                                                             |
 
 The app's two-call sponsorship dance lives in `services/blockchain/sponsoredExec.ts`:
 `/api/sponsor` → sign locally with the zkLogin ephemeral key → `/api/execute`.

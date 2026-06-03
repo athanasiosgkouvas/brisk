@@ -1,10 +1,10 @@
 {
   "testnet": {
-    "packageId": "0x6a6222e8ce112dfce635474559483666213598a209edcde47a33557e1f1c80ae",
-    "upgradeCap": "0xefb15c273086d3138f83919f1f414876d2209fbd9fcff37070d4b36104b820f2",
-    "publishDigest": "3w8oZnkJRZfqp4TWowHLMtmXFCpExH8jX1cSGGdp9ESw",
-    "mockLenderAdminCap": "0xcc1fca8ad06dc2a126f304f8713e2f12fa5856c24a8a7654cab60d933d19d27f",
-    "lendingPoolUsdc": "0x639f0aab7ed795ab9f47a7b9e855891a43fbdbcb7dfabc83cf52c61e5363be70",
+    "packageId": "0x2c778e1d5f02baa51a6a3c08c3849626bb090058752a237c56717f1fa4d2515a",
+    "upgradeCap": "0x3688bc3236fbfa444a80fd3335e1983007a8aceab17e0b9df1dba48ac5863deb",
+    "publishDigest": "AGoWGaPdAVGFQWckx5bfncUPqgTW9d8RSJ6k8ws8nEg4",
+    "mockLenderAdminCap": "0x5d2ec2a34cc6917f64d9ae6bb62c4028ad2bfaa08f4c204729f0d61e701c9e47",
+    "lendingPoolUsdc": "0x8cb6bd492be2c79efc26c46ac55ce420c8d9ad1ff48ab684e829ea1b8419ffee",
     "lendingPoolApyBps": 1000,
     "usdcType": "0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdc::USDC",
     "publishedModules": [
@@ -14,6 +14,6 @@
       "lender_adapter",
       "mock_lender"
     ],
-    "notes": "Republished 2026-06-02 (cashback/loyalty removed). payment_receipt::pay is the sole minter of a soulbound Receipt/PaymentMade (moves funds itself; authentic amount + Clock time). spending_vault::withdraw clamps to redeemable; mock_lender keeps principal (1:1) separate from an admin-funded yield_reserve (graceful redeem, never aborts), apy_bps bounded. Yield buffer funded via mock_lender::fund_yield (AdminCap-gated) with 10 USDC on 2026-06-02 (tx AhdT514VVQiF3A3YMcQZZRyVqLsU1NZNMoLMVTF55SJN). Supersedes 0x5b0bb1e6... (had loyalty)."
+    "notes": "Republished 2026-06-03. payment_receipt::pay now takes a shared &Merchant: it splits exactly `amount` from the payer's coin (asserting value >= amount, no silent over-payment), returns change to the payer, sends the amount to the merchant's payout address, and records the merchant ID on the soulbound Receipt + PaymentMade event so a receipt proves payment to a *registered* merchant. Added payment_receipt::refund (MerchantCap-gated via merchant_registry::controls) and merchant_registry::register_and_share (shares the Merchant profile so a customer PTB can reference it; cap goes to the merchant). spending_vault::withdraw clamps to redeemable; mock_lender keeps principal (1:1) separate from an admin-funded yield_reserve (graceful redeem, never aborts), apy_bps bounded. LendingPool<USDC> created (tx 7zn8jH4uGcfaA2np8zjYBajhkhmZQyncVunjVQYGHYUp) and yield buffer funded with 10 USDC via mock_lender::fund_yield (tx 5HCqUVfqVuqaRKYYzdpZ9dnh3ECCZRECDy8vvc1AwHiV). Supersedes 0x6a6222e8... (arbitrary-payee pay, unlinked registry)."
   }
 }

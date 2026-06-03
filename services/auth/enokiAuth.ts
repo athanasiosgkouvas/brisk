@@ -21,6 +21,24 @@ import {
 
 WebBrowser.maybeCompleteAuthSession();
 
+/** Error thrown when a stored zkLogin session has aged past its proof's validity. */
+export class SessionExpiredError extends Error {
+  constructor() {
+    super("Your session has expired. Please sign in again.");
+    this.name = "SessionExpiredError";
+  }
+}
+
+/**
+ * A zkLogin proof/ephemeral key is only valid until `maxEpoch`, which Enoki
+ * estimates as `expiresAt` (ms). Past that, any signature is rejected on submit
+ * with an opaque RPC error — so we treat the session as expired up front. A 60s
+ * skew guards against signing a tx that expires mid-flight.
+ */
+function isSessionExpired(session: StoredAuthSession): boolean {
+  return Date.now() >= session.expiresAt - 60_000;
+}
+
 function parseIdTokenFromUrl(url: string): string | null {
   const [base, fragment = ""] = url.split("#");
   const params = new URLSearchParams(fragment);
@@ -172,7 +190,14 @@ export class EnokiAuthService {
   }
 
   async restoreSession(): Promise<StoredAuthSession | null> {
-    return loadAuthSession();
+    const session = await loadAuthSession();
+    if (session && isSessionExpired(session)) {
+      // Don't restore a dead session — it would only fail at signing time with
+      // an opaque error. Clear it so the app shows the signed-out state.
+      await clearAuthSession();
+      return null;
+    }
+    return session;
   }
 
   async logout(): Promise<void> {
@@ -262,6 +287,9 @@ export class EnokiAuthService {
     sponsoredBytesBase64: string,
     session: StoredAuthSession,
   ): Promise<string> {
+    // Guard every signature (sponsored and native-gasless both route here): a
+    // proof past its maxEpoch is rejected on submit, so fail fast and legibly.
+    if (isSessionExpired(session)) throw new SessionExpiredError();
     const signer = await this.createSigner(session);
     const bytes = fromBase64(sponsoredBytesBase64);
     const { signature } = await signer.signTransaction(bytes);

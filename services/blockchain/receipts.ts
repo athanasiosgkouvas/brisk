@@ -2,7 +2,7 @@ import { ENV } from "@/utils/constants";
 import { getSuiClientForBuild } from "@/services/blockchain/suiClient";
 
 /**
- * Reads `PaymentMade` events (emitted by payment_receipt::issue) — the canonical
+ * Reads `PaymentMade` events (emitted by payment_receipt::pay) — the canonical
  * record of settled Brisk payments. A merchant lists their sales / detects a tap
  * settlement by querying these where `payee == <merchant address>`.
  */

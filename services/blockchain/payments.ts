@@ -47,7 +47,7 @@ export async function payInvoice(session: AuthSession, invoice: Invoice): Promis
     const coinObjectIds = await resolveSpendableCoins(session.address, amount);
     const tx = buildPaymentWithReceiptTx({
       payer: session.address,
-      payee: invoice.payee,
+      merchantId: invoice.merchantId,
       amountMicros: amount,
       memo: invoice.merchant,
       invoiceId: invoice.invoiceId,

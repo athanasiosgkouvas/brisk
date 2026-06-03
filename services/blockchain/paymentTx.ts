@@ -1,6 +1,7 @@
 import { Transaction } from "@mysten/sui/transactions";
 
 import { CLOCK_OBJECT_ID, ENV } from "@/utils/constants";
+import { isValidSuiAddress } from "@/utils/address";
 
 /**
  * Brisk payment transaction builders + invoice codec.
@@ -28,15 +29,21 @@ const USDC = ENV.usdcType;
 // reads it on tap. amount is in USDC micros (6 dp).
 
 export type Invoice = {
-  payee: string; // merchant Sui address
+  payee: string; // merchant Sui address (= Merchant.owner; used by the gasless fallback)
+  merchantId: string; // shared Merchant object id the receipt is bound to
   amountMicros: number; // USDC micro-units (1 USDC = 1_000_000)
   invoiceId: string; // unique per charge
   merchant: string; // display name
 };
 
+// Upper bound on a single tapped invoice (1,000,000 USDC) — a sanity ceiling so a
+// garbled/hostile tag can't present an absurd or precision-lossy amount to sign.
+const MAX_INVOICE_MICROS = 1_000_000 * 10 ** 6;
+
 export function encodeInvoice(inv: Invoice): string {
   const q = [
     `payee=${encodeURIComponent(inv.payee)}`,
+    `merchantId=${encodeURIComponent(inv.merchantId)}`,
     `amount=${inv.amountMicros}`,
     `invoice=${encodeURIComponent(inv.invoiceId)}`,
     `merchant=${encodeURIComponent(inv.merchant)}`,
@@ -56,12 +63,27 @@ export function parseInvoice(uri: string): Invoice | null {
   }
 
   const payee = params.payee;
+  const merchantId = params.merchantId;
   const amountMicros = Number(params.amount);
-  if (!payee?.startsWith("0x") || !Number.isFinite(amountMicros) || amountMicros <= 0) {
+  // The invoice arrives over NFC from an untrusted tag: validate the payee and
+  // the merchant object id are real Sui ids (not just a "0x" prefix) and the
+  // amount is a positive integer within a sane bound, so a tampered/garbled tag
+  // can't steer funds to a malformed address or inject a fractional /
+  // precision-lossy amount.
+  if (
+    !payee ||
+    !isValidSuiAddress(payee) ||
+    !merchantId ||
+    !isValidSuiAddress(merchantId) ||
+    !Number.isInteger(amountMicros) ||
+    amountMicros <= 0 ||
+    amountMicros > MAX_INVOICE_MICROS
+  ) {
     return null;
   }
   return {
     payee,
+    merchantId,
     amountMicros,
     invoiceId: params.invoice ?? "",
     merchant: params.merchant ?? "Merchant",
@@ -114,20 +136,22 @@ const PKG = ENV.briskPackageId;
 
 /**
  * Atomic merchant payment — transfer + on-chain receipt in ONE Enoki-sponsored
- * PTB: split `amount` from the payer's coins and hand it to
- * `payment_receipt::pay`, which transfers it to the merchant, mints a soulbound
- * `Receipt`, and emits `PaymentMade`. `amount`/`timestamp` are authenticated
- * on-chain (coin value + `Clock`), never caller-supplied.
+ * PTB: hand the payer's coin and the invoiced `amount` to `payment_receipt::pay`,
+ * which splits exactly `amount` to the merchant (`&Merchant`, shared), returns
+ * change to the payer, mints a soulbound `Receipt`, and emits `PaymentMade`.
+ * `amount`/`payee`/`merchant`/`timestamp` are all authenticated on-chain (coin
+ * value, Merchant profile, Clock), never caller-supplied.
  *
- * USDC is sourced from explicit Coin objects (`coinObjectIds`, merged + split)
- * so the sponsored tx uses `CallArg::Object` and clears Enoki's gas station.
+ * USDC is sourced from explicit Coin objects (`coinObjectIds`, merged) so the
+ * sponsored tx uses `CallArg::Object` and clears Enoki's gas station; the
+ * contract does the exact-amount split and hands back any change.
  * TODO(enoki-fundswithdrawal): once Enoki sponsors Address-Balance withdrawals,
  * source the coin with `tx.balance(...)` and drop `coinObjectIds`. See
  * services/blockchain/coins.ts.
  */
 export function buildPaymentWithReceiptTx(input: {
   payer: string;
-  payee: string;
+  merchantId: string;
   amountMicros: number | bigint;
   memo: string;
   invoiceId: string;
@@ -138,14 +162,14 @@ export function buildPaymentWithReceiptTx(input: {
 
   const [primary, ...rest] = input.coinObjectIds.map((id) => tx.object(id));
   if (rest.length > 0) tx.mergeCoins(primary, rest);
-  const [paymentCoin] = tx.splitCoins(primary, [tx.pure.u64(BigInt(input.amountMicros))]);
 
   tx.moveCall({
     target: `${PKG}::payment_receipt::pay`,
     typeArguments: [USDC],
     arguments: [
-      paymentCoin,
-      tx.pure.address(input.payee),
+      tx.object(input.merchantId),
+      primary,
+      tx.pure.u64(BigInt(input.amountMicros)),
       tx.pure.string(input.memo),
       tx.pure.string(input.invoiceId),
       tx.object(CLOCK_OBJECT_ID),
@@ -155,5 +179,23 @@ export function buildPaymentWithReceiptTx(input: {
   return tx;
 }
 
+/**
+ * Merchant onboarding PTB: register a `Merchant` profile and share it (so a
+ * customer's pay PTB can reference it), handing the `MerchantCap` to the sender.
+ * Run sponsored the first time a user opens Charge.
+ */
+export function buildRegisterMerchantTx(input: { sender: string; name: string }): Transaction {
+  const tx = new Transaction();
+  tx.setSender(input.sender);
+  tx.moveCall({
+    target: `${PKG}::merchant_registry::register_and_share`,
+    arguments: [tx.pure.string(input.name)],
+  });
+  return tx;
+}
+
 /** Allowlist for the atomic sponsored payment PTB (pay moves funds internally). */
 export const PAY_WITH_RECEIPT_TARGETS = [`${PKG}::payment_receipt::pay`];
+
+/** Allowlist for the sponsored merchant-onboarding PTB. */
+export const REGISTER_MERCHANT_TARGETS = [`${PKG}::merchant_registry::register_and_share`];

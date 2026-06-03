@@ -4,12 +4,20 @@ import { useAuth } from "@/hooks/useAuth";
 import { startEmulatingInvoice, stopEmulating } from "@/services/nfc/hce";
 import { isNfcEnabled } from "@/services/nfc/reader";
 import { getUsdcBalanceMicros, waitForSettlement } from "@/services/blockchain/payments";
+import { ensureMerchant } from "@/services/blockchain/merchant";
 import { hapticTxSuccess } from "@/utils/haptics";
 import { encodeInvoice, type Invoice } from "@/services/blockchain/paymentTx";
 
-export type ChargeStatus = "idle" | "awaiting" | "paid" | "timeout" | "error" | "nfc_off";
+export type ChargeStatus =
+  | "idle"
+  | "preparing"
+  | "awaiting"
+  | "paid"
+  | "timeout"
+  | "error"
+  | "nfc_off";
 
-const MERCHANT_NAME = "Brisk Merchant"; // Phase 2: from merchant_registry
+const MERCHANT_NAME = "Brisk Merchant";
 
 export function useCharge() {
   const { session } = useAuth();
@@ -37,13 +45,20 @@ export function useCharge() {
         setStatus("nfc_off");
         return;
       }
-      const inv: Invoice = {
-        payee: session.address,
-        amountMicros,
-        invoiceId: `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`,
-        merchant: MERCHANT_NAME,
-      };
       try {
+        // Ensure this terminal has a shared Merchant object so the customer's
+        // payment binds the receipt to a registered merchant (lazily registers
+        // on first use). Done before emulating so the invoice can carry its id.
+        setStatus("preparing");
+        const merchantId = await ensureMerchant(session, MERCHANT_NAME);
+
+        const inv: Invoice = {
+          payee: session.address,
+          merchantId,
+          amountMicros,
+          invoiceId: `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`,
+          merchant: MERCHANT_NAME,
+        };
         // Baseline the merchant's balance BEFORE emulating, so we only count
         // funds that arrive for this charge. Settlement keys on the actual money
         // landing (robust even if the best-effort receipt leg never mints).

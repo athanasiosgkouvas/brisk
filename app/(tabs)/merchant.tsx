@@ -89,6 +89,18 @@ export default function ChargeScreen() {
               </Animated.View>
             ) : null}
 
+            {status === "preparing" ? (
+              <Animated.View entering={FadeIn.duration(300)} className="items-center">
+                <PulseRing size={56}>
+                  <Store color={BRISK.accent} size={56} />
+                </PulseRing>
+                <Text className="mt-6 text-sm uppercase tracking-[2px] text-brisk-subtext">
+                  Preparing terminal
+                </Text>
+                <Text className="mt-3 text-sm text-brisk-subtext">Setting up your merchant…</Text>
+              </Animated.View>
+            ) : null}
+
             {status === "awaiting" && invoice ? (
               <Animated.View entering={FadeIn.duration(300)} className="items-center">
                 <PulseRing size={56}>

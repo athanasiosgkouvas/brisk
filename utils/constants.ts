@@ -10,16 +10,17 @@ export const ENV = {
     "testnet",
   backendUrl: process.env.EXPO_PUBLIC_BACKEND_URL ?? "https://brisk-z5bu.onrender.com",
 
-  /** Brisk's on-chain Move package (move/). Republished to testnet 2026-06-01
-   *  with the separated principal/yield lender design. */
+  /** Brisk's on-chain Move package (move/). Republished to testnet 2026-06-03
+   *  with merchant-linked receipts (pay takes &Merchant, asserts amount, returns
+   *  change) + a cap-gated refund, on top of the separated principal/yield lender. */
   briskPackageId:
     process.env.EXPO_PUBLIC_BRISK_PACKAGE_ID ??
-    "0x6a6222e8ce112dfce635474559483666213598a209edcde47a33557e1f1c80ae",
+    "0x2c778e1d5f02baa51a6a3c08c3849626bb090058752a237c56717f1fa4d2515a",
 
   /** Shared mock_lender LendingPool<USDC> id (10% APY). */
   briskPoolId:
     process.env.EXPO_PUBLIC_BRISK_POOL_ID ??
-    "0x639f0aab7ed795ab9f47a7b9e855891a43fbdbcb7dfabc83cf52c61e5363be70",
+    "0x8cb6bd492be2c79efc26c46ac55ce420c8d9ad1ff48ab684e829ea1b8419ffee",
 
   /** LendingPool APY in basis points (10% = 1000) — for Save yield display. */
   briskApyBps: Number(process.env.EXPO_PUBLIC_BRISK_APY_BPS ?? "1000"),
@@ -50,28 +51,6 @@ export const BRISK_REVENUE = {
     process.env.EXPO_PUBLIC_BRISK_TREASURY_ADDR ??
     "0x000000000000000000000000000000000000000000000000000000000000B215",
 } as const;
-
-const PKG = ENV.briskPackageId;
-
-/**
- * Enoki checks every PTB-level moveCall target against an allowlist before
- * sponsoring. Each flow passes the matching list. Plain P2P transfers go the
- * native-gasless route (`0x2::balance::send_funds`) and are NOT sponsored.
- * Expanded as the payment/vault PTBs land.
- */
-export const BRISK_ALLOWED_TARGETS = {
-  registerMerchant: [`${PKG}::merchant_registry::register`],
-  // Phase 2: sponsored payment that also mints an on-chain receipt.
-  payWithReceipt: [
-    `${PKG}::payment_receipt::issue`,
-    "0x2::coin::split",
-    "0x2::transfer::public_transfer",
-  ],
-} as const;
-
-export const REFRESH_INTERVALS = {
-  settlementMs: 5_000,
-};
 
 export const OAUTH = {
   googleAuthEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
