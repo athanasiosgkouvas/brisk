@@ -9,11 +9,12 @@ import { PulseRing } from "@/components/ui/PulseRing";
 import { useCharge } from "@/hooks/useCharge";
 import { useCountUp } from "@/hooks/useCountUp";
 import { isHceAvailable } from "@/services/nfc/hce";
+import { openNfcSettings } from "@/services/nfc/reader";
 import { formatUsd, usdToMicros } from "@/services/blockchain/paymentTx";
 
 // Merchant "Charge" tab = the Brisk Terminal (Android/HCE). Enter an amount,
-// emulate the invoice tag, await settlement. iOS can't present a tag, so it
-// shows guidance (QR fallback lands in a later step).
+// emulate the invoice tag, await settlement. iOS can't present a tag (HCE is
+// Android-only), so it shows guidance to run the terminal on Android.
 export default function ChargeScreen() {
   const { status, invoice, error, startCharge, cancel } = useCharge();
   const [amountText, setAmountText] = useState("");
@@ -28,7 +29,7 @@ export default function ChargeScreen() {
           <Text className="mt-6 text-xl font-bold text-brisk-text">Terminal runs on Android</Text>
           <Text className="mt-2 text-center text-sm text-brisk-subtext">
             The Brisk Terminal emulates the tap tag via Android HCE. Run Charge on an Android
-            device; customers tap to pay from iPhone or Android. (QR fallback coming next.)
+            device; customers tap to pay from iPhone or Android.
           </Text>
         </View>
       </SafeAreaView>
@@ -59,6 +60,8 @@ export default function ChargeScreen() {
                 value={amountText}
                 onChangeText={setAmountText}
                 autoFocus
+                accessibilityLabel="Charge amount in US dollars"
+                accessibilityHint="Enter the amount to charge the customer"
               />
             </View>
             <View className="mt-8 w-full">
@@ -101,6 +104,22 @@ export default function ChargeScreen() {
             <Text className="mt-1 text-base text-brisk-subtext">received</Text>
             <View className="mt-8 w-full max-w-[360px]">
               <PrimaryButton label="New charge" onPress={() => void cancel()} />
+            </View>
+          </View>
+        ) : null}
+
+        {status === "nfc_off" ? (
+          <View className="items-center">
+            <Smartphone color="#8B98A5" size={56} />
+            <Text className="mt-6 text-lg font-semibold text-brisk-text">Turn on NFC</Text>
+            <Text className="mt-1 text-center text-sm text-brisk-subtext">
+              Enable NFC to present the tap tag to customers.
+            </Text>
+            <View className="mt-8 w-full max-w-[360px]">
+              <PrimaryButton label="Open NFC settings" onPress={() => void openNfcSettings()} />
+              <View className="mt-3">
+                <PrimaryButton label="Back" variant="secondary" onPress={() => void cancel()} />
+              </View>
             </View>
           </View>
         ) : null}

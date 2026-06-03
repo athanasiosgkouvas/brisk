@@ -7,12 +7,13 @@ import { AnimatedCheck } from "@/components/ui/AnimatedCheck";
 import { PulseRing } from "@/components/ui/PulseRing";
 import { usePay } from "@/hooks/usePay";
 import { useCountUp } from "@/hooks/useCountUp";
+import { openNfcSettings } from "@/services/nfc/reader";
 import { formatUsd } from "@/services/blockchain/paymentTx";
 
 // Customer "Pay" tab (iOS + Android). Tap the Brisk Terminal -> review ->
 // Confirm & Pay -> feeless settlement. The whole point of the app.
 export default function PayScreen() {
-  const { status, invoice, result, error, tapToRead, confirmAndPay, reset } = usePay();
+  const { status, invoice, result, error, tapToRead, confirmAndPay, reset, cancel } = usePay();
   // Count the paid amount up from 0 on the success screen.
   const paidShown = useCountUp(status === "done" && invoice ? invoice.amountMicros : 0, 700);
 
@@ -34,6 +35,11 @@ export default function PayScreen() {
                 onPress={() => void tapToRead()}
                 loading={status === "reading"}
               />
+              {status === "reading" ? (
+                <Pressable className="mt-3 py-3" onPress={cancel}>
+                  <Text className="text-center text-sm text-brisk-subtext">Cancel</Text>
+                </Pressable>
+              ) : null}
             </View>
           </>
         ) : null}
@@ -76,6 +82,22 @@ export default function PayScreen() {
             </Text>
             <View className="mt-8 w-full max-w-[360px]">
               <PrimaryButton label="Done" onPress={reset} />
+            </View>
+          </View>
+        ) : null}
+
+        {status === "nfc_off" ? (
+          <View className="items-center">
+            <SmartphoneNfc color="#8B98A5" size={64} />
+            <Text className="mt-4 text-lg font-semibold text-brisk-text">Turn on NFC</Text>
+            <Text className="mt-1 text-center text-sm text-brisk-subtext">
+              Brisk needs NFC to tap and pay. Enable it in settings, then try again.
+            </Text>
+            <View className="mt-8 w-full max-w-[360px]">
+              <PrimaryButton label="Open NFC settings" onPress={() => void openNfcSettings()} />
+              <Pressable className="mt-3 py-3" onPress={() => void tapToRead()}>
+                <Text className="text-center text-sm text-brisk-subtext">Try again</Text>
+              </Pressable>
             </View>
           </View>
         ) : null}

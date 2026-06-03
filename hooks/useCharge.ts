@@ -2,11 +2,12 @@ import { useCallback, useRef, useState } from "react";
 
 import { useAuth } from "@/hooks/useAuth";
 import { startEmulatingInvoice, stopEmulating } from "@/services/nfc/hce";
+import { isNfcEnabled } from "@/services/nfc/reader";
 import { getUsdcBalanceMicros, waitForSettlement } from "@/services/blockchain/payments";
 import { hapticTxSuccess } from "@/utils/haptics";
 import { encodeInvoice, type Invoice } from "@/services/blockchain/paymentTx";
 
-export type ChargeStatus = "idle" | "awaiting" | "paid" | "timeout" | "error";
+export type ChargeStatus = "idle" | "awaiting" | "paid" | "timeout" | "error" | "nfc_off";
 
 const MERCHANT_NAME = "Brisk Merchant"; // Phase 2: from merchant_registry
 
@@ -30,6 +31,12 @@ export function useCharge() {
     async (amountMicros: number) => {
       if (!session) return;
       setError(null);
+      // The HCE tag can't be presented while the radio is off — guard up front
+      // so the merchant gets a clear prompt instead of a silent timeout.
+      if (!(await isNfcEnabled())) {
+        setStatus("nfc_off");
+        return;
+      }
       const inv: Invoice = {
         payee: session.address,
         amountMicros,

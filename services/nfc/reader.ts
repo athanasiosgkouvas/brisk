@@ -24,6 +24,25 @@ export async function isNfcSupported(): Promise<boolean> {
   }
 }
 
+/** Whether the NFC radio is turned on (Android can have it toggled off). */
+export async function isNfcEnabled(): Promise<boolean> {
+  try {
+    await ensureStarted();
+    return await NfcManager.isEnabled();
+  } catch {
+    return false;
+  }
+}
+
+/** Open the OS NFC settings (Android). Best-effort, no-op elsewhere. */
+export async function openNfcSettings(): Promise<void> {
+  try {
+    await NfcManager.goToNfcSetting();
+  } catch {
+    // best-effort
+  }
+}
+
 /** Read one NDEF tag and return the decoded text payload, or null. */
 export async function readInvoiceTag(): Promise<string | null> {
   await ensureStarted();

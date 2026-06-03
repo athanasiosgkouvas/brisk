@@ -1,12 +1,13 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import { Platform } from "react-native";
 
 import { useAuth } from "@/hooks/useAuth";
 import { hapticError, hapticTxSuccess } from "@/utils/haptics";
-import { readInvoiceTag } from "@/services/nfc/reader";
+import { cancelRead, isNfcEnabled, isNfcSupported, readInvoiceTag } from "@/services/nfc/reader";
 import { payInvoice, type PayResult } from "@/services/blockchain/payments";
 import { parseInvoice, type Invoice } from "@/services/blockchain/paymentTx";
 
-export type PayStatus = "idle" | "reading" | "review" | "paying" | "done" | "error";
+export type PayStatus = "idle" | "reading" | "review" | "paying" | "done" | "error" | "nfc_off";
 
 export function usePay() {
   const { session } = useAuth();
@@ -14,6 +15,7 @@ export function usePay() {
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [result, setResult] = useState<PayResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const cancelledRef = useRef(false);
 
   const reset = useCallback(() => {
     setStatus("idle");
@@ -22,9 +24,28 @@ export function usePay() {
     setError(null);
   }, []);
 
+  /** Abort an in-flight read and return to idle (no error flash). */
+  const cancel = useCallback(() => {
+    cancelledRef.current = true;
+    cancelRead();
+    reset();
+  }, [reset]);
+
   /** Tap to read a terminal's invoice; transitions to the review step. */
   const tapToRead = useCallback(async () => {
     setError(null);
+    // NFC must be present and turned on before we attempt a read. On iOS there's
+    // no NFC toggle, so the enabled-check only matters on Android.
+    if (!(await isNfcSupported())) {
+      setError("This device doesn't support NFC.");
+      setStatus("error");
+      return null;
+    }
+    if (Platform.OS === "android" && !(await isNfcEnabled())) {
+      setStatus("nfc_off");
+      return null;
+    }
+    cancelledRef.current = false;
     setStatus("reading");
     try {
       const raw = await readInvoiceTag();
@@ -34,6 +55,8 @@ export function usePay() {
       setStatus("review");
       return parsed;
     } catch (e) {
+      // A user-initiated cancel rejects the read too — don't show it as an error.
+      if (cancelledRef.current) return null;
       setError(e instanceof Error ? e.message : "NFC read failed");
       setStatus("error");
       return null;
@@ -61,5 +84,5 @@ export function usePay() {
     }
   }, [session, invoice]);
 
-  return { status, invoice, result, error, tapToRead, confirmAndPay, reset };
+  return { status, invoice, result, error, tapToRead, confirmAndPay, reset, cancel };
 }
