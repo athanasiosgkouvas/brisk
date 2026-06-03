@@ -70,8 +70,16 @@ export default function SendScreen() {
               onChangeText={setTo}
               autoCapitalize="none"
               autoCorrect={false}
+              accessibilityLabel="Recipient Sui address"
+              accessibilityHint="Paste or type the address to send USDC to"
             />
-            <Pressable onPress={paste} hitSlop={8} className="ml-2 flex-row items-center">
+            <Pressable
+              onPress={paste}
+              hitSlop={8}
+              className="ml-2 flex-row items-center"
+              accessibilityRole="button"
+              accessibilityLabel="Paste address from clipboard"
+            >
               <ClipboardPaste color="#00D98B" size={18} />
               <Text className="ml-1 text-sm font-semibold text-brisk-accent">Paste</Text>
             </Pressable>
@@ -87,6 +95,8 @@ export default function SendScreen() {
               keyboardType="decimal-pad"
               value={amountText}
               onChangeText={setAmountText}
+              accessibilityLabel="Amount in US dollars"
+              accessibilityHint="Enter the amount of USDC to send"
             />
           </View>
 

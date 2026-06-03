@@ -53,7 +53,13 @@ function ActivityRow({ item }: { item: ActivityItem }) {
           {received ? "from" : "to"} {shortAddr(item.counterparty)}
         </Text>
         {item.digest ? (
-          <Pressable onPress={copyTx} hitSlop={8} className="mt-1 flex-row items-center">
+          <Pressable
+            onPress={copyTx}
+            hitSlop={8}
+            className="mt-1 flex-row items-center"
+            accessibilityRole="button"
+            accessibilityLabel={copied ? "Transaction digest copied" : "Copy transaction digest"}
+          >
             {copied ? <Check color="#00D98B" size={12} /> : <Copy color="#5A6B7B" size={12} />}
             <Text
               className={`ml-1 text-[11px] ${copied ? "text-brisk-accent" : "text-brisk-subtext"}`}

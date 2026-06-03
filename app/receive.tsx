@@ -33,7 +33,12 @@ export default function ReceiveScreen() {
       </View>
 
       <View className="flex-1 items-center justify-center">
-        <View className="rounded-3xl bg-white p-5">
+        <View
+          className="rounded-3xl bg-white p-5"
+          accessible
+          accessibilityRole="image"
+          accessibilityLabel="QR code of your Brisk receiving address"
+        >
           {address ? <QRCode value={address} size={220} /> : null}
         </View>
 
@@ -45,6 +50,8 @@ export default function ReceiveScreen() {
         <Pressable
           onPress={copy}
           className="mt-5 flex-row items-center rounded-2xl border border-[#2C3E55] bg-brisk-bg1 px-5 py-3"
+          accessibilityRole="button"
+          accessibilityLabel={copied ? "Address copied" : "Copy your Brisk address"}
         >
           {copied ? <Check color="#00D98B" size={18} /> : <Copy color="#F5F7FA" size={18} />}
           <Text className="ml-2 font-semibold text-brisk-text">
