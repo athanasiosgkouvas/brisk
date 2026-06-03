@@ -104,8 +104,8 @@ Brisk uses the one **entitlement‑free** path that works across platforms:
   **on‑chain**. NFC only carries the invoice; the money moves on Sui.
 
 This mirrors how real point‑of‑sale already works — the customer taps the merchant's terminal — and the
-"terminal is an Android device" assumption is exactly what Square/SoftPOS rely on. QR is kept as a
-universal fallback (e.g. a merchant on iPhone).
+"terminal is an Android device" assumption is exactly what Square/SoftPOS rely on. (An iPhone‑as‑terminal
+mode is on the roadmap, pending Apple's EEA device‑to‑device NFC entitlement — see [Roadmap](#roadmap).)
 
 > We built a **custom native HCE module** (Kotlin `HostApduService` implementing the Type‑4 APDU state
 > machine, see [`plugins/hce-android/`](plugins/hce-android)) because the only off‑the‑shelf RN library,
@@ -147,7 +147,7 @@ The DeFi & Payments track rewards an **auditable on‑chain primitive** (1st/3rd
 Every merchant payment is a **single atomic PTB**: move USDC → mint `Receipt`. If it fails, the whole
 payment reverts.
 
-All five test suites pass (`sui move test`, 10 tests): receipt fields (authentic amount/time),
+All four test suites pass (`sui move test`, 10 tests): receipt fields (authentic amount/time),
 merchant registration, vault `deposit → +1yr → withdraw == principal + 10%` plus partial-withdraw
 compounding and multi-user principal isolation, and lender solvency (principal/yield separation,
 APY bound, graceful buffer depletion + withdraw clamp).
@@ -189,7 +189,7 @@ APY bound, graceful buffer depletion + withdraw clamp).
 - **Sui:** `@mysten/sui` (on‑device PTBs) · `@mysten/enoki` (zkLogin + sponsorship, via HTTP API in RN)
 - **NFC:** custom native Kotlin HCE module (merchant) · `react-native-nfc-manager` (customer read, iOS+Android)
 - **Auth:** zkLogin (Google) · Enoki Gas Pool · `expo-local-authentication` (biometrics)
-- **On‑chain:** Move 2024 (Sui) — 6 modules, `sui move test`
+- **On‑chain:** Move 2024 (Sui) — 5 modules, `sui move test`
 - **Backend:** Node + Express + Zod (sponsor relay), Enoki TypeScript SDK
 
 ---
@@ -215,7 +215,7 @@ brisk/
 │   ├── withBriskHce.js       # config plugin: inject HCE module + manifest + aid_list
 │   └── hce-android/          # Kotlin: HceNdefService, BriskHceModule, BriskHcePackage
 ├── move/
-│   ├── sources/              # 6 Move modules
+│   ├── sources/              # 5 Move modules
 │   ├── tests/                # Move unit tests
 │   └── deployments.json      # testnet addresses
 ├── backend/                  # Enoki sponsor relay (Express)
@@ -286,8 +286,8 @@ Built for the OpenZeppelin / OtterSec lens:
 - **Solvent by construction** — the lender holds each supplier's `principal` 1:1 in a balance that is never
   spent on yield, with yield paid from a separate admin‑funded buffer. `redeem` returns principal **always**
   - accrued yield capped at the buffer, so it can't abort or pay one user's principal as another's yield.
-    Value conservation (`withdraw` returns exactly principal + accrued) is covered by unit tests incl.
-    multi‑user isolation and graceful buffer depletion; a Move Prover spec is queued.
+    Value conservation (`withdraw` returns exactly principal + accrued) is covered by the unit‑test
+    suite, incl. multi‑user principal isolation, graceful buffer depletion, and the withdraw clamp.
 - **No custody of user keys** — the backend only sponsors gas; the zkLogin ephemeral key stays in
   `expo-secure-store` on the device and signs locally.
 - **Sponsorship allow‑lists** — every sponsored PTB declares its exact `allowedMoveCallTargets`; Enoki
@@ -322,11 +322,12 @@ credits) ship. No app‑logic changes.
 We'd rather be straight about the edges than oversell:
 
 - **Merchant terminal is Android‑only.** HCE doesn't exist on iOS without a hard entitlement, so the
-  _terminal_ runs on Android; the _customer_ works on iOS + Android. (A merchant on iPhone falls back to QR.)
+  _terminal_ runs on Android; the _customer_ works on iOS + Android. (An iPhone‑as‑terminal mode is
+  roadmap, not in this build.)
 - **iOS NFC needs a paid Apple account.** Free/Personal Apple teams can't provision the NFC capability.
 - **Testnet yield is from a mock lender** with an admin‑funded yield buffer, behind the adapter seam — the
   mainnet adapter wires a real money market. Principal is always redeemable; the buffer (`mock_lender::fund_yield`)
-  funds the yield payout (currently 9 USDC).
+  funds the yield payout (currently 10 USDC).
 - **Deposit needs spendable coins.** A Save deposit is Enoki‑sponsored and the gas station can't sponsor an
   Address‑Balance withdrawal, so deposits source from owned Coin objects; USDC received via a gasless
   `send_funds` must be a coin (e.g. after a withdrawal/faucet) before it can be deposited.

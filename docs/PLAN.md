@@ -159,7 +159,7 @@ Enoki-sponsored PTB**. Either way the user pays **$0 gas**.
 - `spending_vault.move` — Save bucket; deposit/withdraw/`withdraw_and_pay`; value-conservation invariant. **(stub → Phase 3)**
 - `lender_adapter.move` — adapter interface (testnet↔mainnet seam). **(stub → Phase 3)**
 - `mock_lender.move` — deterministic, fast-forwardable yield on testnet. **(stub → Phase 3)**
-- `loyalty.move` — Closed-Loop cashback token. **(stub → Phase 4)**
+- `loyalty.move` — Closed-Loop cashback token. **(DROPPED — removed before submission in commit `5ebf28d`; the shipped package has 5 modules, not 6. Closed-loop rewards moved to the v2 roadmap.)**
 
 Security posture (OZ/OtterSec): capability-gated admin, checked arithmetic, pause flag, explicit
 adapter trust boundary, full `sui move test`, Move Prover spec on vault value conservation.
@@ -234,10 +234,12 @@ Cut order if time-tight: **cashback → vault** (the tap is the core, never cut;
 - [x] Save tab: activate/deposit/withdraw, live value via devInspect (`vaultTx`, `saveAccount`, `useSave`, `save.tsx`).
 - [ ] _On-device:_ fund the pool reserve, then deposit → accrue → withdraw.
 
-### ✅ Phase 4 — Cashback (CODE DONE)
+### ~~Phase 4 — Cashback~~ (CUT before submission)
 
-- [x] `loyalty`: closed-loop `Points` (key, no store = non-transferable credit); `earn` mints 1% on payment, `redeem` burns (+ test). Minted atomically in the payment PTB.
-- [ ] Redemption UX in the app + tap-UX polish (haptics, retry) — Phase 5.
+> **Dropped in commit `5ebf28d`.** Cashback/loyalty was built (closed-loop `Points`, mint-on-pay,
+> redeem-burn) but cut from the final submission to keep the on-chain surface minimal and focused on
+> the payment + vault primitives. The shipped package is **5 modules** (no `loyalty.move`).
+> Closed-loop rewards now live on the **v2 roadmap**.
 
 ### Phase 5 — Harden, pitch, submit
 
