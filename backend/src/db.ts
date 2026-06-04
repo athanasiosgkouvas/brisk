@@ -47,5 +47,10 @@ export async function ensureSchema(): Promise<void> {
       paid_at       TIMESTAMPTZ
     );
   `);
+  // Lifecycle columns added after the initial release — idempotent so existing
+  // deployments migrate on boot without a separate migration step.
+  await pool.query(`ALTER TABLE payment_links
+    ADD COLUMN IF NOT EXISTS reusable    BOOLEAN NOT NULL DEFAULT false,
+    ADD COLUMN IF NOT EXISTS canceled_at TIMESTAMPTZ;`);
   console.log("[db] payment_links schema ready");
 }

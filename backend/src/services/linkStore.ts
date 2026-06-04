@@ -6,6 +6,8 @@ import { pool } from "../db.js";
 // a customer resolves it to pay; the payer's app reports settlement so the
 // merchant can see status. Backed by Postgres (see db.ts).
 
+export type LinkStatus = "pending" | "paid" | "canceled";
+
 export type PaymentLink = {
   code: string;
   merchantId: string;
@@ -13,8 +15,10 @@ export type PaymentLink = {
   amountMicros: number;
   invoiceId: string;
   merchantName: string;
-  status: "pending" | "paid";
+  status: LinkStatus;
+  reusable: boolean;
   digest: string | null;
+  createdAt: string | null;
   expiresAt: string | null;
   expired: boolean;
 };
@@ -25,8 +29,11 @@ export type CreateLinkInput = {
   amountMicros: number;
   invoiceId: string;
   merchantName: string;
+  reusable?: boolean;
   expiresInSec?: number;
 };
+
+export type CancelResult = "canceled" | "not_found" | "forbidden" | "not_pending";
 
 const DEFAULT_TTL_SEC = 24 * 60 * 60; // 24h
 const CODE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -53,8 +60,8 @@ export async function createLink(input: CreateLinkInput): Promise<string> {
     try {
       await db.query(
         `INSERT INTO payment_links
-           (code, merchant_id, payee, amount_micros, invoice_id, merchant_name, expires_at)
-         VALUES ($1, $2, $3, $4, $5, $6, now() + ($7 || ' seconds')::interval)`,
+           (code, merchant_id, payee, amount_micros, invoice_id, merchant_name, reusable, expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, now() + ($8 || ' seconds')::interval)`,
         [
           code,
           input.merchantId,
@@ -62,6 +69,7 @@ export async function createLink(input: CreateLinkInput): Promise<string> {
           input.amountMicros,
           input.invoiceId,
           input.merchantName,
+          input.reusable ?? false,
           String(ttl),
         ],
       );
@@ -75,18 +83,12 @@ export async function createLink(input: CreateLinkInput): Promise<string> {
   throw new Error("Failed to allocate a unique payment-link code");
 }
 
-/** Fetch a link by code, or null if it doesn't exist. */
-export async function getLink(code: string): Promise<PaymentLink | null> {
-  const db = requirePool();
-  const { rows } = await db.query(
-    `SELECT code, merchant_id, payee, amount_micros, invoice_id, merchant_name,
-            status, digest, expires_at,
-            (expires_at IS NOT NULL AND expires_at < now()) AS expired
-       FROM payment_links WHERE code = $1`,
-    [code],
-  );
-  const r = rows[0];
-  if (!r) return null;
+const SELECT_COLS = `code, merchant_id, payee, amount_micros, invoice_id, merchant_name,
+            status, reusable, digest, created_at, expires_at,
+            (expires_at IS NOT NULL AND expires_at < now()) AS expired`;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rowToLink(r: any): PaymentLink {
   return {
     code: r.code,
     merchantId: r.merchant_id,
@@ -95,10 +97,31 @@ export async function getLink(code: string): Promise<PaymentLink | null> {
     invoiceId: r.invoice_id,
     merchantName: r.merchant_name,
     status: r.status,
+    reusable: r.reusable,
     digest: r.digest,
+    createdAt: r.created_at ? new Date(r.created_at).toISOString() : null,
     expiresAt: r.expires_at ? new Date(r.expires_at).toISOString() : null,
     expired: r.expired,
   };
+}
+
+/** Fetch a link by code, or null if it doesn't exist. */
+export async function getLink(code: string): Promise<PaymentLink | null> {
+  const db = requirePool();
+  const { rows } = await db.query(`SELECT ${SELECT_COLS} FROM payment_links WHERE code = $1`, [
+    code,
+  ]);
+  return rows[0] ? rowToLink(rows[0]) : null;
+}
+
+/** All links a merchant created (newest first), for the management screen. */
+export async function listLinks(payee: string, limit = 50): Promise<PaymentLink[]> {
+  const db = requirePool();
+  const { rows } = await db.query(
+    `SELECT ${SELECT_COLS} FROM payment_links WHERE payee = $1 ORDER BY created_at DESC LIMIT $2`,
+    [payee, limit],
+  );
+  return rows.map(rowToLink);
 }
 
 /** Mark a link paid (idempotent — only flips a still-pending row). */
@@ -107,8 +130,25 @@ export async function markPaid(code: string, digest: string): Promise<boolean> {
   const { rowCount } = await db.query(
     `UPDATE payment_links
         SET status = 'paid', digest = $2, paid_at = now()
-      WHERE code = $1 AND status <> 'paid'`,
+      WHERE code = $1 AND status = 'pending'`,
     [code, digest],
   );
   return (rowCount ?? 0) > 0;
+}
+
+/**
+ * Cancel (void) a link so it can no longer be paid. Gated to the creator
+ * (`requester` must equal the stored payee) and only valid while still pending.
+ */
+export async function cancelLink(code: string, requester: string): Promise<CancelResult> {
+  const db = requirePool();
+  const link = await getLink(code);
+  if (!link) return "not_found";
+  if (link.payee !== requester) return "forbidden";
+  if (link.status !== "pending") return "not_pending";
+  await db.query(
+    `UPDATE payment_links SET status = 'canceled', canceled_at = now() WHERE code = $1`,
+    [code],
+  );
+  return "canceled";
 }

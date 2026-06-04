@@ -19,7 +19,16 @@ import { usePendingPaymentStore } from "@/store/pendingPaymentStore";
 import { hapticError, hapticTxSuccess } from "@/utils/haptics";
 import { BRISK } from "@/theme/tokens";
 
-type Status = "resolving" | "review" | "paying" | "done" | "expired" | "notfound" | "error";
+type Status =
+  | "resolving"
+  | "review"
+  | "paying"
+  | "done"
+  | "expired"
+  | "canceled"
+  | "consumed"
+  | "notfound"
+  | "error";
 
 // One-tap confirm screen for an incoming payment link (brisk://pay?code=… or a
 // self-contained invoice). Resolves the code via the backend, then reuses the
@@ -71,6 +80,11 @@ export default function PayLinkScreen() {
           invoiceId: link.invoiceId,
           merchant: link.merchant,
         });
+        // Single-use links that are already paid can't be paid again.
+        if (link.status === "paid" && !link.reusable) {
+          setStatus("consumed");
+          return;
+        }
         setAlreadyPaid(link.status === "paid");
         setStatus("review");
       })
@@ -78,6 +92,7 @@ export default function PayLinkScreen() {
         if (!active) return;
         const msg = e instanceof Error ? e.message : "";
         if (/expired/i.test(msg)) setStatus("expired");
+        else if (/canceled/i.test(msg)) setStatus("canceled");
         else if (/not found/i.test(msg)) setStatus("notfound");
         else {
           setError(msg || "Couldn't load this payment link.");
@@ -171,14 +186,25 @@ export default function PayLinkScreen() {
               </Animated.View>
             ) : null}
 
-            {status === "expired" || status === "notfound" ? (
+            {status === "expired" ||
+            status === "notfound" ||
+            status === "canceled" ||
+            status === "consumed" ? (
               <Animated.View entering={FadeIn.duration(300)} className="items-center">
                 <XCircle color={BRISK.subtext} size={64} />
                 <Text className="mt-4 text-lg font-inter-semibold text-brisk-text">
-                  {status === "expired" ? "This link has expired" : "Link not found"}
+                  {status === "expired"
+                    ? "This link has expired"
+                    : status === "canceled"
+                      ? "This link was canceled"
+                      : status === "consumed"
+                        ? "This link is already paid"
+                        : "Link not found"}
                 </Text>
                 <Text className="mt-1 text-center text-sm text-brisk-subtext">
-                  Ask the merchant to send you a fresh payment link.
+                  {status === "consumed"
+                    ? "This was a one-time payment link and has already been used."
+                    : "Ask the merchant to send you a fresh payment link."}
                 </Text>
                 <View className="mt-8 w-full max-w-[360px]">
                   <PrimaryButton label="Close" onPress={close} />

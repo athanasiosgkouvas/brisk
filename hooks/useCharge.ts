@@ -115,7 +115,7 @@ export function useCharge() {
    * NFC), so iOS merchants can charge too.
    */
   const createLink = useCallback(
-    async (amountMicros: number) => {
+    async (amountMicros: number, expiresInSec?: number) => {
       if (!session) return;
       setError(null);
       try {
@@ -129,6 +129,7 @@ export function useCharge() {
           amountMicros: inv.amountMicros,
           invoiceId: inv.invoiceId,
           merchant: inv.merchant,
+          expiresInSec,
         });
         setInvoice(inv);
         setLinkUrl(url);

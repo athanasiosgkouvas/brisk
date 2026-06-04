@@ -68,6 +68,18 @@ export type ResolvedLink = {
   invoiceId: string;
   merchant: string;
   status: "pending" | "paid";
+  reusable: boolean;
+};
+
+export type LinkSummary = {
+  code: string;
+  url: string;
+  amountMicros: number;
+  merchant: string;
+  status: "pending" | "paid" | "expired" | "canceled";
+  reusable: boolean;
+  createdAt: string | null;
+  expiresAt: string | null;
 };
 
 /** Mint a shareable payment link for an invoice. Returns the short code + url. */
@@ -96,6 +108,22 @@ export async function markPaymentLinkPaid(code: string, digest: string): Promise
   await backendFetch<{ ok: boolean; updated: boolean }>(`/api/links/${code}/paid`, {
     method: "POST",
     body: JSON.stringify({ digest }),
+  });
+}
+
+/** All payment links a merchant created (newest first), for the manage screen. */
+export async function listPaymentLinks(merchant: string): Promise<LinkSummary[]> {
+  const res = await backendFetch<{ links: LinkSummary[] }>(
+    `/api/links?merchant=${encodeURIComponent(merchant)}`,
+  );
+  return res.links;
+}
+
+/** Cancel (void) an unpaid link. Only the creator (`sender`) may cancel it. */
+export async function cancelPaymentLink(code: string, sender: string): Promise<void> {
+  await backendFetch<{ ok: boolean }>(`/api/links/${code}/cancel`, {
+    method: "POST",
+    body: JSON.stringify({ sender }),
   });
 }
 
