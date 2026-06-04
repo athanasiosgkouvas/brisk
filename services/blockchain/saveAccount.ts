@@ -3,7 +3,6 @@ import { toBase64 } from "@mysten/sui/utils";
 
 import type { AuthSession } from "@/types/user";
 import { executeSponsored } from "@/services/blockchain/sponsoredExec";
-import { resolveSpendableCoins } from "@/services/blockchain/coins";
 import { getSuiClientForBuild } from "@/services/blockchain/suiClient";
 import {
   buildDepositTx,
@@ -102,12 +101,9 @@ export async function depositToSave(
   vaultId: string,
   amountMicros: number,
 ): Promise<void> {
-  // A sponsored deposit must source from owned Coin objects — see the
-  // TODO(enoki-fundswithdrawal) note in services/blockchain/coins.ts.
-  const coinObjectIds = await resolveSpendableCoins(session.address, amountMicros);
   await sponsor(
     session,
-    buildDepositTx({ sender: session.address, vaultId, amountMicros, coinObjectIds }),
+    buildDepositTx({ sender: session.address, vaultId, amountMicros }),
     DEPOSIT_TARGETS,
   );
 }

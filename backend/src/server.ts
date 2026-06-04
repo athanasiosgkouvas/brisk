@@ -151,9 +151,14 @@ const serverAllowedTargets = new Set<string>([
   `${briskPkg}::spending_vault::open`,
   `${briskPkg}::spending_vault::deposit`,
   `${briskPkg}::spending_vault::withdraw`,
-  // Framework coin/balance ops the CoinWithBalance resolver may emit.
+  // Framework coin/balance ops the CoinWithBalance resolver may emit. The
+  // coin-output path (used by Save deposit) sources from the Address Balance via
+  // `coin::redeem_funds`; `balance::redeem_funds` covers the balance-output path.
+  `${SUI_FW}::coin::redeem_funds`,
   `${SUI_FW}::coin::into_balance`,
   `${SUI_FW}::coin::from_balance`,
+  `${SUI_FW}::coin::send_funds`,
+  `${SUI_FW}::coin::destroy_zero`,
   `${SUI_FW}::balance::send_funds`,
   `${SUI_FW}::balance::redeem_funds`,
 ]);
