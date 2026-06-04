@@ -90,6 +90,33 @@ export function parseInvoice(uri: string): Invoice | null {
   };
 }
 
+/**
+ * Parse an incoming `brisk://pay?…` deep link into either a self-contained
+ * invoice (the NFC tag form) or a payment-link short `code` (resolved via the
+ * backend). Returns null for any non-pay link (e.g. `brisk://oauth`).
+ */
+export function parsePayDeepLink(
+  url: string,
+): { kind: "invoice"; invoice: Invoice } | { kind: "code"; code: string } | null {
+  const qIndex = url.indexOf("?");
+  if (!url.startsWith("brisk://pay") || qIndex === -1) return null;
+
+  const params: Record<string, string> = {};
+  for (const pair of url.slice(qIndex + 1).split("&")) {
+    const eq = pair.indexOf("=");
+    if (eq === -1) continue;
+    params[pair.slice(0, eq)] = decodeURIComponent(pair.slice(eq + 1));
+  }
+
+  // Short-code form: brisk://pay?code=AbCd1234 — resolve server-side.
+  if (params.code && /^[A-Za-z0-9]{8}$/.test(params.code)) {
+    return { kind: "code", code: params.code };
+  }
+  // Self-contained NFC form: reuse the strict invoice validator.
+  const invoice = parseInvoice(url);
+  return invoice ? { kind: "invoice", invoice } : null;
+}
+
 // ─── Amount helpers (USDC, 6 decimals) ──────────────────────────────────────
 
 export function usdToMicros(usd: number): number {

@@ -15,6 +15,7 @@ import "../global.css";
 
 import { AppProviders } from "@/components/common/AppProviders";
 import { useAuth } from "@/hooks/useAuth";
+import { usePaymentLinkRouting } from "@/hooks/usePaymentLinkRouting";
 import { BRISK } from "@/theme/tokens";
 
 // Hold the native splash until auth + fonts are both ready. We deliberately
@@ -29,6 +30,8 @@ function RootNavigator({ readyToReveal }: { readyToReveal: () => void }) {
   const { session, hydrated } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  // Route incoming payment-link deep links to the one-tap confirm screen.
+  usePaymentLinkRouting();
 
   useEffect(() => {
     if (!hydrated) return;
@@ -60,6 +63,7 @@ function RootNavigator({ readyToReveal }: { readyToReveal: () => void }) {
         <Stack.Screen name="welcome" />
         <Stack.Screen name="receive" options={{ presentation: "modal" }} />
         <Stack.Screen name="send" options={{ presentation: "modal" }} />
+        <Stack.Screen name="pay-link" options={{ presentation: "modal" }} />
       </Stack>
     </>
   );
