@@ -61,6 +61,44 @@ export async function requestFaucet(address: string): Promise<{
   });
 }
 
+export type ResolvedLink = {
+  merchantId: string;
+  payee: string;
+  amountMicros: number;
+  invoiceId: string;
+  merchant: string;
+  status: "pending" | "paid";
+};
+
+/** Mint a shareable payment link for an invoice. Returns the short code + url. */
+export async function createPaymentLink(input: {
+  sender: string;
+  merchantId: string;
+  payee: string;
+  amountMicros: number;
+  invoiceId: string;
+  merchant: string;
+  expiresInSec?: number;
+}): Promise<{ code: string; url: string }> {
+  return backendFetch<{ code: string; url: string }>("/api/links", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+/** Resolve a payment-link code into its invoice (throws on 404/410/expired). */
+export async function resolvePaymentLink(code: string): Promise<ResolvedLink> {
+  return backendFetch<ResolvedLink>(`/api/links/${code}`);
+}
+
+/** Best-effort report that a link settled, so the merchant sees it as paid. */
+export async function markPaymentLinkPaid(code: string, digest: string): Promise<void> {
+  await backendFetch<{ ok: boolean; updated: boolean }>(`/api/links/${code}/paid`, {
+    method: "POST",
+    body: JSON.stringify({ digest }),
+  });
+}
+
 export type SponsorshipQuota = {
   usedCount: number;
   dailyLimit: number;

@@ -6,6 +6,8 @@ import { z } from "zod";
 import { EnokiClient } from "@mysten/enoki";
 import * as analyticsService from "./services/analyticsService.js";
 import * as errorService from "./services/errorService.js";
+import * as linkStore from "./services/linkStore.js";
+import { ensureSchema, isDbConfigured } from "./db.js";
 
 dotenv.config();
 
@@ -90,6 +92,36 @@ const errorReportSchema = z.object({
   stack: z.string().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
+
+const createLinkSchema = z.object({
+  sender: z.string().startsWith("0x"),
+  merchantId: z.string().startsWith("0x"),
+  payee: z.string().startsWith("0x"),
+  amountMicros: z
+    .number()
+    .int()
+    .positive()
+    .max(1_000_000 * 10 ** 6),
+  invoiceId: z.string().min(1).max(128),
+  merchant: z.string().min(1).max(128),
+  expiresInSec: z
+    .number()
+    .int()
+    .positive()
+    .max(30 * 24 * 60 * 60)
+    .optional(),
+});
+
+const markPaidSchema = z.object({
+  digest: z.string().min(10),
+});
+
+// Short codes are exactly 8 base62 chars (see linkStore.generateCode).
+const linkCodeSchema = z.string().regex(/^[A-Za-z0-9]{8}$/);
+
+// Public https origin used to build shareable link URLs. Falls back to the
+// request's own host when unset so local/ngrok runs still produce a usable link.
+const publicBaseUrl = (process.env.PUBLIC_BASE_URL ?? "").replace(/\/+$/, "");
 
 // ─── In-memory sponsorship daily limit (anti-abuse) ─────────────────────────
 // A rolling 24h per-sender cap. In-memory is fine for a hackathon relay; swap
@@ -404,9 +436,204 @@ app.post("/api/errors/report", (req, res) => {
   res.json({ accepted: true });
 });
 
+// ─── Payment links ───────────────────────────────────────────────────────────
+// A merchant mints a short-code link (code → invoice), shares it over any
+// channel, and the customer pays it. The link store is durable (Postgres); the
+// /p/:code landing page bounces installed apps into brisk://pay and shows a web
+// fallback otherwise — the same redirect trick as /auth/callback → brisk://oauth.
+
+function baseUrlFor(req: express.Request): string {
+  if (publicBaseUrl) return publicBaseUrl;
+  const proto = (req.headers["x-forwarded-proto"] as string)?.split(",")[0] ?? req.protocol;
+  return `${proto}://${req.get("host")}`;
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(
+    /[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
+  );
+}
+
+function formatUsdMicros(micros: number): string {
+  const [int, dec] = (micros / 10 ** 6).toFixed(2).split(".");
+  return `$${int.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${dec}`;
+}
+
+app.post("/api/links", async (req, res) => {
+  if (!isDbConfigured()) {
+    res.status(503).json({ error: "Payment links are not available" });
+    return;
+  }
+  const parsed = createLinkSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid payload" });
+    return;
+  }
+  // Reuse the sponsorship per-sender cap as a cheap anti-abuse gate on minting.
+  try {
+    assertWithinDailyLimit(parsed.data.sender);
+  } catch (err) {
+    if (err instanceof SponsorshipLimitError) {
+      res.status(429).json({ error: err.message, used: err.used, limit: err.limit });
+      return;
+    }
+    throw err;
+  }
+  try {
+    const code = await linkStore.createLink({
+      merchantId: parsed.data.merchantId,
+      payee: parsed.data.payee,
+      amountMicros: parsed.data.amountMicros,
+      invoiceId: parsed.data.invoiceId,
+      merchantName: parsed.data.merchant,
+      expiresInSec: parsed.data.expiresInSec,
+    });
+    logSponsorship(parsed.data.sender);
+    res.json({ code, url: `${baseUrlFor(req)}/p/${code}` });
+  } catch (error: unknown) {
+    console.error("[links] create failed", error instanceof Error ? error.message : error);
+    res.status(500).json({ error: "Failed to create payment link" });
+  }
+});
+
+app.get("/api/links/:code", async (req, res) => {
+  if (!isDbConfigured()) {
+    res.status(503).json({ error: "Payment links are not available" });
+    return;
+  }
+  const code = linkCodeSchema.safeParse(req.params.code);
+  if (!code.success) {
+    res.status(400).json({ error: "Invalid code" });
+    return;
+  }
+  try {
+    const link = await linkStore.getLink(code.data);
+    if (!link) {
+      res.status(404).json({ error: "Payment link not found" });
+      return;
+    }
+    if (link.expired) {
+      res.status(410).json({ error: "Payment link expired" });
+      return;
+    }
+    res.json({
+      merchantId: link.merchantId,
+      payee: link.payee,
+      amountMicros: link.amountMicros,
+      invoiceId: link.invoiceId,
+      merchant: link.merchantName,
+      status: link.status,
+    });
+  } catch (error: unknown) {
+    console.error("[links] resolve failed", error instanceof Error ? error.message : error);
+    res.status(500).json({ error: "Failed to resolve payment link" });
+  }
+});
+
+app.post("/api/links/:code/paid", async (req, res) => {
+  if (!isDbConfigured()) {
+    res.status(503).json({ error: "Payment links are not available" });
+    return;
+  }
+  const code = linkCodeSchema.safeParse(req.params.code);
+  const parsed = markPaidSchema.safeParse(req.body);
+  if (!code.success || !parsed.success) {
+    res.status(400).json({ error: "Invalid payload" });
+    return;
+  }
+  try {
+    const updated = await linkStore.markPaid(code.data, parsed.data.digest);
+    res.json({ ok: true, updated });
+  } catch (error: unknown) {
+    console.error("[links] markPaid failed", error instanceof Error ? error.message : error);
+    res.status(500).json({ error: "Failed to update payment link" });
+  }
+});
+
+// Shareable landing page. Tries to open the app (brisk://pay?code=…); if that
+// doesn't take over, reveals a web fallback (amount + get-the-app + QR).
+app.get("/p/:code", async (req, res) => {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.setHeader("ngrok-skip-browser-warning", "true");
+
+  const code = linkCodeSchema.safeParse(req.params.code);
+  const link = code.success && isDbConfigured() ? await linkStore.getLink(code.data) : null;
+
+  if (!link || link.expired) {
+    const msg = !link ? "This payment link is invalid." : "This payment link has expired.";
+    res.status(link?.expired ? 410 : 404).send(`<!DOCTYPE html><html><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Brisk</title></head>
+<body style="margin:0;background:#0a0e12;color:#e8eef2;font-family:-apple-system,system-ui,sans-serif;
+display:flex;min-height:100vh;align-items:center;justify-content:center;text-align:center;padding:24px">
+<div><div style="font-size:40px">🔗</div><h2>${escapeHtml(msg)}</h2>
+<p style="color:#8aa">Ask the merchant for a fresh link.</p></div></body></html>`);
+    return;
+  }
+
+  const deepLink = `brisk://pay?code=${link.code}`;
+  const amount = formatUsdMicros(link.amountMicros);
+  const merchant = escapeHtml(link.merchantName);
+  const paid = link.status === "paid";
+  const pageUrl = `${baseUrlFor(req)}/p/${link.code}`;
+  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=0&data=${encodeURIComponent(pageUrl)}`;
+
+  res.status(200).send(`<!DOCTYPE html><html><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Pay ${amount} · Brisk</title>
+<style>
+  :root{color-scheme:dark}
+  body{margin:0;background:#0a0e12;color:#e8eef2;font-family:-apple-system,system-ui,sans-serif;
+    display:flex;min-height:100vh;align-items:center;justify-content:center;padding:24px}
+  .card{width:100%;max-width:380px;text-align:center}
+  .label{font-size:13px;letter-spacing:2px;text-transform:uppercase;color:#7e8a96}
+  .amt{font-size:48px;font-weight:800;margin:6px 0 2px;
+    background:linear-gradient(90deg,#34d399,#60a5fa,#a78bfa);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .merchant{color:#aebac4;margin-bottom:24px}
+  .btn{display:block;width:100%;box-sizing:border-box;padding:16px;border-radius:16px;border:0;
+    font-size:16px;font-weight:700;text-decoration:none;cursor:pointer;margin-top:12px}
+  .primary{background:linear-gradient(90deg,#34d399,#60a5fa);color:#06121a}
+  .ghost{background:#121821;color:#e8eef2;border:1px solid #243040}
+  .disabled{background:#121821;color:#5b6772;border:1px solid #1c2530;cursor:not-allowed}
+  .fallback{margin-top:28px;opacity:0;transition:opacity .4s;border-top:1px solid #1c2530;padding-top:24px}
+  .fallback.show{opacity:1}
+  .qr{background:#fff;padding:10px;border-radius:12px;display:inline-block;margin-top:14px}
+  .paid{color:#34d399;font-weight:700;margin-bottom:16px}
+  small{color:#7e8a96}
+</style></head>
+<body><div class="card">
+  <div class="label">${paid ? "Already paid" : "Payment request"}</div>
+  <div class="amt">${amount}</div>
+  <div class="merchant">to ${merchant}</div>
+  ${paid ? '<div class="paid">✓ This request has been paid.</div>' : ""}
+  <a class="btn primary" href="${deepLink}">Open in Brisk</a>
+  <div class="fallback" id="fallback">
+    <p>Don't have Brisk yet?</p>
+    <a class="btn ghost" href="https://play.google.com/store" target="_blank" rel="noopener">Get it on Google Play</a>
+    <a class="btn ghost" href="https://apps.apple.com/" target="_blank" rel="noopener">Download on the App Store</a>
+    <button class="btn disabled" disabled title="Coming soon">Pay in browser (coming soon)</button>
+    <div class="qr"><img src="${qr}" width="220" height="220" alt="Scan to open this link"/></div>
+    <p><small>Scan with your phone to open this request in Brisk.</small></p>
+  </div>
+</div>
+<script>
+  // Try to hand off to the installed app immediately; if we're still here after
+  // a moment, the app isn't installed (or didn't take over) — show the fallback.
+  (function () {
+    var fired = false;
+    try { window.location.href = ${JSON.stringify(deepLink)}; fired = true; } catch (e) {}
+    setTimeout(function () { document.getElementById("fallback").classList.add("show"); }, 1500);
+  })();
+</script>
+</body></html>`);
+});
+
 const server = app.listen(port, () => {
   console.log(`[brisk-backend] listening on :${port}`);
 });
+
+void ensureSchema().catch((e) => console.error("[db] ensureSchema failed", e));
 
 // Graceful shutdown.
 let shuttingDown = false;
