@@ -43,8 +43,39 @@ export type ActivityItem = {
   digest: string;
 };
 
-/** Recent activity for an address (both sent and received), newest first. */
-export async function queryActivity(address: string, limit = 30): Promise<ActivityItem[]> {
+const RECEIPT_TYPE = `${ENV.briskPackageId}::payment_receipt::Receipt`;
+
+/** "Sent" history: the caller's own soulbound Receipts (minted to the payer). */
+async function querySent(address: string): Promise<ActivityItem[]> {
+  const client = await getSuiClientForBuild();
+  const res = await client.getOwnedObjects({
+    owner: address,
+    filter: { StructType: RECEIPT_TYPE },
+    options: { showContent: true, showPreviousTransaction: true },
+  });
+  const items: ActivityItem[] = [];
+  for (const o of res?.data ?? []) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const f = (o?.data?.content as any)?.fields;
+    if (!f) continue;
+    items.push({
+      direction: "sent",
+      counterparty: f.payee,
+      amountMicros: Number(f.amount),
+      timestampMs: Number(f.timestamp_ms ?? 0),
+      digest: o?.data?.previousTransaction ?? "",
+    });
+  }
+  return items;
+}
+
+/**
+ * "Received" history: PaymentMade events where the caller is the payee. Receipts
+ * are soulbound to the payer, so the merchant has no owned object to read — the
+ * event is the only record. Filtered client-side (RPC can't filter by an event
+ * field), so we pull a generous page.
+ */
+async function queryReceived(address: string, limit: number): Promise<ActivityItem[]> {
   const client = await getSuiClientForBuild();
   const res = await client.queryEvents({
     query: { MoveEventType: PAYMENT_EVENT_TYPE },
@@ -54,16 +85,7 @@ export async function queryActivity(address: string, limit = 30): Promise<Activi
   const items: ActivityItem[] = [];
   for (const raw of (res?.data ?? []) as unknown[]) {
     const p = parsePaymentEvent(raw);
-    if (!p) continue;
-    if (p.payer === address) {
-      items.push({
-        direction: "sent",
-        counterparty: p.payee,
-        amountMicros: p.amountMicros,
-        timestampMs: p.timestampMs,
-        digest: p.digest,
-      });
-    } else if (p.payee === address) {
+    if (p && p.payee === address) {
       items.push({
         direction: "received",
         counterparty: p.payer,
@@ -74,4 +96,23 @@ export async function queryActivity(address: string, limit = 30): Promise<Activi
     }
   }
   return items;
+}
+
+/** Recent activity for an address (both sent and received), newest first. */
+export async function queryActivity(address: string, limit = 30): Promise<ActivityItem[]> {
+  const [sent, received] = await Promise.all([
+    querySent(address).catch(() => [] as ActivityItem[]),
+    queryReceived(address, 50).catch(() => [] as ActivityItem[]),
+  ]);
+  // Dedupe by digest+direction (a self-payment could appear in both lists).
+  const seen = new Set<string>();
+  const merged: ActivityItem[] = [];
+  for (const it of [...sent, ...received]) {
+    const key = `${it.digest}-${it.direction}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(it);
+  }
+  merged.sort((a, b) => b.timestampMs - a.timestampMs);
+  return merged.slice(0, limit);
 }

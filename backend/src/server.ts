@@ -104,6 +104,7 @@ const createLinkSchema = z.object({
     .max(1_000_000 * 10 ** 6),
   invoiceId: z.string().min(1).max(128),
   merchant: z.string().min(1).max(128),
+  reusable: z.boolean().optional(),
   expiresInSec: z
     .number()
     .int()
@@ -115,6 +116,12 @@ const createLinkSchema = z.object({
 const markPaidSchema = z.object({
   digest: z.string().min(10),
 });
+
+const cancelLinkSchema = z.object({
+  sender: z.string().startsWith("0x"),
+});
+
+const merchantQuerySchema = z.string().startsWith("0x").min(4);
 
 // Short codes are exactly 8 base62 chars (see linkStore.generateCode).
 const linkCodeSchema = z.string().regex(/^[A-Za-z0-9]{8}$/);
@@ -487,6 +494,7 @@ app.post("/api/links", async (req, res) => {
       amountMicros: parsed.data.amountMicros,
       invoiceId: parsed.data.invoiceId,
       merchantName: parsed.data.merchant,
+      reusable: parsed.data.reusable,
       expiresInSec: parsed.data.expiresInSec,
     });
     logSponsorship(parsed.data.sender);
@@ -517,6 +525,10 @@ app.get("/api/links/:code", async (req, res) => {
       res.status(410).json({ error: "Payment link expired" });
       return;
     }
+    if (link.status === "canceled") {
+      res.status(410).json({ error: "Payment link canceled" });
+      return;
+    }
     res.json({
       merchantId: link.merchantId,
       payee: link.payee,
@@ -524,6 +536,7 @@ app.get("/api/links/:code", async (req, res) => {
       invoiceId: link.invoiceId,
       merchant: link.merchantName,
       status: link.status,
+      reusable: link.reusable,
     });
   } catch (error: unknown) {
     console.error("[links] resolve failed", error instanceof Error ? error.message : error);
@@ -551,6 +564,76 @@ app.post("/api/links/:code/paid", async (req, res) => {
   }
 });
 
+// Cancel (void) an unpaid link. Gated to the creator: `sender` must equal the
+// link's payee (the merchant that minted it).
+app.post("/api/links/:code/cancel", async (req, res) => {
+  if (!isDbConfigured()) {
+    res.status(503).json({ error: "Payment links are not available" });
+    return;
+  }
+  const code = linkCodeSchema.safeParse(req.params.code);
+  const parsed = cancelLinkSchema.safeParse(req.body);
+  if (!code.success || !parsed.success) {
+    res.status(400).json({ error: "Invalid payload" });
+    return;
+  }
+  try {
+    const result = await linkStore.cancelLink(code.data, parsed.data.sender);
+    if (result === "not_found") {
+      res.status(404).json({ error: "Payment link not found" });
+      return;
+    }
+    if (result === "forbidden") {
+      res.status(403).json({ error: "Only the merchant who created this link can cancel it" });
+      return;
+    }
+    if (result === "not_pending") {
+      res.status(409).json({ error: "Only a pending link can be canceled" });
+      return;
+    }
+    res.json({ ok: true });
+  } catch (error: unknown) {
+    console.error("[links] cancel failed", error instanceof Error ? error.message : error);
+    res.status(500).json({ error: "Failed to cancel payment link" });
+  }
+});
+
+// List the links a merchant created (newest first), for the management screen.
+app.get("/api/links", async (req, res) => {
+  if (!isDbConfigured()) {
+    res.status(503).json({ error: "Payment links are not available" });
+    return;
+  }
+  const merchant = merchantQuerySchema.safeParse(req.query.merchant);
+  if (!merchant.success) {
+    res.status(400).json({ error: "A merchant address is required" });
+    return;
+  }
+  try {
+    const links = await linkStore.listLinks(merchant.data);
+    const now = Date.now();
+    res.json({
+      links: links.map((l) => ({
+        code: l.code,
+        url: `${baseUrlFor(req)}/p/${l.code}`,
+        amountMicros: l.amountMicros,
+        merchant: l.merchantName,
+        // Surface a derived "expired" status to the client (DB keeps it pending).
+        status:
+          l.status === "pending" && l.expiresAt && new Date(l.expiresAt).getTime() < now
+            ? "expired"
+            : l.status,
+        reusable: l.reusable,
+        createdAt: l.createdAt,
+        expiresAt: l.expiresAt,
+      })),
+    });
+  } catch (error: unknown) {
+    console.error("[links] list failed", error instanceof Error ? error.message : error);
+    res.status(500).json({ error: "Failed to list payment links" });
+  }
+});
+
 // Shareable landing page. Tries to open the app (brisk://pay?code=…); if that
 // doesn't take over, reveals a web fallback (amount + get-the-app + QR).
 app.get("/p/:code", async (req, res) => {
@@ -560,9 +643,14 @@ app.get("/p/:code", async (req, res) => {
   const code = linkCodeSchema.safeParse(req.params.code);
   const link = code.success && isDbConfigured() ? await linkStore.getLink(code.data) : null;
 
-  if (!link || link.expired) {
-    const msg = !link ? "This payment link is invalid." : "This payment link has expired.";
-    res.status(link?.expired ? 410 : 404).send(`<!DOCTYPE html><html><head>
+  const canceled = link?.status === "canceled";
+  if (!link || link.expired || canceled) {
+    const msg = !link
+      ? "This payment link is invalid."
+      : canceled
+        ? "This payment link was canceled."
+        : "This payment link has expired.";
+    res.status(!link ? 404 : 410).send(`<!DOCTYPE html><html><head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Brisk</title></head>
 <body style="margin:0;background:#0a0e12;color:#e8eef2;font-family:-apple-system,system-ui,sans-serif;

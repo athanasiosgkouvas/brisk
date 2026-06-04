@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Pressable, Share, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeIn } from "react-native-reanimated";
+import { useRouter } from "expo-router";
 import QRCode from "react-native-qrcode-svg";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Clipboard from "expo-clipboard";
@@ -24,10 +25,18 @@ import { BRISK } from "@/theme/tokens";
 //  - Payment link (all platforms, incl. iOS): mint a shareable link, send it
 //    over any channel, and the customer pays remotely with one tap.
 // Both await on-chain settlement and flip to the same "paid" screen.
+const EXPIRY_OPTIONS: { label: string; seconds: number }[] = [
+  { label: "1 hour", seconds: 60 * 60 },
+  { label: "24 hours", seconds: 24 * 60 * 60 },
+  { label: "7 days", seconds: 7 * 24 * 60 * 60 },
+];
+
 export default function ChargeScreen() {
+  const router = useRouter();
   const { status, invoice, linkUrl, error, startCharge, createLink, cancel } = useCharge();
   const [amountText, setAmountText] = useState("");
   const [copied, setCopied] = useState(false);
+  const [expirySec, setExpirySec] = useState(EXPIRY_OPTIONS[1].seconds); // default 24h
   // Count the received amount up on the paid screen.
   const paidShown = useCountUp(status === "paid" && invoice ? invoice.amountMicros : 0, 700);
 
@@ -80,7 +89,41 @@ export default function ChargeScreen() {
                     accessibilityHint="Enter the amount to charge the customer"
                   />
                 </View>
-                <View className="mt-8 w-full">
+                {/* Link expiry chooser. */}
+                <View className="mt-6 w-full">
+                  <Text className="text-xs uppercase tracking-[2px] text-brisk-subtext">
+                    Link expires in
+                  </Text>
+                  <View className="mt-2 flex-row gap-2">
+                    {EXPIRY_OPTIONS.map((opt) => {
+                      const selected = opt.seconds === expirySec;
+                      return (
+                        <Pressable
+                          key={opt.seconds}
+                          onPress={() => setExpirySec(opt.seconds)}
+                          className={`flex-1 rounded-xl border px-3 py-2 ${
+                            selected
+                              ? "border-brisk-accent bg-brisk-accent/10"
+                              : "border-brisk-borderStrong bg-brisk-bg1/70"
+                          }`}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected }}
+                          accessibilityLabel={`Expire in ${opt.label}`}
+                        >
+                          <Text
+                            className={`text-center text-sm font-inter-semibold ${
+                              selected ? "text-brisk-accent" : "text-brisk-subtext"
+                            }`}
+                          >
+                            {opt.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                <View className="mt-6 w-full">
                   {isHceAvailable ? (
                     <PrimaryButton
                       label="Charge by tap"
@@ -92,10 +135,13 @@ export default function ChargeScreen() {
                     <PrimaryButton
                       label="Create payment link"
                       variant={isHceAvailable ? "secondary" : "primary"}
-                      onPress={() => void createLink(amountMicros)}
+                      onPress={() => void createLink(amountMicros, expirySec)}
                       disabled={!canCharge}
                     />
                   </View>
+                  <Pressable className="mt-4 py-2" onPress={() => router.push("/links")}>
+                    <Text className="text-center text-sm text-brisk-subtext">My payment links</Text>
+                  </Pressable>
                 </View>
               </Animated.View>
             ) : null}

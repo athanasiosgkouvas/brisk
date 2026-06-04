@@ -1,4 +1,4 @@
-import { Transaction } from "@mysten/sui/transactions";
+import { Transaction, coinWithBalance } from "@mysten/sui/transactions";
 
 import { CLOCK_OBJECT_ID, ENV } from "@/utils/constants";
 import { isValidSuiAddress } from "@/utils/address";
@@ -6,20 +6,16 @@ import { isValidSuiAddress } from "@/utils/address";
 /**
  * Brisk payment transaction builders + invoice codec.
  *
- * A merchant payment runs as two feeless legs (see services/blockchain/payments):
+ *  - Merchant invoice payment (`buildPaymentWithReceiptTx`): one Enoki-sponsored
+ *    PTB that runs `payment_receipt::pay` (moves USDC + mints a soulbound receipt
+ *    + emits `PaymentMade`, which is what powers the activity feed). The coin is
+ *    sourced via the CoinWithBalance helper, which pulls from the Address Balance
+ *    (now that Enoki sponsors the `FundsWithdrawal` it emits) or owned coins.
  *  - Native gasless transfer (`buildGaslessTransferTx`): a PTB of solely
  *    `0x2::balance::send_funds<USDC>` with gas set to 0, submitted straight to
- *    the fullnode. The protocol treats it as a zero-fee Address-Balances transfer.
+ *    the fullnode — used for plain P2P wallet sends (no merchant/receipt).
  *    (Auto gas=0 detection only fires on gRPC/GraphQL; on our JSON-RPC client we
  *    set gasPrice/gasBudget = 0 manually — USDC is allowlisted for send_funds.)
- *  - Atomic sponsored payment (`buildPaymentWithReceiptTx`): one Enoki-sponsored
- *    PTB that runs `payment_receipt::pay` (moves USDC + mints a soulbound receipt).
- *    Used when the payer holds spendable Coin objects; see that builder for why
- *    the funds are coin-sourced.
- *
- * `0x2::balance::send_funds<T>(Balance<T>, recipient: address)` — verified on
- * testnet. `tx.balance({ type, balance })` sources the Balance from the sender's
- * address balance, falling back to owned coins.
  */
 
 const USDC = ENV.usdcType;
@@ -169,12 +165,9 @@ const PKG = ENV.briskPackageId;
  * `amount`/`payee`/`merchant`/`timestamp` are all authenticated on-chain (coin
  * value, Merchant profile, Clock), never caller-supplied.
  *
- * USDC is sourced from explicit Coin objects (`coinObjectIds`, merged) so the
- * sponsored tx uses `CallArg::Object` and clears Enoki's gas station; the
- * contract does the exact-amount split and hands back any change.
- * TODO(enoki-fundswithdrawal): once Enoki sponsors Address-Balance withdrawals,
- * source the coin with `tx.balance(...)` and drop `coinObjectIds`. See
- * services/blockchain/coins.ts.
+ * The exact amount is sourced via the CoinWithBalance helper (Address Balance
+ * first, owned coins as fallback); `pay` takes the whole coin and splits the
+ * invoiced amount, so there is no change.
  */
 export function buildPaymentWithReceiptTx(input: {
   payer: string;
@@ -182,20 +175,18 @@ export function buildPaymentWithReceiptTx(input: {
   amountMicros: number | bigint;
   memo: string;
   invoiceId: string;
-  coinObjectIds: string[];
 }): Transaction {
   const tx = new Transaction();
   tx.setSender(input.payer);
 
-  const [primary, ...rest] = input.coinObjectIds.map((id) => tx.object(id));
-  if (rest.length > 0) tx.mergeCoins(primary, rest);
+  const payCoin = tx.add(coinWithBalance({ type: USDC, balance: BigInt(input.amountMicros) }));
 
   tx.moveCall({
     target: `${PKG}::payment_receipt::pay`,
     typeArguments: [USDC],
     arguments: [
       tx.object(input.merchantId),
-      primary,
+      payCoin,
       tx.pure.u64(BigInt(input.amountMicros)),
       tx.pure.string(input.memo),
       tx.pure.string(input.invoiceId),
@@ -221,8 +212,17 @@ export function buildRegisterMerchantTx(input: { sender: string; name: string })
   return tx;
 }
 
-/** Allowlist for the atomic sponsored payment PTB (pay moves funds internally). */
-export const PAY_WITH_RECEIPT_TARGETS = [`${PKG}::payment_receipt::pay`];
+// Allowlist for the atomic sponsored payment PTB. `pay` moves funds internally;
+// the rest are the framework coin ops the CoinWithBalance resolver injects to
+// source the coin from the Address Balance / owned coins (see vaultTx DEPOSIT_TARGETS).
+const SUI_FW = "0x0000000000000000000000000000000000000000000000000000000000000002";
+export const PAY_WITH_RECEIPT_TARGETS = [
+  `${PKG}::payment_receipt::pay`,
+  `${SUI_FW}::coin::redeem_funds`,
+  `${SUI_FW}::coin::into_balance`,
+  `${SUI_FW}::coin::send_funds`,
+  `${SUI_FW}::coin::destroy_zero`,
+];
 
 /** Allowlist for the sponsored merchant-onboarding PTB. */
 export const REGISTER_MERCHANT_TARGETS = [`${PKG}::merchant_registry::register_and_share`];

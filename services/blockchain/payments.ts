@@ -10,7 +10,6 @@ import {
   PAY_WITH_RECEIPT_TARGETS,
   type Invoice,
 } from "@/services/blockchain/paymentTx";
-import { coinBalanceMicros, resolveSpendableCoins } from "@/services/blockchain/coins";
 import { ENV } from "@/utils/constants";
 
 export type PayResult = {
@@ -23,48 +22,28 @@ export type PayResult = {
 };
 
 /**
- * Pay a merchant invoice, feeless to the user. Two paths:
- *
- *  - PREFERRED (coins available): one atomic Enoki-sponsored PTB —
- *    `payment_receipt::pay` moves the USDC to the merchant and mints the
- *    on-chain Receipt. The USDC is sourced from owned Coin objects so Enoki's
- *    gas station accepts it.
- *  - FALLBACK (funds only in the Address Balance, no coins): move the money via
- *    native-gasless `send_funds` straight to the fullnode. No on-chain receipt
- *    is minted (it can only come from `pay`), so `receiptIssued` is false.
- *
- * TODO(enoki-fundswithdrawal): the fallback exists only because Enoki can't yet
- * sponsor an Address-Balance withdrawal (`CallArg::FundsWithdrawal` →
- * "Invalid bcs bytes for TransactionData"). When that ships, always take the
- * atomic path with `tx.balance(...)`. See services/blockchain/coins.ts.
+ * Pay a merchant invoice, feeless to the user, in one atomic Enoki-sponsored PTB:
+ * `payment_receipt::pay` moves the USDC to the merchant, mints the soulbound
+ * Receipt, and emits `PaymentMade` (which powers the activity feed). The coin is
+ * sourced via CoinWithBalance, so it works whether the payer's USDC sits in the
+ * Address Balance or in owned coins.
  */
 export async function payInvoice(session: AuthSession, invoice: Invoice): Promise<PayResult> {
-  const amount = invoice.amountMicros;
-
-  // PREFERRED: atomic transfer + on-chain receipt, sourced from coin objects.
-  if ((await coinBalanceMicros(session.address)) >= amount) {
-    const client = await getSuiClientForBuild();
-    const coinObjectIds = await resolveSpendableCoins(session.address, amount);
-    const tx = buildPaymentWithReceiptTx({
-      payer: session.address,
-      merchantId: invoice.merchantId,
-      amountMicros: amount,
-      memo: invoice.merchant,
-      invoiceId: invoice.invoiceId,
-      coinObjectIds,
-    });
-    const txKindBytes = toBase64(await tx.build({ client, onlyTransactionKind: true }));
-    const { digest } = await executeSponsored({
-      session,
-      txKindBytes,
-      allowedMoveCallTargets: PAY_WITH_RECEIPT_TARGETS,
-    });
-    return { digest, method: "sponsored", receiptIssued: true };
-  }
-
-  // FALLBACK: native-gasless transfer (the money moves; no on-chain receipt).
-  const transfer = await payGasless(session, invoice.payee, amount);
-  return { digest: transfer.digest, method: "gasless", receiptIssued: false };
+  const client = await getSuiClientForBuild();
+  const tx = buildPaymentWithReceiptTx({
+    payer: session.address,
+    merchantId: invoice.merchantId,
+    amountMicros: invoice.amountMicros,
+    memo: invoice.merchant,
+    invoiceId: invoice.invoiceId,
+  });
+  const txKindBytes = toBase64(await tx.build({ client, onlyTransactionKind: true }));
+  const { digest } = await executeSponsored({
+    session,
+    txKindBytes,
+    allowedMoveCallTargets: PAY_WITH_RECEIPT_TARGETS,
+  });
+  return { digest, method: "sponsored", receiptIssued: true };
 }
 
 /**
