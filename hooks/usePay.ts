@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { hapticError, hapticTxSuccess } from "@/utils/haptics";
 import { cancelRead, isNfcEnabled, isNfcSupported, readInvoiceTag } from "@/services/nfc/reader";
 import { payInvoice, type PayResult } from "@/services/blockchain/payments";
+import { ensureSpendable } from "@/services/blockchain/coverFromSave";
 import { parseInvoice, type Invoice } from "@/services/blockchain/paymentTx";
 
 export type PayStatus = "idle" | "reading" | "review" | "paying" | "done" | "error" | "nfc_off";
@@ -70,6 +71,11 @@ export function usePay() {
     setError(null);
     setStatus("paying");
     try {
+      // If the Wallet is short, offer to cover the shortfall from Save first.
+      if ((await ensureSpendable(session, invoice.amountMicros)) === "cancelled") {
+        setStatus("review");
+        return null;
+      }
       const res = await payInvoice(session, invoice);
       setResult(res);
       setStatus("done");

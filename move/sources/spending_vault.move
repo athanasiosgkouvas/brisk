@@ -29,22 +29,22 @@ public fun open<T>(ctx: &mut TxContext) {
     );
 }
 
-/// Deposit into Save. Consolidates with any existing position (redeem + merge +
-/// re-supply) so one position carries the latest accrual basis. Folding accrued
-/// yield into the re-supplied principal is intentional — yield compounds.
+/// Deposit into Save. With the share model, additional deposits just mint more
+/// shares into the SAME position (no redeem/re-supply round-trip) — yield already
+/// compounds via the rising exchange rate, and the position keeps accumulating.
 public fun deposit<T>(
     vault: &mut Vault<T>,
-    mut c: Coin<T>,
+    c: Coin<T>,
     pool: &mut LendingPool<T>,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
     assert!(vault.owner == ctx.sender(), ENotOwner);
     if (vault.position.is_some()) {
-        let old = vault.position.extract();
-        c.join(lender_adapter::redeem(pool, old, clock, ctx));
+        lender_adapter::supply_into(pool, vault.position.borrow_mut(), c, clock);
+    } else {
+        vault.position.fill(lender_adapter::supply(pool, c, clock, ctx));
     };
-    vault.position.fill(lender_adapter::supply(pool, c, clock, ctx));
 }
 
 /// Withdraw `amount` (principal + accrued) as a Coin; re-supplies the remainder.

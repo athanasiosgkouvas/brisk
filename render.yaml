@@ -40,7 +40,7 @@ services:
       # (sponsors nothing) when this is unset, so the move-call allowlist is the
       # authoritative backstop on what the gas key will pay for.
       - key: BRISK_PACKAGE_ID
-        value: "0x2c778e1d5f02baa51a6a3c08c3849626bb090058752a237c56717f1fa4d2515a"
+        value: "0xcbd54ab52fad4110fdad2d9fd8e92e84dd87db436f2b608cc47819f7d4fd03cc"
       # Payment-link store. Wired automatically from the managed Postgres above.
       - key: DATABASE_URL
         fromDatabase:

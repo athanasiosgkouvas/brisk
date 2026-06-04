@@ -1,11 +1,12 @@
 {
   "testnet": {
-    "packageId": "0x2c778e1d5f02baa51a6a3c08c3849626bb090058752a237c56717f1fa4d2515a",
-    "upgradeCap": "0x3688bc3236fbfa444a80fd3335e1983007a8aceab17e0b9df1dba48ac5863deb",
-    "publishDigest": "AGoWGaPdAVGFQWckx5bfncUPqgTW9d8RSJ6k8ws8nEg4",
-    "mockLenderAdminCap": "0x5d2ec2a34cc6917f64d9ae6bb62c4028ad2bfaa08f4c204729f0d61e701c9e47",
-    "lendingPoolUsdc": "0x8cb6bd492be2c79efc26c46ac55ce420c8d9ad1ff48ab684e829ea1b8419ffee",
+    "packageId": "0xcbd54ab52fad4110fdad2d9fd8e92e84dd87db436f2b608cc47819f7d4fd03cc",
+    "upgradeCap": "0x987d97f8e5e7dbc32ed3f3777d928673dfbfcc567646ae99d3813a4a6162165e",
+    "publishDigest": "FmFja419VqR7SSgvVhbRSxtUmdiMHD7TkpoBvJKm3XrG",
+    "mockLenderAdminCap": "0x9b8c70e7f429a8b90d01bcfed5397b12415d21e780a8b3aa16d806b118272ecd",
+    "lendingPoolUsdc": "0xdd22637b26c052aedd2ab234a62d52d607e3fe381cc2181768b154f25c2023b8",
     "lendingPoolApyBps": 1000,
+    "reserveFactorBps": 1000,
     "usdcType": "0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdc::USDC",
     "publishedModules": [
       "merchant_registry",
@@ -14,6 +15,6 @@
       "lender_adapter",
       "mock_lender"
     ],
-    "notes": "Republished 2026-06-03. payment_receipt::pay now takes a shared &Merchant: it splits exactly `amount` from the payer's coin (asserting value >= amount, no silent over-payment), returns change to the payer, sends the amount to the merchant's payout address, and records the merchant ID on the soulbound Receipt + PaymentMade event so a receipt proves payment to a *registered* merchant. Added payment_receipt::refund (MerchantCap-gated via merchant_registry::controls) and merchant_registry::register_and_share (shares the Merchant profile so a customer PTB can reference it; cap goes to the merchant). spending_vault::withdraw clamps to redeemable; mock_lender keeps principal (1:1) separate from an admin-funded yield_reserve (graceful redeem, never aborts), apy_bps bounded. LendingPool<USDC> created (tx 7zn8jH4uGcfaA2np8zjYBajhkhmZQyncVunjVQYGHYUp) and yield buffer funded with 10 USDC via mock_lender::fund_yield (tx 5HCqUVfqVuqaRKYYzdpZ9dnh3ECCZRECDy8vvc1AwHiV). Supersedes 0x6a6222e8... (arbitrary-payee pay, unlinked registry)."
+    "notes": "FRESH REPUBLISH 2026-06-04 (digest FmFja419…). mock_lender rebuilt as a real cToken/share money market mirroring Suilend/Scallop: suppliers receive SHARES priced by a global compounding `exchange_rate` (1e12 scale); `reserve_factor_bps` (1000 = 10%) routes the protocol's cut of accrued interest into a `reserves` balance claimable to the treasury via `claim_reserves` (on-chain yield spread). `supply`/`supply_into`/`redeem` mint/burn shares (round-down); `redeem` clamps to `backing` and never aborts; `accrue_interest` compounds the index per interaction; `set_apy` is forward-only. The one testnet concession: supplier interest is funded from a pre-seeded `backing` balance (admin `fund`) standing in for borrower repayments. spending_vault: deposit adds shares into the same Position (supply_into); withdraw redeems→splits→re-supplies remainder; public signatures unchanged so the app needs only id/config updates. NOTE: a fresh publish = new type ids, so prior Save positions + Merchant registrations from 0x2c778e1d… / 0x29d03305… are orphaned (re-register/re-deposit lazily). Backing still needs seeding with testnet USDC (mock_lender::fund) before yield pays out. Supersedes 0x2c778e1d… / upgrade 0x29d03305…"
   }
 }

@@ -3,6 +3,7 @@ import * as LocalAuthentication from "expo-local-authentication";
 
 import { useAuth } from "@/hooks/useAuth";
 import { isValidSuiAddress, sendUsdc } from "@/services/blockchain/wallet";
+import { ensureSpendable } from "@/services/blockchain/coverFromSave";
 import { formatUsd } from "@/services/blockchain/paymentTx";
 
 export type SendStatus = "idle" | "authorizing" | "sending" | "done" | "error";
@@ -34,6 +35,11 @@ export function useSend() {
           cancelLabel: "Cancel",
         });
         if (!auth.success) throw new Error("Not authorized.");
+        // If the Wallet is short, offer to cover the shortfall from Save.
+        if ((await ensureSpendable(session, amountMicros)) === "cancelled") {
+          setStatus("idle");
+          return;
+        }
         setStatus("sending");
         const res = await sendUsdc(session, to, amountMicros);
         setDigest(res.digest);

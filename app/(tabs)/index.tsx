@@ -12,13 +12,17 @@ import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { AuroraText } from "@/components/ui/AuroraText";
 import { AuroraBackground } from "@/components/ui/AuroraBackground";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { PulseRing } from "@/components/ui/PulseRing";
 import { useWallet } from "@/hooks/useWallet";
 import { useSave } from "@/hooks/useSave";
 import { useActivity } from "@/hooks/useActivity";
 import { useCountUp } from "@/hooks/useCountUp";
+import { useLiveYield } from "@/hooks/useLiveYield";
 import { formatUsd } from "@/services/blockchain/paymentTx";
+import { formatApy, formatUsdPrecise, netApyBps } from "@/services/blockchain/yieldMath";
 import { type ActivityItem } from "@/services/blockchain/receipts";
 import { formatRelativeTime } from "@/utils/time";
+import { ENV } from "@/utils/constants";
 import { BRISK } from "@/theme/tokens";
 
 function shortAddr(a: string): string {
@@ -101,6 +105,9 @@ export default function HomeScreen() {
   const { items, refresh: refreshActivity } = useActivity();
   const [refreshing, setRefreshing] = useState(false);
   const shownMicros = useCountUp(usdcMicros);
+  const { liveValueMicros: saveValue, liveEarnedMicros: saveEarned } = useLiveYield(save);
+  const saveActive = !!save.vaultId && save.principalMicros > 0;
+  const saveNetApy = netApyBps(save.apyBps || ENV.briskApyBps, ENV.briskReserveFactorBps);
 
   const refreshAll = useCallback(
     () => Promise.all([refresh(), refreshSave(), refreshActivity()]),
@@ -175,15 +182,25 @@ export default function HomeScreen() {
             <Animated.View entering={FadeInDown.duration(500).delay(140).springify()}>
               <Pressable className="mt-5" onPress={() => router.push("/save")}>
                 <GlassCard className="flex-row items-center px-4 py-4" blur={false}>
-                  <PiggyBank color={BRISK.accent} size={24} />
+                  {saveActive ? (
+                    <PulseRing size={24}>
+                      <PiggyBank color={BRISK.accent} size={24} />
+                    </PulseRing>
+                  ) : (
+                    <PiggyBank color={BRISK.accent} size={24} />
+                  )}
                   <View className="ml-3 flex-1">
                     <Text className="text-sm font-inter-semibold text-brisk-text">Save</Text>
                     <Text className="text-xs text-brisk-subtext">
-                      {save.vaultId ? "Earning yield on idle dollars" : "Not active yet"}
+                      {saveActive
+                        ? `+${formatUsdPrecise(saveEarned)} earned · ${formatApy(saveNetApy)} APY`
+                        : save.vaultId
+                          ? "Earning yield on idle dollars"
+                          : "Not active yet"}
                     </Text>
                   </View>
                   <Text className="text-base font-inter-semibold text-brisk-text">
-                    {formatUsd(save.valueMicros)}
+                    {formatUsd(Math.round(saveValue))}
                   </Text>
                 </GlassCard>
               </Pressable>

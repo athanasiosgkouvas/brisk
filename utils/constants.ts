@@ -10,20 +10,27 @@ export const ENV = {
     "testnet",
   backendUrl: process.env.EXPO_PUBLIC_BACKEND_URL ?? "https://brisk-z5bu.onrender.com",
 
-  /** Brisk's on-chain Move package (move/). Republished to testnet 2026-06-03
-   *  with merchant-linked receipts (pay takes &Merchant, asserts amount, returns
-   *  change) + a cap-gated refund, on top of the separated principal/yield lender. */
+  /** Brisk's on-chain Move package (move/). Fresh republish 2026-06-04: mock_lender
+   *  is now a real cToken/share money market (compounding exchange-rate + reserve
+   *  factor → treasury), mirroring Suilend/Scallop. New type ids → prior Save
+   *  positions/merchants reset (re-register lazily). */
   briskPackageId:
     process.env.EXPO_PUBLIC_BRISK_PACKAGE_ID ??
-    "0x2c778e1d5f02baa51a6a3c08c3849626bb090058752a237c56717f1fa4d2515a",
+    "0xcbd54ab52fad4110fdad2d9fd8e92e84dd87db436f2b608cc47819f7d4fd03cc",
 
-  /** Shared mock_lender LendingPool<USDC> id (10% APY). */
+  /** Shared mock_lender LendingPool<USDC> id (10% APY, 10% reserve factor). */
   briskPoolId:
     process.env.EXPO_PUBLIC_BRISK_POOL_ID ??
-    "0x8cb6bd492be2c79efc26c46ac55ce420c8d9ad1ff48ab684e829ea1b8419ffee",
+    "0xdd22637b26c052aedd2ab234a62d52d607e3fe381cc2181768b154f25c2023b8",
 
-  /** LendingPool APY in basis points (10% = 1000) — for Save yield display. */
+  /** LendingPool gross APY in basis points (10% = 1000) — for Save yield display.
+   *  Suppliers net APY × (1 − reserveFactor); reserve factor is 10% (1000 bps). */
   briskApyBps: Number(process.env.EXPO_PUBLIC_BRISK_APY_BPS ?? "1000"),
+
+  /** Reserve factor in basis points (10% = 1000): the protocol's cut of accrued
+   *  interest (the on-chain yield spread). Supplier net APY = gross × (1 − this).
+   *  The on-chain exchange rate grows at the NET rate, so the live ticker uses it. */
+  briskReserveFactorBps: Number(process.env.EXPO_PUBLIC_BRISK_RESERVE_FACTOR_BPS ?? "1000"),
 
   /**
    * Circle USDC — Brisk's stablecoin. Both types VERIFIED (Circle docs) and USDC

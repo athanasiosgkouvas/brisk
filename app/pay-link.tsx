@@ -13,6 +13,7 @@ import { PulseRing } from "@/components/ui/PulseRing";
 import { useAuth } from "@/hooks/useAuth";
 import { useCountUp } from "@/hooks/useCountUp";
 import { payInvoice, type PayResult } from "@/services/blockchain/payments";
+import { ensureSpendable } from "@/services/blockchain/coverFromSave";
 import { formatUsd, type Invoice } from "@/services/blockchain/paymentTx";
 import { markPaymentLinkPaid, resolvePaymentLink } from "@/services/api/backendApi";
 import { usePendingPaymentStore } from "@/store/pendingPaymentStore";
@@ -109,6 +110,10 @@ export default function PayLinkScreen() {
     setError(null);
     setStatus("paying");
     try {
+      if ((await ensureSpendable(session, invoice.amountMicros)) === "cancelled") {
+        setStatus("review");
+        return;
+      }
       const res = await payInvoice(session, invoice);
       setResult(res);
       setStatus("done");

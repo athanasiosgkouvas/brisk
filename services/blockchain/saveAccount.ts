@@ -85,6 +85,53 @@ export async function getSaveState(owner: string): Promise<SaveState> {
   };
 }
 
+export type SaveHistoryItem = {
+  kind: "deposit" | "withdraw" | "activate";
+  amountMicros: number;
+  timestampMs: number;
+  digest: string;
+};
+
+/**
+ * The user's own Save activity: their transactions that call spending_vault
+ * (deposit / withdraw / open). Save moves aren't in the main feed (the
+ * counterparty is the pool object, not an address), so we read them here. Amount
+ * is the magnitude of the user's own USDC balance change in that tx.
+ */
+export async function getSaveHistory(owner: string, limit = 20): Promise<SaveHistoryItem[]> {
+  const client = await getSuiClientForBuild();
+  const res = await client.queryTransactionBlocks({
+    filter: { FromAddress: owner },
+    options: { showBalanceChanges: true, showInput: true },
+    limit: 30,
+    order: "descending",
+  });
+  const items: SaveHistoryItem[] = [];
+  for (const tx of res?.data ?? []) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cmds: any[] = (tx as any)?.transaction?.data?.transaction?.transactions ?? [];
+    let kind: SaveHistoryItem["kind"] | null = null;
+    for (const c of cmds) {
+      const mc = c?.MoveCall;
+      if (mc?.module !== "spending_vault") continue;
+      if (mc.function === "deposit") kind = "deposit";
+      else if (mc.function === "withdraw") kind = "withdraw";
+      else if (mc.function === "open" && !kind) kind = "activate";
+    }
+    if (!kind) continue;
+    let amountMicros = 0;
+    for (const bc of tx?.balanceChanges ?? []) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ownerAddr = (bc as any)?.owner?.AddressOwner;
+      if (bc?.coinType === USDC && ownerAddr === owner) {
+        amountMicros = Math.abs(Number(bc.amount));
+      }
+    }
+    items.push({ kind, amountMicros, timestampMs: Number(tx.timestampMs ?? 0), digest: tx.digest });
+  }
+  return items.slice(0, limit);
+}
+
 async function sponsor(session: AuthSession, tx: Transaction, targets: string[]) {
   const client = await getSuiClientForBuild();
   const txKindBytes = toBase64(await tx.build({ client, onlyTransactionKind: true }));

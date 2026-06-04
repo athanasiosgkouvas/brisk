@@ -24,6 +24,16 @@ public fun supply<T>(
     mock_lender::supply(pool, c, clock, ctx)
 }
 
+/// Add to an existing position (mints more shares at the current exchange rate).
+public fun supply_into<T>(
+    pool: &mut LendingPool<T>,
+    pos: &mut Position<T>,
+    c: Coin<T>,
+    clock: &Clock,
+) {
+    mock_lender::supply_into(pool, pos, c, clock)
+}
+
 /// Redeem a position for principal + accrued yield.
 public fun redeem<T>(
     pool: &mut LendingPool<T>,
