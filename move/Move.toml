@@ -1,0 +1,14 @@
+[package]
+name = "brisk"
+edition = "2024.beta"
+version = "0.1.0"
+
+# Brisk's on-chain primitive: gasless-friendly stablecoin payments with
+# verifiable receipts and a yield-bearing spending vault (lender behind an
+# adapter interface).
+#
+# The Sui framework + MoveStdlib are auto-added by the toolchain, matching the
+# CLI's bundled framework version — so no explicit [dependencies] are needed.
+
+[addresses]
+brisk = "0x0"

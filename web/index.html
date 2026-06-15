@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brisk — Tap to pay in stablecoins. No seed phrase. No gas.</title>
+  <meta name="description" content="Brisk is a tap-to-pay stablecoin wallet and merchant POS on Sui. Pay in USDC by tapping your phone — feeless, gasless, settled in under a second. Idle dollars earn yield, and every merchant gets on-chain gift cards out of the box." />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Brisk — No seed phrase. No gas. Just pay." />
+  <meta property="og:description" content="Tap-to-pay in stablecoins on Sui. Feeless, gasless, sub-second settlement. Idle dollars earn yield. Built for Sui Overflow 2026." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="assets/icon.png" />
+  <meta name="theme-color" content="#060912" />
+
+  <link rel="icon" type="image/png" href="assets/favicon.png" />
+
+  <!-- Inter, matching the app -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="styles.css?v=3" />
+</head>
+<body>
+  <!-- aurora background glows -->
+  <div class="aurora-bg" aria-hidden="true">
+    <span class="blob blob-1"></span>
+    <span class="blob blob-2"></span>
+    <span class="blob blob-3"></span>
+  </div>
+
+  <!-- ============ NAV ============ -->
+  <header class="nav" id="top">
+    <div class="container nav-inner">
+      <a class="brand" href="#top" aria-label="Brisk home">
+        <svg class="brand-mark" viewBox="0 0 1024 1024" width="32" height="32" aria-hidden="true">
+          <rect width="1024" height="1024" rx="220" fill="#07111A"/>
+          <circle cx="512" cy="512" r="380" fill="none" stroke="#13202E" stroke-width="6" opacity="0.6"/>
+          <g>
+            <rect x="320" y="280" width="80" height="464" rx="20" fill="#00E5A0"/>
+            <rect x="320" y="280" width="384" height="80" rx="20" fill="#00E5A0"/>
+            <rect x="320" y="480" width="280" height="80" rx="20" fill="#00E5A0"/>
+          </g>
+          <path d="M 280 800 Q 376 776, 472 800 T 664 800 L 744 800" fill="none" stroke="#2E8FFF" stroke-width="22" stroke-linecap="round" opacity="0.9"/>
+        </svg>
+        <span class="brand-word">Brisk</span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="#demo">Demo</a>
+        <a href="#features">Features</a>
+        <a href="#screens">Screens</a>
+        <a href="#how">How it works</a>
+        <a href="#tech">Tech</a>
+      </nav>
+      <div class="nav-cta">
+        <a class="badge badge-track" href="#how">Sui Overflow 2026</a>
+        <a class="btn btn-primary btn-sm" href="https://appdistribution.firebase.dev/i/daeadf277c746f80" target="_blank" rel="noopener">Test the app</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ HERO ============ -->
+  <section class="hero">
+    <div class="container hero-inner">
+      <div class="hero-copy reveal">
+        <span class="eyebrow">Sui Overflow 2026 · DeFi &amp; Payments</span>
+        <h1 class="hero-title">No seed phrase.<br /><span class="grad">No gas.</span><br />Just pay.</h1>
+        <p class="hero-sub">
+          Tap your phone to pay in stablecoins — charged the exact amount, no gas, no card fees,
+          settled on Sui in under a second. Your idle dollars earn yield while you spend, and every
+          merchant gets on-chain gift cards out of the box.
+        </p>
+        <div class="hero-cta">
+          <a class="btn btn-primary" href="https://appdistribution.firebase.dev/i/daeadf277c746f80" target="_blank" rel="noopener">Test the app</a>
+          <a class="btn btn-ghost" href="#demo">Watch the demo</a>
+          <a class="btn btn-ghost" href="https://github.com/athanasiosgkouvas/brisk" target="_blank" rel="noopener">View on GitHub</a>
+        </div>
+        <p class="cta-note"><span class="cta-dot"></span>Android APK · installs in seconds via Firebase App Distribution</p>
+        <div class="hero-stats">
+          <span><strong>$0</strong> gas</span>
+          <span class="dot"></span>
+          <span><strong>0%</strong> user fees</span>
+          <span class="dot"></span>
+          <span><strong>&lt;1s</strong> settlement</span>
+        </div>
+      </div>
+
+      <div class="hero-phone reveal">
+        <!-- Wallet screen -->
+        <div class="phone phone-glow">
+          <div class="phone-island"></div>
+          <div class="screen">
+            <div class="s-status"><span>9:41</span><span class="s-status-icons">●●● ▮</span></div>
+            <div class="s-pad">
+              <p class="s-label">Your balance</p>
+              <p class="s-hero grad">$1,284.50</p>
+              <p class="s-subtle">USDC · feeless on Sui</p>
+
+              <div class="s-actions">
+                <button class="s-action"><span class="s-ico">↓</span>Receive</button>
+                <button class="s-action s-action-primary"><span class="s-ico">↑</span>Send</button>
+              </div>
+
+              <p class="s-section">Your money</p>
+              <div class="s-card s-row">
+                <div class="s-row-ico ico-emerald">◎</div>
+                <div class="s-row-main">
+                  <p class="s-row-title">Save</p>
+                  <p class="s-row-sub">+$0.42 earned · 5.00% APY</p>
+                </div>
+                <div class="s-row-amt">$420.00</div>
+              </div>
+              <div class="s-card s-row">
+                <div class="s-row-ico ico-violet">🎁</div>
+                <div class="s-row-main">
+                  <p class="s-row-title">Gift cards</p>
+                  <p class="s-row-sub">Store credit you can spend</p>
+                </div>
+                <div class="s-row-amt">$25.00</div>
+              </div>
+
+              <p class="s-section">Activity</p>
+              <div class="s-act">
+                <div class="s-act-ico in">↓</div>
+                <div class="s-row-main"><p class="s-row-title">Acme Coffee</p><p class="s-row-sub">Today</p></div>
+                <div class="s-row-amt pos">+$4.20</div>
+              </div>
+              <div class="s-act">
+                <div class="s-act-ico out">↑</div>
+                <div class="s-row-main"><p class="s-row-title">0x71bf…9c2a</p><p class="s-row-sub">Yesterday</p></div>
+                <div class="s-row-amt">−$12.00</div>
+              </div>
+            </div>
+            <div class="s-tabbar">
+              <span class="s-tab active">Wallet</span>
+              <span class="s-tab">Pay</span>
+              <span class="s-tab">Save</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ STAT STRIP ============ -->
+  <section class="strip reveal">
+    <div class="container strip-inner">
+      <div class="strip-item"><strong>$0.00</strong><span>gas, every tap</span></div>
+      <div class="strip-item"><strong>0%</strong><span>fees on payments</span></div>
+      <div class="strip-item"><strong>&lt;1s</strong><span>on-chain settlement</span></div>
+      <div class="strip-item"><strong>~11×</strong><span>the avg bank APY on Save</span></div>
+      <div class="strip-item"><strong>iOS + Android</strong><span>tap to pay</span></div>
+    </div>
+  </section>
+
+  <!-- ============ DEMO VIDEO ============ -->
+  <section class="video" id="demo">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">Watch the demo</span>
+        <h2>See Brisk in action.</h2>
+        <p class="lead">A full walkthrough — tap to pay, idle dollars earning in Save, and a merchant collecting with payment links and on-chain gift cards, all on Sui.</p>
+      </div>
+      <div class="video-frame reveal">
+        <iframe
+          src="https://www.youtube-nocookie.com/embed/K89fJfj3xQo?rel=0"
+          title="Brisk demo video"
+          loading="lazy"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          referrerpolicy="strict-origin-when-cross-origin"
+          allowfullscreen></iframe>
+      </div>
+      <p class="video-fallback">Trouble loading? <a href="https://www.youtube.com/watch?v=K89fJfj3xQo" target="_blank" rel="noopener">Watch on YouTube ↗</a></p>
+    </div>
+  </section>
+
+  <!-- ============ FEATURES ============ -->
+  <section class="features" id="features">
+    <!-- Tap to pay -->
+    <div class="container feature reveal">
+      <div class="feature-copy">
+        <span class="eyebrow">Tap to pay</span>
+        <h2>As easy as Apple Pay, on open rails.</h2>
+        <p>Hold your phone near the Brisk Terminal — pay in USDC, no gas, the exact amount. It works on iPhone <em>and</em> Android, and the merchant is paid instantly.</p>
+        <ul class="ticks">
+          <li>Phone-to-terminal NFC, no app switching</li>
+          <li>Charged exactly the amount — never a cent more</li>
+          <li>On-chain receipt minted, zero gas</li>
+        </ul>
+      </div>
+      <div class="feature-art">
+        <div class="phone">
+          <div class="phone-island"></div>
+          <div class="screen screen-center">
+            <div class="s-pad center">
+              <p class="s-h2">Tap to pay</p>
+              <p class="s-subtle narrow">Hold your phone near the Brisk Terminal — pay in USDC, no gas, exact amount.</p>
+              <div class="nfc">
+                <span class="nfc-ring"></span>
+                <span class="nfc-ring d2"></span>
+                <span class="nfc-core">⌁</span>
+              </div>
+              <button class="s-cta">Tap to pay</button>
+              <p class="s-foot">Settled on Sui in seconds — zero gas.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- No gas no fees -->
+    <div class="container feature feature-rev reveal">
+      <div class="feature-copy">
+        <span class="eyebrow">Feeless by design</span>
+        <h2>You pay the exact amount. Brisk never takes a cut.</h2>
+        <p>Card networks skim 2–3% off every sale and settle in days. Brisk rides Sui's protocol-level gasless stablecoin transfers, so payments cost <strong>$0.00</strong> in gas and there are no fees on regular payments — for the customer or the merchant.</p>
+        <ul class="ticks">
+          <li>Protocol-level gasless USDC — not a relayer trick</li>
+          <li>Sponsored receipts via Enoki, paid by Brisk</li>
+          <li>Money moves even if the receipt leg is skipped</li>
+        </ul>
+      </div>
+      <div class="feature-art">
+        <div class="compare-card glass">
+          <div class="compare-row">
+            <div class="compare-label"><span class="pill pill-emerald">Brisk</span></div>
+            <div class="compare-bar"><span class="bar bar-emerald" style="width:4%"></span></div>
+            <div class="compare-val">0%</div>
+          </div>
+          <div class="compare-row">
+            <div class="compare-label"><span class="pill pill-muted">Card networks</span></div>
+            <div class="compare-bar"><span class="bar bar-muted" style="width:78%"></span></div>
+            <div class="compare-val">2–3%</div>
+          </div>
+          <p class="compare-foot">Fees taken on every sale</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Save / yield -->
+    <div class="container feature reveal">
+      <div class="feature-copy">
+        <span class="eyebrow">Save</span>
+        <h2>Idle dollars earn — spend straight from it anytime.</h2>
+        <p>Move spare USDC to Save and earn <strong>5.00% APY</strong> — roughly 11× the US national savings average. Your principal stays instantly spendable and is always redeemable.</p>
+        <ul class="ticks">
+          <li>One tap to activate, no lock-ups</li>
+          <li>Yield compounds every second</li>
+          <li>Withdraw all, anytime</li>
+        </ul>
+      </div>
+      <div class="feature-art">
+        <div class="phone">
+          <div class="phone-island"></div>
+          <div class="screen">
+            <div class="s-pad">
+              <p class="s-label">Save balance</p>
+              <p class="s-hero grad">$420.42</p>
+              <p class="s-subtle">+$0.42 earned · growing every second</p>
+              <div class="spark">
+                <svg viewBox="0 0 280 90" preserveAspectRatio="none" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#00E5A0" stop-opacity="0.35"/>
+                      <stop offset="100%" stop-color="#00E5A0" stop-opacity="0"/>
+                    </linearGradient>
+                  </defs>
+                  <path d="M0,78 C40,72 70,60 110,52 C150,44 180,30 220,20 C245,14 265,9 280,6 L280,90 L0,90 Z" fill="url(#sparkFill)"/>
+                  <path d="M0,78 C40,72 70,60 110,52 C150,44 180,30 220,20 C245,14 265,9 280,6" fill="none" stroke="#00E5A0" stroke-width="2.5" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div class="s-stats3">
+                <div><p class="s-stat-v">5.00%</p><p class="s-stat-l">APY</p></div>
+                <div><p class="s-stat-v">+$0.06</p><p class="s-stat-l">/ day</p></div>
+                <div><p class="s-stat-v">+$21</p><p class="s-stat-l">/ year</p></div>
+              </div>
+              <button class="s-cta">Move to Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Self-custody -->
+    <div class="container feature feature-rev reveal">
+      <div class="feature-copy">
+        <span class="eyebrow">Your keys, your money</span>
+        <h2>Self-custodial from a Google sign-in.</h2>
+        <p>No seed phrase, no bank, no middleman. Brisk uses zkLogin so a wallet feels like a normal app — sign in with Google, authorize with biometrics, and you're the only one who controls the funds.</p>
+        <ul class="ticks">
+          <li>zkLogin accounts — no seed phrase to lose</li>
+          <li>Biometric signing via Passkey</li>
+          <li>Non-custodial: keys never leave your device</li>
+        </ul>
+      </div>
+      <div class="feature-art">
+        <div class="phone">
+          <div class="phone-island"></div>
+          <div class="screen screen-center">
+            <div class="s-pad center">
+              <div class="welcome-mark">
+                <svg viewBox="0 0 1024 1024" width="72" height="72" aria-hidden="true">
+                  <rect width="1024" height="1024" rx="220" fill="#07111A"/>
+                  <g>
+                    <rect x="320" y="280" width="80" height="464" rx="20" fill="#00E5A0"/>
+                    <rect x="320" y="280" width="384" height="80" rx="20" fill="#00E5A0"/>
+                    <rect x="320" y="480" width="280" height="80" rx="20" fill="#00E5A0"/>
+                  </g>
+                  <path d="M 280 800 Q 376 776, 472 800 T 664 800 L 744 800" fill="none" stroke="#2E8FFF" stroke-width="22" stroke-linecap="round" opacity="0.9"/>
+                </svg>
+              </div>
+              <p class="s-h2">Welcome to Brisk</p>
+              <p class="s-subtle narrow">No seed phrase, no gas. Just pay.</p>
+              <button class="s-cta s-cta-google"><span class="g">G</span> Continue with Google</button>
+              <p class="s-foot">Self-custodial · your keys, your money</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Merchant Pro -->
+    <div class="container feature reveal">
+      <div class="feature-copy">
+        <span class="eyebrow">Merchant Pro</span>
+        <h2>A full point-of-sale, free for any merchant.</h2>
+        <p>Flip to Pro and Brisk becomes a business: charge by tap or payment link, collect into receiving accounts that sweep to a private treasury, and sell on-chain gift cards customers can buy, share, claim and re-gift — all gasless.</p>
+        <ul class="ticks">
+          <li>Payment links with expiry &amp; QR — collect remotely</li>
+          <li>Receiving accounts (tills) → private treasury sweep</li>
+          <li>On-chain gift cards, paid to you instantly (3% fee)</li>
+        </ul>
+      </div>
+      <div class="feature-art">
+        <div class="phone">
+          <div class="phone-island"></div>
+          <div class="screen">
+            <div class="s-pad">
+              <p class="s-h2 left">Pay</p>
+              <p class="s-hero-sm grad">$18.00</p>
+              <p class="s-subtle">to Acme Coffee</p>
+              <div class="qr" aria-hidden="true"></div>
+              <p class="s-subtle center">Scan to pay · waiting for payment…</p>
+              <button class="s-cta">Confirm &amp; Pay</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SCREENS GALLERY ============ -->
+  <section class="gallery" id="screens">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">Inside the app</span>
+        <h2>One product, end to end.</h2>
+        <p class="lead">From the first tap to merchant payout — every screen built around a single idea: paying with stablecoins should feel effortless.</p>
+      </div>
+
+      <div class="gallery-tabs reveal" role="tablist" aria-label="App screens">
+        <button class="g-tab active" data-screen="wallet" role="tab">Wallet</button>
+        <button class="g-tab" data-screen="pay" role="tab">Tap to pay</button>
+        <button class="g-tab" data-screen="save" role="tab">Save</button>
+        <button class="g-tab" data-screen="link" role="tab">Payment link</button>
+        <button class="g-tab" data-screen="gift" role="tab">Gift card</button>
+      </div>
+
+      <div class="gallery-stage reveal">
+        <!-- wallet -->
+        <div class="g-panel active" data-screen="wallet">
+          <div class="phone phone-glow">
+            <div class="phone-island"></div>
+            <div class="screen">
+              <div class="s-pad">
+                <p class="s-label">Your balance</p>
+                <p class="s-hero grad">$1,284.50</p>
+                <p class="s-subtle">USDC · feeless on Sui</p>
+                <div class="s-actions">
+                  <button class="s-action"><span class="s-ico">↓</span>Receive</button>
+                  <button class="s-action s-action-primary"><span class="s-ico">↑</span>Send</button>
+                </div>
+                <p class="s-section">Your money</p>
+                <div class="s-card s-row">
+                  <div class="s-row-ico ico-emerald">◎</div>
+                  <div class="s-row-main"><p class="s-row-title">Save</p><p class="s-row-sub">+$0.42 earned · 5.00% APY</p></div>
+                  <div class="s-row-amt">$420.00</div>
+                </div>
+                <div class="s-card s-row">
+                  <div class="s-row-ico ico-violet">🎁</div>
+                  <div class="s-row-main"><p class="s-row-title">Gift cards</p><p class="s-row-sub">Store credit you can spend</p></div>
+                  <div class="s-row-amt">$25.00</div>
+                </div>
+              </div>
+              <div class="s-tabbar"><span class="s-tab active">Wallet</span><span class="s-tab">Pay</span><span class="s-tab">Save</span></div>
+            </div>
+          </div>
+          <p class="g-caption">Self-custodial USDC wallet — receive, send, save and spend from one balance.</p>
+        </div>
+
+        <!-- pay -->
+        <div class="g-panel" data-screen="pay">
+          <div class="phone phone-glow">
+            <div class="phone-island"></div>
+            <div class="screen screen-center">
+              <div class="s-pad center">
+                <p class="s-h2">Tap to pay</p>
+                <p class="s-subtle narrow">Hold your phone near the Brisk Terminal — pay in USDC, no gas, exact amount.</p>
+                <div class="nfc"><span class="nfc-ring"></span><span class="nfc-ring d2"></span><span class="nfc-core">⌁</span></div>
+                <button class="s-cta">Tap to pay</button>
+                <p class="s-foot">Settled on Sui in seconds — zero gas.</p>
+              </div>
+            </div>
+          </div>
+          <p class="g-caption">Phone-to-terminal NFC payment, charged the exact amount with no gas.</p>
+        </div>
+
+        <!-- save -->
+        <div class="g-panel" data-screen="save">
+          <div class="phone phone-glow">
+            <div class="phone-island"></div>
+            <div class="screen">
+              <div class="s-pad">
+                <p class="s-label">Save balance</p>
+                <p class="s-hero grad">$420.42</p>
+                <p class="s-subtle">+$0.42 earned · growing every second</p>
+                <div class="spark">
+                  <svg viewBox="0 0 280 90" preserveAspectRatio="none" aria-hidden="true">
+                    <path d="M0,78 C40,72 70,60 110,52 C150,44 180,30 220,20 C245,14 265,9 280,6 L280,90 L0,90 Z" fill="url(#sparkFill)"/>
+                    <path d="M0,78 C40,72 70,60 110,52 C150,44 180,30 220,20 C245,14 265,9 280,6" fill="none" stroke="#00E5A0" stroke-width="2.5" stroke-linecap="round"/>
+                  </svg>
+                </div>
+                <div class="s-stats3">
+                  <div><p class="s-stat-v">5.00%</p><p class="s-stat-l">APY</p></div>
+                  <div><p class="s-stat-v">+$0.06</p><p class="s-stat-l">/ day</p></div>
+                  <div><p class="s-stat-v">+$21</p><p class="s-stat-l">/ year</p></div>
+                </div>
+                <button class="s-cta">Move to Save</button>
+              </div>
+            </div>
+          </div>
+          <p class="g-caption">Earn 5.00% APY on idle dollars — principal always redeemable and spendable.</p>
+        </div>
+
+        <!-- link -->
+        <div class="g-panel" data-screen="link">
+          <div class="phone phone-glow">
+            <div class="phone-island"></div>
+            <div class="screen">
+              <div class="s-pad">
+                <p class="s-h2 left">Pay</p>
+                <p class="s-hero-sm grad">$18.00</p>
+                <p class="s-subtle">to Acme Coffee</p>
+                <div class="qr" aria-hidden="true"></div>
+                <p class="s-subtle center">Scan to pay · waiting for payment…</p>
+                <button class="s-cta">Confirm &amp; Pay</button>
+              </div>
+            </div>
+          </div>
+          <p class="g-caption">Remote payment links with QR &amp; expiry — one tap for the customer to confirm.</p>
+        </div>
+
+        <!-- gift -->
+        <div class="g-panel" data-screen="gift">
+          <div class="phone phone-glow">
+            <div class="phone-island"></div>
+            <div class="screen screen-center">
+              <div class="s-pad center">
+                <div class="gift-disc">🎁</div>
+                <p class="s-h2">Gift card</p>
+                <p class="s-hero-sm grad">$25.00</p>
+                <p class="s-subtle narrow">at Acme Coffee — send this to a friend, they tap to add it.</p>
+                <button class="s-cta">Add to my account</button>
+                <p class="s-foot">Use it when you pay this merchant.</p>
+              </div>
+            </div>
+          </div>
+          <p class="g-caption">On-chain gift cards — buy, share, claim and re-gift, all gasless.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ HOW IT WORKS ============ -->
+  <section class="how" id="how">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">How it works</span>
+        <h2>Built on what changed on Sui in 2026.</h2>
+        <p class="lead">Two new primitives make a genuinely better payment experience possible — Brisk puts them together into "tap, pay, done."</p>
+      </div>
+
+      <div class="flow glass reveal" aria-label="Payment flow">
+        <div class="flow-node"><span class="flow-ico">📱</span><strong>Customer phone</strong><small>zkLogin + Passkey</small></div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-node"><span class="flow-ico">⌁</span><strong>Tap / link</strong><small>NFC or QR</small></div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-node accent"><span class="flow-ico">◎</span><strong>Sui</strong><small>gasless USDC</small></div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-node"><span class="flow-ico">🏪</span><strong>Merchant till</strong><small>instant payout</small></div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-node"><span class="flow-ico">🏦</span><strong>Treasury</strong><small>private sweep</small></div>
+      </div>
+
+      <div class="how-grid">
+        <div class="how-card glass reveal">
+          <span class="how-ico ico-emerald">⚡</span>
+          <h3>Protocol-level gasless transfers</h3>
+          <p>Supported stablecoins move peer-to-peer for <strong>$0.00</strong> via Sui's new Address Balances architecture (launched May 2026). The sender doesn't need any SUI for gas — it's built into the protocol, not a relayer trick.</p>
+        </div>
+        <div class="how-card glass reveal">
+          <span class="how-ico ico-blue">🔐</span>
+          <h3>zkLogin + Passkey + Enoki</h3>
+          <p>Self-custodial accounts from a Google sign-in, biometric signing, and Enoki gas sponsorship — so a wallet feels like a normal app, with no seed phrase and no pop-ups.</p>
+        </div>
+        <div class="how-card glass reveal">
+          <span class="how-ico ico-violet">🧾</span>
+          <h3>Two-leg payments</h3>
+          <p>Leg one settles the money via native gasless <code>send_funds</code> — the source of truth. Leg two best-effort sponsors <code>record_payment</code>, minting an on-chain Receipt. If leg two is skipped, the money already moved.</p>
+        </div>
+        <div class="how-card glass reveal">
+          <span class="how-ico ico-emerald">📦</span>
+          <h3>Move primitives</h3>
+          <p>A small set of on-chain modules: <code>spending_vault</code> (Save), <code>merchant_registry</code> (identity &amp; tills), and <code>payment_receipt</code> (receipts &amp; records) — composable, auditable, open.</p>
+        </div>
+        <div class="how-card glass reveal">
+          <span class="how-ico ico-blue">📈</span>
+          <h3>Yield-bearing Save</h3>
+          <p>Save is a cToken/share money market: deposits accrue a compounding exchange rate, principal stays redeemable, and yield is supplied through a blue-chip lender (a mock market on testnet).</p>
+        </div>
+        <div class="how-card glass reveal">
+          <span class="how-ico ico-violet">🎁</span>
+          <h3>Closed-loop gift cards</h3>
+          <p>Merchants are paid the full sale (minus a 3% fee) the moment a gift card is bought. Recipients later redeem credit toward purchases — buyable, shareable, claimable and re-giftable, all gasless.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TECH STRIP ============ -->
+  <section class="tech" id="tech">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">Tech stack</span>
+        <h2>Open rails, native app feel.</h2>
+      </div>
+      <div class="tech-chips reveal">
+        <span class="chip">Sui</span>
+        <span class="chip">Move</span>
+        <span class="chip">USDC</span>
+        <span class="chip">Enoki</span>
+        <span class="chip">zkLogin</span>
+        <span class="chip">Passkey</span>
+        <span class="chip">React Native</span>
+        <span class="chip">Expo</span>
+        <span class="chip">Reanimated</span>
+        <span class="chip">NFC / HCE</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CTA ============ -->
+  <section class="endcta reveal">
+    <div class="container endcta-inner glass">
+      <h2 class="grad">Tap. Pay. Done.</h2>
+      <p>A decentralized tap-to-pay point-of-sale on Sui — feeless to the customer, instant to the merchant, and your idle dollars earn while you spend.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="https://appdistribution.firebase.dev/i/daeadf277c746f80" target="_blank" rel="noopener">Test the app on Android</a>
+        <a class="btn btn-ghost" href="https://github.com/athanasiosgkouvas/brisk" target="_blank" rel="noopener">View on GitHub</a>
+      </div>
+      <p class="cta-note"><span class="cta-dot"></span>Android APK · via Firebase App Distribution</p>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-brand">
+        <svg class="brand-mark" viewBox="0 0 1024 1024" width="28" height="28" aria-hidden="true">
+          <rect width="1024" height="1024" rx="220" fill="#07111A"/>
+          <g>
+            <rect x="320" y="280" width="80" height="464" rx="20" fill="#00E5A0"/>
+            <rect x="320" y="280" width="384" height="80" rx="20" fill="#00E5A0"/>
+            <rect x="320" y="480" width="280" height="80" rx="20" fill="#00E5A0"/>
+          </g>
+          <path d="M 280 800 Q 376 776, 472 800 T 664 800 L 744 800" fill="none" stroke="#2E8FFF" stroke-width="22" stroke-linecap="round" opacity="0.9"/>
+        </svg>
+        <span class="brand-word">Brisk</span>
+      </div>
+      <p class="footer-tag">Built for <strong>Sui Overflow 2026</strong> · DeFi &amp; Payments track</p>
+      <div class="footer-links">
+        <a href="https://github.com/athanasiosgkouvas/brisk" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/athanasiosgkouvas/brisk#readme" target="_blank" rel="noopener">README</a>
+        <a href="https://sui.io" target="_blank" rel="noopener">Sui</a>
+      </div>
+      <p class="footer-fine">Runs on Sui testnet. USDC amounts shown are illustrative. © <span id="year">2026</span> Brisk.</p>
+    </div>
+  </footer>
+
+  <script src="script.js?v=3"></script>
+</body>
+</html>

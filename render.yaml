@@ -1,0 +1,119 @@
+# Render Blueprint — Brisk Enoki sponsor relay (backend/).
+#
+# Deploy:
+#   1. Push this repo to GitHub.
+#   2. Render dashboard → New + → Blueprint → pick the repo. Render reads this file.
+#   3. When prompted, paste ENOKI_PRIVATE_KEY (it's a secret — sync:false, not committed).
+#   4. After it goes live you get a URL like https://brisk-backend.onrender.com.
+#   5. Set PUBLIC_BASE_URL to that URL (used to build shareable payment-link URLs).
+#
+# The backend reads PORT from the environment (Render sets it) and binds all
+# interfaces, exposes GET /health for the health check, and needs no .env file
+# (env vars come from the dashboard). Payment links persist in the managed
+# Postgres below; DATABASE_URL is wired automatically via fromDatabase.
+databases:
+  - name: brisk-db
+    plan: free
+    databaseName: brisk
+    postgresMajorVersion: "16"
+
+services:
+  # Static marketing/demo site (web/). No build step — Render just serves the
+  # files. Lives at its own onrender.com URL, independent of the backend.
+  - type: web
+    name: brisk-site
+    runtime: static
+    rootDir: web
+    buildCommand: "" # static files, nothing to build
+    staticPublishPath: .
+    autoDeploy: true
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=300, must-revalidate
+    routes:
+      # Single-page site: serve index.html for any unknown path.
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  - type: web
+    name: brisk-backend
+    runtime: node
+    plan: free
+    rootDir: backend
+    # tsx/typescript are devDependencies; --include=dev ensures they're present
+    # for the tsc build even when Render sets NODE_ENV=production.
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: ENOKI_PRIVATE_KEY
+        sync: false # set in the Render dashboard (secret)
+      - key: SPONSORSHIP_DAILY_LIMIT_TX_COUNT
+        value: "100"
+      # Brisk's published package id. Required: the sponsor relay fails CLOSED
+      # (sponsors nothing) when this is unset, so the move-call allowlist is the
+      # authoritative backstop on what the gas key will pay for.
+      - key: BRISK_PACKAGE_ID
+        value: "0xcbd54ab52fad4110fdad2d9fd8e92e84dd87db436f2b608cc47819f7d4fd03cc"
+      # Upgraded package id (2026-06-04 upgrade of BRISK_PACKAGE_ID) that carries
+      # payment_receipt::record_payment — allowlisted for the receipt leg of the
+      # two-leg payment. record_payment is callable only at the upgraded id.
+      - key: BRISK_RECORD_PKG
+        value: "0x3ac880a1eab2763fc1b92376a88e1913d0bc4dbf02023a3c0a0321d16c2837cb"
+      # Upgraded package id (2026-06-08) carrying the `till` module — merchant
+      # receiving accounts. till::* targets are allowlisted for sponsorship (the
+      # in-app manual sweep + till creation); the daily auto-sweep uses its own gas.
+      - key: BRISK_TILL_PKG
+        value: "0xe96ec7f8b0633204af0a4060cc10adeac019641d1ec71096f0567071885b1e35"
+      # Upgraded package id (2026-06-09) carrying the `gift_card` module. Its
+      # mint/claim/redeem targets are allowlisted for sponsorship (also add them
+      # to the Enoki dashboard allowlist).
+      - key: BRISK_GIFT_CARD_PKG
+        value: "0xc90ebfadb58657be143a09342d575223681587de6eb87efe006d720edc0b6a86"
+      # Payment-link store. Wired automatically from the managed Postgres above.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: brisk-db
+          property: connectionString
+      # Public https origin for building shareable /p/<code> link URLs. Update if
+      # the service URL differs from this.
+      - key: PUBLIC_BASE_URL
+        value: "https://brisk-z5bu.onrender.com"
+      # CORS is intentionally left unset → permissive. The native app sends no
+      # Origin header, so CORS is moot; set CORS_ALLOWED_ORIGINS only if you add
+      # a web client.
+
+  # Daily sweep cron: drains every active till's accumulated USDC to its recorded
+  # treasury. till::sweep is permissionless + the destination is on-chain, so this
+  # signs with its OWN keypair paying its OWN gas (no merchant signature, no Enoki
+  # quota). Provision SWEEP_SIGNER_KEY with a funded testnet address (a little SUI
+  # for gas). Runs once per schedule and exits.
+  - type: cron
+    name: brisk-sweep
+    runtime: node
+    plan: free
+    rootDir: backend
+    schedule: "0 3 * * *" # daily at 03:00 UTC
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm run sweep
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Funded Sui keypair (bech32 `suiprivkey1…`) that pays gas for sweeps.
+      - key: SWEEP_SIGNER_KEY
+        sync: false # set in the Render dashboard (secret)
+      - key: SUI_NETWORK
+        value: "testnet"
+      - key: BRISK_TILL_PKG
+        value: "0xe96ec7f8b0633204af0a4060cc10adeac019641d1ec71096f0567071885b1e35"
+      - key: BRISK_GIFT_CARD_PKG
+        value: "0xc90ebfadb58657be143a09342d575223681587de6eb87efe006d720edc0b6a86"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: brisk-db
+          property: connectionString

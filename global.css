@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Baseline theme variables (dark, to preserve the current look before the
+   persisted scheme hydrates). ThemeProvider overrides these per-theme at the
+   root via vars(); these defaults cover web/SSR and the pre-hydration frame.
+   Keep in lockstep with DARK_VARS in theme/tokens.ts. */
+@layer base {
+  :root {
+    --brisk-bg0: 6 9 18;
+    --brisk-bg1: 14 20 34;
+    --brisk-bg2: 22 30 48;
+    --brisk-text: 244 248 251;
+    --brisk-subtext: 143 160 181;
+    --brisk-accent: 0 229 160;
+    --brisk-danger: 255 93 119;
+    --brisk-border: 28 42 58;
+    --brisk-borderStrong: 44 62 85;
+    --brisk-borderSoft: 39 65 90;
+    --brisk-placeholder: 90 107 123;
+    --brisk-aurora1: 0 229 160;
+    --brisk-aurora2: 46 143 255;
+    --brisk-aurora3: 139 92 246;
+    --brisk-glow: 46 143 255;
+    --brisk-glass: rgba(20, 28, 46, 0.55);
+    --brisk-glassBorder: rgba(255, 255, 255, 0.08);
+  }
+}
