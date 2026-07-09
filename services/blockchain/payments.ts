@@ -1,4 +1,4 @@
-import { toBase64 } from "@mysten/sui/utils";
+import { toBase64, fromBase64 } from "@mysten/sui/utils";
 
 import type { AuthSession } from "@/types/user";
 import { enokiAuthService } from "@/services/auth/enokiAuth";
@@ -78,15 +78,25 @@ export async function payGasless(
 ): Promise<PayResult> {
   const client = await getSuiClientForBuild();
   const tx = buildGaslessTransferTx({ sender: session.address, payee, amountMicros });
-  const bytesB64 = toBase64(await tx.build({ client }));
+  const bytes = await tx.build({ client });
+  const bytesB64 = toBase64(bytes);
   const signature = await enokiAuthService.signSponsoredTransaction(bytesB64, session);
-  const res = await client.executeTransactionBlock({
-    transactionBlock: bytesB64,
-    signature,
-    options: { showEffects: true },
+  const res = await client.executeTransaction({
+    transaction: fromBase64(bytesB64),
+    signatures: [signature],
+    include: { effects: true },
   });
+  // This is the SETTLEMENT leg — the money must actually move. executeTransaction
+  // does NOT throw on an on-chain abort (it returns $kind:"FailedTransaction"), so
+  // surface a failure here rather than reporting a payment that never settled.
+  const txn = res.Transaction ?? res.FailedTransaction;
+  if (res.$kind !== "Transaction" || !txn) {
+    throw new Error(
+      `gasless transfer failed to settle (${txn?.effects?.status?.error?.message ?? txn?.digest ?? "unknown"})`,
+    );
+  }
   // A bare transfer has no receipt leg, so nothing is pending.
-  return { digest: res.digest, method: "gasless", receiptIssued: true };
+  return { digest: txn.digest, method: "gasless", receiptIssued: true };
 }
 
 /** Current USDC balance (micro-units) for an address. */

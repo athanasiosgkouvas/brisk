@@ -6,8 +6,8 @@ type SuiClientLike = {
 
 /**
  * Hermes (React Native JS engine) may be missing Intl.PluralRules.
- * @mysten/sui/client/utils.mjs calls `new Intl.PluralRules(...)` at module
- * load time for ordinal error-message formatting.  Without this polyfill the
+ * @mysten/sui/client utils call `new Intl.PluralRules(...)` at module load
+ * time for ordinal error-message formatting.  Without this polyfill the
  * dynamic import throws and every RPC call silently fails.
  */
 function patchIntlPluralRules() {
@@ -37,13 +37,15 @@ let rawClientPromise: Promise<any> | null = null;
 async function getRawClient(): Promise<any> {
   if (!rawClientPromise) {
     patchIntlPluralRules();
-    rawClientPromise = import("@mysten/sui/jsonRpc").then(
-      ({ SuiJsonRpcClient, getJsonRpcFullnodeUrl }) =>
-        new SuiJsonRpcClient({
+    // JSON-RPC is deprecated / being deactivated. The app uses the supported
+    // GraphQL transport (plain fetch → RN/Hermes-friendly). `url` is required and
+    // must agree with `network`, so derive the default from the configured network.
+    const defaultUrl = `https://graphql.${ENV.suiNetwork}.sui.io/graphql`;
+    rawClientPromise = import("@mysten/sui/graphql").then(
+      ({ SuiGraphQLClient }) =>
+        new SuiGraphQLClient({
           network: ENV.suiNetwork,
-          // Mysten disabled JSON-RPC on the public testnet fullnode (the SDK default
-          // now 404s), so prefer an explicit endpoint when configured.
-          url: ENV.rpcUrl || getJsonRpcFullnodeUrl(ENV.suiNetwork),
+          url: ENV.rpcUrl || defaultUrl,
         }),
     );
   }
@@ -51,17 +53,22 @@ async function getRawClient(): Promise<any> {
 }
 
 /**
- * Thin typed facade for RPC calls in the app.
+ * Thin typed facade for RPC calls in the app. Routes through the unified
+ * `core.getBalance` (Balance shape) and maps it back to the legacy field name
+ * the callers expect.
  */
 export const suiClient: SuiClientLike = {
   async getBalance(input) {
-    return (await getRawClient()).getBalance(input) as Promise<{ totalBalance?: string }>;
+    const c = await getRawClient();
+    const res = await c.core.getBalance({ owner: input.owner, coinType: input.coinType });
+    return { totalBalance: res?.balance?.balance };
   },
 };
 
 /**
- * Returns the underlying SuiJsonRpcClient needed by Transaction#build() to
- * resolve object references (types, versions, digests) from the network.
+ * Returns the underlying SuiGraphQLClient. Needed by Transaction#build() to
+ * resolve object references (types, versions, digests) from the network, and
+ * exposes `.query()` for the raw GraphQL history reads (see txHistory.ts).
  */
 export async function getSuiClientForBuild() {
   return getRawClient();

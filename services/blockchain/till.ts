@@ -45,15 +45,11 @@ async function findMerchantCap(
   owner: string,
 ): Promise<{ capId: string; merchantId: string } | null> {
   const client = await getSuiClientForBuild();
-  const res = await client.getOwnedObjects({
-    owner,
-    filter: { StructType: CAP_TYPE },
-    options: { showContent: true },
-  });
-  for (const entry of res?.data ?? []) {
-    const capId = entry?.data?.objectId;
+  const res = await client.listOwnedObjects({ owner, type: CAP_TYPE, include: { json: true } });
+  for (const obj of res?.objects ?? []) {
+    const capId = obj?.objectId;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const merchant = (entry?.data?.content as any)?.fields?.merchant;
+    const merchant = (obj?.json as any)?.merchant;
     if (typeof capId === "string" && typeof merchant === "string") {
       return { capId, merchantId: merchant };
     }
@@ -78,11 +74,11 @@ async function ensureMerchantCap(
 /** Pull the created shared `Till` id out of a create_till tx's object changes. */
 async function tillIdFromTx(digest: string): Promise<string | null> {
   const client = await getSuiClientForBuild();
-  const tx = await client.getTransactionBlock({ digest, options: { showObjectChanges: true } });
-  for (const change of tx?.objectChanges ?? []) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const c = change as any;
-    if (c.type === "created" && c.objectType === TILL_TYPE) return c.objectId as string;
+  const r = await client.getTransaction({ digest, include: { effects: true, objectTypes: true } });
+  const txn = r.Transaction ?? r.FailedTransaction;
+  const types: Record<string, string> = txn?.objectTypes ?? {};
+  for (const c of txn?.effects?.changedObjects ?? []) {
+    if (c.idOperation === "Created" && types[c.objectId] === TILL_TYPE) return c.objectId;
   }
   return null;
 }

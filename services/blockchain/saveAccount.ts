@@ -1,9 +1,11 @@
+import { bcs } from "@mysten/sui/bcs";
 import { Transaction } from "@mysten/sui/transactions";
 import { toBase64 } from "@mysten/sui/utils";
 
 import type { AuthSession } from "@/types/user";
 import { executeSponsored } from "@/services/blockchain/sponsoredExec";
 import { getSuiClientForBuild } from "@/services/blockchain/suiClient";
+import { fetchAddressTransactions } from "@/services/blockchain/txHistory";
 import {
   buildDepositTx,
   buildOpenVaultTx,
@@ -38,31 +40,25 @@ const EMPTY_SAVE = (vaultId: string | null): SaveState => ({
   apyBps: ENV.briskApyBps,
 });
 
-function leBytesToNumber(bytes: number[]): number {
-  let value = 0;
-  for (let i = 0; i < bytes.length; i++) value += bytes[i] * 256 ** i;
-  return value;
-}
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function readU64(res: any, index: number): number {
-  const rv = res?.results?.[index]?.returnValues?.[0];
-  return Array.isArray(rv?.[0]) ? leBytesToNumber(rv[0]) : 0;
+  // Unified simulate returns each command's return values as raw BCS bytes.
+  // `commandResults` sits at the top level of the result (sibling of Transaction),
+  // not inside the unwrapped transaction — read it straight off `res`.
+  const out = res?.commandResults?.[index]?.returnValues?.[0]?.bcs;
+  return out ? Number(bcs.U64.parse(out)) : 0;
 }
 
 /** Find the user's Save vault and its value broken into principal + earned yield. */
 export async function getSaveState(owner: string): Promise<SaveState> {
   const client = await getSuiClientForBuild();
-  const owned = await client.getOwnedObjects({
-    owner,
-    filter: { StructType: VAULT_TYPE },
-    options: { showType: true },
-  });
-  const vaultId: string | null = owned?.data?.[0]?.data?.objectId ?? null;
+  const owned = await client.listOwnedObjects({ owner, type: VAULT_TYPE });
+  const vaultId: string | null = owned?.objects?.[0]?.objectId ?? null;
   if (!vaultId || !ENV.briskPoolId) return EMPTY_SAVE(vaultId);
 
-  // One devInspect, two views: total value (principal + live accrual) and principal.
+  // One simulate, two views: total value (principal + live accrual) and principal.
   const tx = new Transaction();
+  tx.setSender(owner);
   for (const fn of ["current_value", "principal"]) {
     tx.moveCall({
       target: `${PKG}::spending_vault::${fn}`,
@@ -73,7 +69,12 @@ export async function getSaveState(owner: string): Promise<SaveState> {
           : [tx.object(vaultId)],
     });
   }
-  const res = await client.devInspectTransactionBlock({ sender: owner, transactionBlock: tx });
+  // `checksEnabled: false` inspects non-entry public views (the old devInspect use).
+  const res = await client.simulateTransaction({
+    transaction: tx,
+    include: { commandResults: true },
+    checksEnabled: false,
+  });
   const valueMicros = readU64(res, 0);
   const principalMicros = readU64(res, 1);
   return {
@@ -99,35 +100,24 @@ export type SaveHistoryItem = {
  * is the magnitude of the user's own USDC balance change in that tx.
  */
 export async function getSaveHistory(owner: string, limit = 20): Promise<SaveHistoryItem[]> {
-  const client = await getSuiClientForBuild();
-  const res = await client.queryTransactionBlocks({
-    filter: { FromAddress: owner },
-    options: { showBalanceChanges: true, showInput: true },
-    limit: 30,
-    order: "descending",
-  });
+  const txs = await fetchAddressTransactions(owner, { direction: "sent", last: 30 });
   const items: SaveHistoryItem[] = [];
-  for (const tx of res?.data ?? []) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const cmds: any[] = (tx as any)?.transaction?.data?.transaction?.transactions ?? [];
+  for (const tx of txs) {
     let kind: SaveHistoryItem["kind"] | null = null;
-    for (const c of cmds) {
-      const mc = c?.MoveCall;
-      if (mc?.module !== "spending_vault") continue;
+    for (const mc of tx.moveCalls) {
+      if (mc.module !== "spending_vault") continue;
       if (mc.function === "deposit") kind = "deposit";
       else if (mc.function === "withdraw") kind = "withdraw";
       else if (mc.function === "open" && !kind) kind = "activate";
     }
     if (!kind) continue;
     let amountMicros = 0;
-    for (const bc of tx?.balanceChanges ?? []) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ownerAddr = (bc as any)?.owner?.AddressOwner;
-      if (bc?.coinType === USDC && ownerAddr === owner) {
+    for (const bc of tx.balanceChanges) {
+      if (bc.coinType === USDC && bc.address === owner) {
         amountMicros = Math.abs(Number(bc.amount));
       }
     }
-    items.push({ kind, amountMicros, timestampMs: Number(tx.timestampMs ?? 0), digest: tx.digest });
+    items.push({ kind, amountMicros, timestampMs: tx.timestampMs, digest: tx.digest });
   }
   return items.slice(0, limit);
 }
