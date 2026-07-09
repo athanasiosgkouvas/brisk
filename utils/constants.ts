@@ -8,6 +8,10 @@ export const ENV = {
   suiNetwork:
     (process.env.EXPO_PUBLIC_SUI_NETWORK as "testnet" | "devnet" | "mainnet" | undefined) ??
     "testnet",
+  /** Explicit JSON-RPC endpoint override. Empty → SDK default fullnode. Set this
+   *  because Mysten disabled JSON-RPC on the public testnet fullnode (it now 404s);
+   *  point at a provider that still serves JSON-RPC. */
+  rpcUrl: process.env.EXPO_PUBLIC_SUI_RPC_URL ?? "",
   backendUrl: process.env.EXPO_PUBLIC_BACKEND_URL ?? "https://brisk-z5bu.onrender.com",
 
   /** Brisk's on-chain Move package (move/). Fresh republish 2026-06-04: mock_lender

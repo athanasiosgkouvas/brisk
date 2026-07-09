@@ -84,7 +84,11 @@ async function main(): Promise<void> {
     return;
   }
 
-  const client = new SuiJsonRpcClient({ network, url: getJsonRpcFullnodeUrl(network) });
+  // Mysten disabled JSON-RPC on the public testnet fullnode (getJsonRpcFullnodeUrl's
+  // default now 404s), so allow an explicit endpoint override. Point SUI_RPC_URL at a
+  // provider that still serves JSON-RPC (ideally a keyed one).
+  const rpcUrl = process.env.SUI_RPC_URL ?? getJsonRpcFullnodeUrl(network);
+  const client = new SuiJsonRpcClient({ network, url: rpcUrl });
   const signer = loadSigner();
   const signerAddr = signer.toSuiAddress();
   const rootArg = await accumulatorRootArg(client);

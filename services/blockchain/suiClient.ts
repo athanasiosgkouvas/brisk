@@ -41,7 +41,9 @@ async function getRawClient(): Promise<any> {
       ({ SuiJsonRpcClient, getJsonRpcFullnodeUrl }) =>
         new SuiJsonRpcClient({
           network: ENV.suiNetwork,
-          url: getJsonRpcFullnodeUrl(ENV.suiNetwork),
+          // Mysten disabled JSON-RPC on the public testnet fullnode (the SDK default
+          // now 404s), so prefer an explicit endpoint when configured.
+          url: ENV.rpcUrl || getJsonRpcFullnodeUrl(ENV.suiNetwork),
         }),
     );
   }
