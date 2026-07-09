@@ -49,13 +49,25 @@ function loadSigner(): Ed25519Keypair {
   return Ed25519Keypair.fromSecretKey(key.trim());
 }
 
+type GasRef = { objectId: string; version: string; digest: string };
+type SweepResult =
+  | { ok: true; digest: string; gas: GasRef }
+  | { ok: false; digest: string; gas: GasRef; error: string };
+
 async function sweepOne(
   client: SuiJsonRpcClient,
   signer: Ed25519Keypair,
   rootArg: ReturnType<typeof Inputs.SharedObjectRef>,
   tillId: string,
-): Promise<string> {
+  gas: GasRef[],
+): Promise<SweepResult> {
   const tx = new Transaction();
+  // Pin the gas coin explicitly. The signer has a single gas coin shared by every
+  // sweep in the batch; if we let the SDK re-resolve it per tx, a load-balanced RPC
+  // that lags one version behind the just-executed tx hands back a stale ref and the
+  // tx aborts ("object … unavailable for consumption, current version …+1"). We chain
+  // the fresh ref out of each tx's effects instead of re-reading it.
+  tx.setGasPayment(gas);
   tx.moveCall({
     target: `${tillPkg}::till::sweep`,
     typeArguments: [usdcType],
@@ -66,11 +78,27 @@ async function sweepOne(
     signer,
     options: { showEffects: true },
   });
+  // The tx executed (even a Move-abort charges gas and advances the coin), so read
+  // the new gas ref and hand it back so the caller advances the chain either way.
+  const ref = result.effects?.gasObject?.reference;
+  if (!ref) {
+    throw new Error(`sweep tx ${result.digest}: effects missing gasObject reference`);
+  }
+  const newGas: GasRef = {
+    objectId: ref.objectId,
+    version: String(ref.version),
+    digest: ref.digest,
+  };
   const status = result.effects?.status?.status;
   if (status !== "success") {
-    throw new Error(`sweep tx ${result.digest} failed: ${result.effects?.status?.error ?? status}`);
+    return {
+      ok: false,
+      digest: result.digest,
+      gas: newGas,
+      error: result.effects?.status?.error ?? String(status),
+    };
   }
-  return result.digest;
+  return { ok: true, digest: result.digest, gas: newGas };
 }
 
 async function main(): Promise<void> {
@@ -96,17 +124,39 @@ async function main(): Promise<void> {
   const tills = await tillStore.listActiveTills();
   console.log(`[sweep] ${tills.length} active till(s); signer ${signerAddr} (network ${network})`);
 
+  // Seed the gas coin(s) once; sweepOne chains the updated ref forward per success so
+  // we never re-read the (possibly lagging) coin version from the RPC mid-batch.
+  const { data: coins } = await client.getCoins({ owner: signerAddr, coinType: "0x2::sui::SUI" });
+  if (coins.length === 0) {
+    throw new Error(`signer ${signerAddr} has no SUI gas coin — fund it before sweeping`);
+  }
+  let gas: GasRef[] = coins.map((c) => ({
+    objectId: c.coinObjectId,
+    version: String(c.version),
+    digest: c.digest,
+  }));
+
   let swept = 0;
   let failed = 0;
   for (const till of tills) {
     try {
       // sweep is a no-op on-chain when the till is empty, so an empty till just
       // costs a tiny gas + returns success — fine for a daily batch.
-      const digest = await sweepOne(client, signer, rootArg, till.tillId);
-      await tillStore.markSwept(till.tillId);
-      swept += 1;
-      console.log(`[sweep] ${till.tillId} → ${till.treasuryAddr} (${digest})`);
+      const res = await sweepOne(client, signer, rootArg, till.tillId, gas);
+      // The tx executed, so the coin advanced — chain the new ref forward whether the
+      // sweep succeeded or Move-aborted, else the next till trips the stale-gas error.
+      gas = [res.gas];
+      if (res.ok) {
+        await tillStore.markSwept(till.tillId);
+        swept += 1;
+        console.log(`[sweep] ${till.tillId} → ${till.treasuryAddr} (${res.digest})`);
+      } else {
+        failed += 1;
+        console.error(`[sweep] ${till.tillId} failed (${res.digest}): ${res.error}`);
+      }
     } catch (error: unknown) {
+      // Thrown = pre-execution error (network / input-object check); no gas consumed,
+      // so keep the current ref for the next till.
       failed += 1;
       console.error(
         `[sweep] ${till.tillId} failed:`,
