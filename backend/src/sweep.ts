@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from "@mysten/sui/jsonRpc";
+import { SuiGrpcClient } from "@mysten/sui/grpc";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { Transaction, Inputs } from "@mysten/sui/transactions";
 import { normalizeSuiObjectId } from "@mysten/sui/utils";
@@ -23,13 +23,11 @@ const usdcType =
 // The on-chain funds accumulator root (well-known system shared object @0xacc).
 const ACCUMULATOR_ROOT_ID = normalizeSuiObjectId("0xacc");
 
-async function accumulatorRootArg(client: SuiJsonRpcClient) {
-  const obj = await client.getObject({ id: ACCUMULATOR_ROOT_ID, options: { showOwner: true } });
-  const owner = obj.data?.owner;
+async function accumulatorRootArg(client: SuiGrpcClient) {
+  const { object } = await client.getObject({ objectId: ACCUMULATOR_ROOT_ID });
+  const owner = object.owner;
   const initialSharedVersion =
-    owner && typeof owner === "object" && "Shared" in owner
-      ? owner.Shared.initial_shared_version
-      : undefined;
+    owner?.$kind === "Shared" ? owner.Shared.initialSharedVersion : undefined;
   if (initialSharedVersion === undefined) {
     throw new Error("AccumulatorRoot @0xacc is not a shared object on this network");
   }
@@ -55,7 +53,7 @@ type SweepResult =
   | { ok: false; digest: string; gas: GasRef; error: string };
 
 async function sweepOne(
-  client: SuiJsonRpcClient,
+  client: SuiGrpcClient,
   signer: Ed25519Keypair,
   rootArg: ReturnType<typeof Inputs.SharedObjectRef>,
   tillId: string,
@@ -76,29 +74,33 @@ async function sweepOne(
   const result = await client.signAndExecuteTransaction({
     transaction: tx,
     signer,
-    options: { showEffects: true },
+    include: { effects: true },
   });
-  // The tx executed (even a Move-abort charges gas and advances the coin), so read
-  // the new gas ref and hand it back so the caller advances the chain either way.
-  const ref = result.effects?.gasObject?.reference;
-  if (!ref) {
-    throw new Error(`sweep tx ${result.digest}: effects missing gasObject reference`);
+  // The unified API returns a tagged union; both arms carry the same executed-tx
+  // shape (digest + effects). A Move-abort still charges gas and advances the coin,
+  // so read the new gas ref and hand it back so the caller advances the chain either
+  // way. A genuine pre-execution failure has no gasObject output → we throw below,
+  // which the caller treats as "no gas consumed" (keeps the current ref).
+  const txn = result.Transaction ?? result.FailedTransaction;
+  const g = txn?.effects?.gasObject;
+  if (!g?.outputVersion || !g?.outputDigest) {
+    throw new Error(`sweep tx ${txn?.digest}: effects missing gasObject output ref`);
   }
   const newGas: GasRef = {
-    objectId: ref.objectId,
-    version: String(ref.version),
-    digest: ref.digest,
+    objectId: g.objectId,
+    version: g.outputVersion,
+    digest: g.outputDigest,
   };
-  const status = result.effects?.status?.status;
-  if (status !== "success") {
+  const status = txn.effects.status;
+  if (status.success !== true) {
     return {
       ok: false,
-      digest: result.digest,
+      digest: txn.digest,
       gas: newGas,
-      error: result.effects?.status?.error ?? String(status),
+      error: status.error?.message ?? "move abort",
     };
   }
-  return { ok: true, digest: result.digest, gas: newGas };
+  return { ok: true, digest: txn.digest, gas: newGas };
 }
 
 async function main(): Promise<void> {
@@ -112,11 +114,11 @@ async function main(): Promise<void> {
     return;
   }
 
-  // Mysten disabled JSON-RPC on the public testnet fullnode (getJsonRpcFullnodeUrl's
-  // default now 404s), so allow an explicit endpoint override. Point SUI_RPC_URL at a
-  // provider that still serves JSON-RPC (ideally a keyed one).
-  const rpcUrl = process.env.SUI_RPC_URL ?? getJsonRpcFullnodeUrl(network);
-  const client = new SuiJsonRpcClient({ network, url: rpcUrl });
+  // Standard, supported transport (JSON-RPC is deprecated / being deactivated). The
+  // gRPC(-web) endpoint has no per-network default, so SUI_RPC_URL is the baseUrl with
+  // a public-fullnode fallback; point it at a keyed provider for the daily batch.
+  const baseUrl = process.env.SUI_RPC_URL ?? "https://fullnode.testnet.sui.io:443";
+  const client = new SuiGrpcClient({ network, baseUrl });
   const signer = loadSigner();
   const signerAddr = signer.toSuiAddress();
   const rootArg = await accumulatorRootArg(client);
@@ -126,13 +128,16 @@ async function main(): Promise<void> {
 
   // Seed the gas coin(s) once; sweepOne chains the updated ref forward per success so
   // we never re-read the (possibly lagging) coin version from the RPC mid-batch.
-  const { data: coins } = await client.getCoins({ owner: signerAddr, coinType: "0x2::sui::SUI" });
+  const { objects: coins } = await client.listCoins({
+    owner: signerAddr,
+    coinType: "0x2::sui::SUI",
+  });
   if (coins.length === 0) {
     throw new Error(`signer ${signerAddr} has no SUI gas coin — fund it before sweeping`);
   }
   let gas: GasRef[] = coins.map((c) => ({
-    objectId: c.coinObjectId,
-    version: String(c.version),
+    objectId: c.objectId,
+    version: c.version,
     digest: c.digest,
   }));
 

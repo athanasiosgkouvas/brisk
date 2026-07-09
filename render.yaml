@@ -109,12 +109,11 @@ services:
         sync: false # set in the Render dashboard (secret)
       - key: SUI_NETWORK
         value: "testnet"
-      # Mysten disabled JSON-RPC on the public testnet fullnode (the SDK default
-      # fullnode.testnet.sui.io now 404s JSON-RPC), so point at a provider that still
-      # serves it. publicnode is server-friendly (rpcpool 403s cloud egress IPs).
-      # Swap to a keyed provider (BlockVision/Ankr/Triton) if this endpoint 429s.
+      # gRPC(-web) endpoint (JSON-RPC is deprecated / being deactivated). The sweep
+      # uses SuiGrpcClient; this is its baseUrl. The public fullnode is rate-limited
+      # — swap to a keyed gRPC provider for the daily batch if it 429s.
       - key: SUI_RPC_URL
-        value: "https://sui-testnet-rpc.publicnode.com"
+        value: "https://fullnode.testnet.sui.io:443"
       - key: BRISK_TILL_PKG
         value: "0xe96ec7f8b0633204af0a4060cc10adeac019641d1ec71096f0567071885b1e35"
       - key: BRISK_GIFT_CARD_PKG
