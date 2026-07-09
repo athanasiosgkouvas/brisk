@@ -86,7 +86,15 @@ export async function payGasless(
     signatures: [signature],
     include: { effects: true },
   });
+  // This is the SETTLEMENT leg — the money must actually move. executeTransaction
+  // does NOT throw on an on-chain abort (it returns $kind:"FailedTransaction"), so
+  // surface a failure here rather than reporting a payment that never settled.
   const txn = res.Transaction ?? res.FailedTransaction;
+  if (res.$kind !== "Transaction" || !txn) {
+    throw new Error(
+      `gasless transfer failed to settle (${txn?.effects?.status?.error?.message ?? txn?.digest ?? "unknown"})`,
+    );
+  }
   // A bare transfer has no receipt leg, so nothing is pending.
   return { digest: txn.digest, method: "gasless", receiptIssued: true };
 }

@@ -41,9 +41,11 @@ const EMPTY_SAVE = (vaultId: string | null): SaveState => ({
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function readU64(txn: any, index: number): number {
+function readU64(res: any, index: number): number {
   // Unified simulate returns each command's return values as raw BCS bytes.
-  const out = txn?.commandResults?.[index]?.returnValues?.[0]?.bcs;
+  // `commandResults` sits at the top level of the result (sibling of Transaction),
+  // not inside the unwrapped transaction — read it straight off `res`.
+  const out = res?.commandResults?.[index]?.returnValues?.[0]?.bcs;
   return out ? Number(bcs.U64.parse(out)) : 0;
 }
 
@@ -73,9 +75,8 @@ export async function getSaveState(owner: string): Promise<SaveState> {
     include: { commandResults: true },
     checksEnabled: false,
   });
-  const txn = res.Transaction ?? res.FailedTransaction;
-  const valueMicros = readU64(txn, 0);
-  const principalMicros = readU64(txn, 1);
+  const valueMicros = readU64(res, 0);
+  const principalMicros = readU64(res, 1);
   return {
     vaultId,
     valueMicros,

@@ -38,12 +38,14 @@ async function getRawClient(): Promise<any> {
   if (!rawClientPromise) {
     patchIntlPluralRules();
     // JSON-RPC is deprecated / being deactivated. The app uses the supported
-    // GraphQL transport (plain fetch → RN/Hermes-friendly). `url` is required.
+    // GraphQL transport (plain fetch → RN/Hermes-friendly). `url` is required and
+    // must agree with `network`, so derive the default from the configured network.
+    const defaultUrl = `https://graphql.${ENV.suiNetwork}.sui.io/graphql`;
     rawClientPromise = import("@mysten/sui/graphql").then(
       ({ SuiGraphQLClient }) =>
         new SuiGraphQLClient({
           network: ENV.suiNetwork,
-          url: ENV.rpcUrl || "https://graphql.testnet.sui.io/graphql",
+          url: ENV.rpcUrl || defaultUrl,
         }),
     );
   }
