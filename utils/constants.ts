@@ -8,9 +8,9 @@ export const ENV = {
   suiNetwork:
     (process.env.EXPO_PUBLIC_SUI_NETWORK as "testnet" | "devnet" | "mainnet" | undefined) ??
     "testnet",
-  /** Explicit JSON-RPC endpoint override. Empty → SDK default fullnode. Set this
-   *  because Mysten disabled JSON-RPC on the public testnet fullnode (it now 404s);
-   *  point at a provider that still serves JSON-RPC. */
+  /** GraphQL endpoint override. Empty → public GraphQL fullnode default. The app
+   *  uses the supported GraphQL transport (JSON-RPC is deprecated / deactivating);
+   *  point at a keyed GraphQL provider for durability. */
   rpcUrl: process.env.EXPO_PUBLIC_SUI_RPC_URL ?? "",
   backendUrl: process.env.EXPO_PUBLIC_BACKEND_URL ?? "https://brisk-z5bu.onrender.com",
 
@@ -69,8 +69,8 @@ export const ENV = {
    * is #1 on Sui's gasless-transfer allowlist (`0x2::balance::send_funds<USDC>`).
    *   testnet: 0xa1ec7fc0…::usdc::USDC
    *   mainnet: 0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC
-   * NOTE: auto gas=0 detection only fires on gRPC/GraphQL transport; on JSON-RPC
-   * the payment builder sets gasPrice=0 / gasBudget=0 manually (eligibility known).
+   * NOTE: on the GraphQL transport auto gas=0 detection fires for eligible
+   * send_funds; the payment builder also sets gasPrice=0 / gasBudget=0 explicitly.
    */
   usdcType:
     process.env.EXPO_PUBLIC_USDC_TYPE ??

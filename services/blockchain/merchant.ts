@@ -23,15 +23,10 @@ const MERCHANT_TYPE = `${PKG}::merchant_registry::Merchant`;
 /** The shared `Merchant` id this owner controls (via their `MerchantCap`), or null. */
 export async function findMerchantId(owner: string): Promise<string | null> {
   const client = await getSuiClientForBuild();
-  const res = await client.getOwnedObjects({
-    owner,
-    filter: { StructType: CAP_TYPE },
-    options: { showContent: true },
-  });
-  for (const entry of res?.data ?? []) {
+  const res = await client.listOwnedObjects({ owner, type: CAP_TYPE, include: { json: true } });
+  for (const obj of res?.objects ?? []) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const fields = (entry?.data?.content as any)?.fields;
-    const merchant = fields?.merchant;
+    const merchant = (obj?.json as any)?.merchant;
     if (typeof merchant === "string") return merchant;
   }
   return null;
@@ -40,17 +35,11 @@ export async function findMerchantId(owner: string): Promise<string | null> {
 /** Pull the created shared `Merchant` id out of a register tx's object changes. */
 async function merchantIdFromTx(digest: string): Promise<string | null> {
   const client = await getSuiClientForBuild();
-  const tx = await client.getTransactionBlock({ digest, options: { showObjectChanges: true } });
-  for (const change of tx?.objectChanges ?? []) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const c = change as any;
-    if (
-      c.type === "created" &&
-      typeof c.objectType === "string" &&
-      c.objectType === MERCHANT_TYPE
-    ) {
-      return c.objectId as string;
-    }
+  const r = await client.getTransaction({ digest, include: { effects: true, objectTypes: true } });
+  const txn = r.Transaction ?? r.FailedTransaction;
+  const types: Record<string, string> = txn?.objectTypes ?? {};
+  for (const c of txn?.effects?.changedObjects ?? []) {
+    if (c.idOperation === "Created" && types[c.objectId] === MERCHANT_TYPE) return c.objectId;
   }
   return null;
 }

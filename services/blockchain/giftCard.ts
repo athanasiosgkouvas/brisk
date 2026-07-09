@@ -41,16 +41,12 @@ function hashSecret(secret: Uint8Array): Uint8Array {
 /** Resolve the created GiftCard object id from a mint tx's effects. */
 async function giftCardIdFromTx(digest: string): Promise<string | null> {
   const client = await getSuiClientForBuild();
-  const tx = await client.getTransactionBlock({ digest, options: { showObjectChanges: true } });
-  for (const change of tx?.objectChanges ?? []) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const c = change as any;
-    if (
-      c.type === "created" &&
-      typeof c.objectType === "string" &&
-      c.objectType.includes(GIFT_CARD_TYPE_SUFFIX)
-    ) {
-      return c.objectId as string;
+  const r = await client.getTransaction({ digest, include: { effects: true, objectTypes: true } });
+  const txn = r.Transaction ?? r.FailedTransaction;
+  const types: Record<string, string> = txn?.objectTypes ?? {};
+  for (const c of txn?.effects?.changedObjects ?? []) {
+    if (c.idOperation === "Created" && types[c.objectId]?.includes(GIFT_CARD_TYPE_SUFFIX)) {
+      return c.objectId;
     }
   }
   return null;
@@ -184,9 +180,9 @@ export async function readGiftCard(
   cardId: string,
 ): Promise<{ balanceMicros: number; merchantId: string; recipient: string | null } | null> {
   const client = await getSuiClientForBuild();
-  const obj = await client.getObject({ id: cardId, options: { showContent: true } });
+  const { object } = await client.getObject({ objectId: cardId, include: { json: true } });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const fields = (obj?.data?.content as any)?.fields;
+  const fields = object?.json as any;
   if (!fields) return null;
   const balanceMicros = Number(fields.face_value ?? 0);
   return {
