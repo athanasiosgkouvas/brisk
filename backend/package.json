@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@mysten/enoki": "^1.2.2",
-    "@mysten/sui": "^2.16.2",
+    "@mysten/sui": "^2.20.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
