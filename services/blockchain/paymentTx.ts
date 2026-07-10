@@ -272,7 +272,19 @@ export function buildRegiftGiftCardTx(input: {
   return tx;
 }
 
-export const MINT_GIFT_CARD_TARGETS = [`${GIFT_PKG}::gift_card::mint`];
+// `mint` withdraws USDC via `tx.balance` (the CoinWithBalance intent), which
+// injects framework coin/balance ops into the built PTB — Enoki rejects the
+// sponsorship unless every injected target is declared too (mirrors DEPOSIT_TARGETS
+// in vaultTx.ts). All entries are a subset of the backend serverAllowedTargets.
+const SUI_FW = "0x0000000000000000000000000000000000000000000000000000000000000002";
+export const MINT_GIFT_CARD_TARGETS = [
+  `${GIFT_PKG}::gift_card::mint`,
+  `${SUI_FW}::coin::redeem_funds`,
+  `${SUI_FW}::coin::into_balance`,
+  `${SUI_FW}::coin::send_funds`,
+  `${SUI_FW}::coin::destroy_zero`,
+  `${SUI_FW}::balance::redeem_funds`, // balance-output path of tx.balance()
+];
 export const CLAIM_GIFT_CARD_TARGETS = [`${GIFT_PKG}::gift_card::claim`];
 export const REDEEM_GIFT_CARD_TARGETS = [`${GIFT_PKG}::gift_card::redeem`];
 export const REGIFT_GIFT_CARD_TARGETS = [`${GIFT_PKG}::gift_card::regift`];

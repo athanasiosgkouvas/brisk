@@ -103,6 +103,54 @@ async function sweepOne(
   return { ok: true, digest: txn.digest, gas: newGas };
 }
 
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+// A stale-gas / version-mismatch rejection at the node's pre-execution input check.
+// On the load-balanced public fullnode our chained gas ref (V+1) can outrun a replica
+// that hasn't yet applied the previous tx, so it sees V and rejects our V+1.
+function isStaleGasError(err: unknown): boolean {
+  const m = err instanceof Error ? err.message : String(err);
+  return /provided version doesn't match|unavailable for consumption|not available for consumption|version mismatch/i.test(
+    m,
+  );
+}
+
+// Re-resolve each pinned gas coin's live ref from the node — after a short backoff a
+// lagging replica has usually caught up, so this recovers the correct current version.
+// Preserves the same coin set we seeded with.
+async function currentGasRefs(client: SuiGrpcClient, refs: GasRef[]): Promise<GasRef[]> {
+  return Promise.all(
+    refs.map(async (r) => {
+      const { object } = await client.getObject({ objectId: r.objectId });
+      return { objectId: object.objectId, version: object.version, digest: object.digest };
+    }),
+  );
+}
+
+const MAX_GAS_RETRIES = 3;
+
+// Chain-forward is correct as long as the next submit lands on a node that has applied
+// the previous tx. When it doesn't (LB replica lag → stale-gas throw), re-read the live
+// gas ref and retry with backoff so the batch self-heals instead of cascading failures.
+async function sweepOneWithRetry(
+  client: SuiGrpcClient,
+  signer: Ed25519Keypair,
+  rootArg: ReturnType<typeof Inputs.SharedObjectRef>,
+  tillId: string,
+  gas: GasRef[],
+): Promise<SweepResult> {
+  let current = gas;
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await sweepOne(client, signer, rootArg, tillId, current);
+    } catch (error) {
+      if (attempt >= MAX_GAS_RETRIES || !isStaleGasError(error)) throw error;
+      await sleep(300 * (attempt + 1));
+      current = await currentGasRefs(client, current);
+    }
+  }
+}
+
 async function main(): Promise<void> {
   if (!isDbConfigured()) {
     console.warn("[sweep] DATABASE_URL unset — nothing to sweep. Exiting.");
@@ -147,7 +195,7 @@ async function main(): Promise<void> {
     try {
       // sweep is a no-op on-chain when the till is empty, so an empty till just
       // costs a tiny gas + returns success — fine for a daily batch.
-      const res = await sweepOne(client, signer, rootArg, till.tillId, gas);
+      const res = await sweepOneWithRetry(client, signer, rootArg, till.tillId, gas);
       // The tx executed, so the coin advanced — chain the new ref forward whether the
       // sweep succeeded or Move-aborted, else the next till trips the stale-gas error.
       gas = [res.gas];
@@ -159,6 +207,10 @@ async function main(): Promise<void> {
         failed += 1;
         console.error(`[sweep] ${till.tillId} failed (${res.digest}): ${res.error}`);
       }
+      // Wait for the just-executed tx to be applied before the next submit, so the
+      // chained gas ref (V+1) isn't ahead of a lagging replica. Best-effort: a slow
+      // poll shouldn't fail the till we already executed.
+      await client.waitForTransaction({ digest: res.digest }).catch(() => {});
     } catch (error: unknown) {
       // Thrown = pre-execution error (network / input-object check); no gas consumed,
       // so keep the current ref for the next till.
