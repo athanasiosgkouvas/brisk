@@ -388,6 +388,40 @@ app.get("/auth/relay", (req, res) => {
   res.redirect(`brisk://oauth?${deepLink.toString()}`);
 });
 
+/**
+ * Dump every scrap of an Enoki error into a flat object so server logs
+ * actually show what the gas station rejected, instead of the SDK's opaque
+ * "Request to gas station failed" wrapper.
+ */
+function dumpEnokiError(error: unknown): Record<string, unknown> {
+  const e = error as Record<string, unknown>;
+  return {
+    name: e?.name ?? typeof error,
+    message: e?.message ?? String(error),
+    stack: typeof e?.stack === "string" ? e.stack : undefined,
+    status: e?.status,
+    statusText: e?.statusText,
+    cause:
+      e?.cause instanceof Error
+        ? {
+            name: e.cause.name,
+            message: e.cause.message,
+            stack: e.cause.stack,
+            response: (e.cause as unknown as Record<string, unknown>)?.response,
+            errors: (e.cause as unknown as Record<string, unknown>)?.errors,
+          }
+        : e?.cause,
+    response: e?.response,
+    errors: e?.errors,
+    data: e?.data,
+    responseData:
+      typeof e?.response === "object" && e?.response !== null
+        ? (e.response as Record<string, unknown>)?.data
+        : undefined,
+    headers: e?.headers,
+  };
+}
+
 // ─── Sponsored transactions (Enoki) ──────────────────────────────────────────
 
 app.post("/api/sponsor", async (req, res) => {
@@ -430,19 +464,16 @@ app.post("/api/sponsor", async (req, res) => {
     logSponsorship(parsed.data.sender);
     res.json({ bytes: sponsored.bytes, digest: sponsored.digest });
   } catch (error: unknown) {
-    // Keep the structured Enoki rejection in dev logs — the SDK collapses useful
-    // detail (allow-listed addresses, dry-run aborts) into an opaque 400 status.
     console.error("[sponsor] enoki rejected", {
-      message: error instanceof Error ? error.message : String(error),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      cause: (error as any)?.cause,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      response: (error as any)?.response,
+      ...dumpEnokiError(error),
       sender: parsed.data.sender,
-      targets: parsed.data.allowedMoveCallTargets,
-      txKindLen: parsed.data.transactionKindBytes?.length,
+      network: parsed.data.network ?? "testnet",
+      allowedMoveCallTargets: parsed.data.allowedMoveCallTargets,
+      allowedAddresses: parsed.data.allowedAddresses,
+      txKindBytesLength: parsed.data.transactionKindBytes?.length,
+      txKindBytesPrefix: parsed.data.transactionKindBytes?.slice(0, 64),
+      timestamp: new Date().toISOString(),
     });
-    // Detail stays in the server log above; clients get a generic message.
     res.status(500).json({ error: "Failed to create sponsored transaction" });
   }
 });
@@ -461,16 +492,11 @@ app.post("/api/execute", async (req, res) => {
     });
     res.json({ digest: result.digest });
   } catch (error: unknown) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const e = error as any;
-    // Enoki collapses gas-station failures into an opaque 400; unfold the nested
-    // `errors[].data` so logs show the real reason (dry-run abort, bad signature,
-    // unsupported tx shape, …) instead of just "Request to gas station failed".
     console.error("[execute] enoki rejected", {
-      message: error instanceof Error ? error.message : String(error),
-      cause: e?.cause?.message ?? e?.cause,
-      errors: JSON.stringify(e?.errors ?? e?.cause?.errors, null, 2),
+      ...dumpEnokiError(error),
       digest: parsed.data.digest,
+      signaturePrefix: parsed.data.signature?.slice(0, 32),
+      timestamp: new Date().toISOString(),
     });
     res.status(500).json({ error: "Failed to execute sponsored transaction" });
   }
