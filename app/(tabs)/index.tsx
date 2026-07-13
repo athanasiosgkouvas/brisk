@@ -39,7 +39,7 @@ export default function HomeScreen() {
   const { usdcMicros, loading, refresh } = useWallet();
   const { state: save, refresh: refreshSave } = useSave();
   const { items, refresh: refreshActivity } = useActivity();
-  const { nameFor, resolve } = useMerchantDirectory();
+  const { nameFor, logoFor, resolve } = useMerchantDirectory();
   const pro = useAppModeStore((s) => s.mode === "pro");
   const [refreshing, setRefreshing] = useState(false);
   const bottomPad = useTabBarClearance();
@@ -201,6 +201,7 @@ export default function HomeScreen() {
                       item={it}
                       index={i}
                       name={nameFor(it.counterparty)}
+                      logoUrl={logoFor(it.counterparty)}
                     />
                   ))}
                 </View>

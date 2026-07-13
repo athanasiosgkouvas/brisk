@@ -6,6 +6,7 @@ import * as Haptics from "expo-haptics";
 import { ArrowDownLeft, ArrowUpRight, Check, Copy } from "lucide-react-native";
 
 import { GlassCard } from "@/components/ui/GlassCard";
+import { BusinessAvatar } from "@/components/ui/BusinessAvatar";
 import { useTheme } from "@/hooks/useTheme";
 import { formatUsd } from "@/services/blockchain/paymentTx";
 import { type ActivityItem } from "@/services/blockchain/receipts";
@@ -23,11 +24,14 @@ export function ActivityRow({
   item,
   index,
   name,
+  logoUrl,
 }: {
   item: ActivityItem;
   index: number;
   /** Resolved business name for the counterparty; falls back to a short address. */
   name?: string;
+  /** Resolved business logo for the counterparty; falls back to an identicon. */
+  logoUrl?: string;
 }) {
   const theme = useTheme();
   const received = item.direction === "received";
@@ -48,11 +52,25 @@ export function ActivityRow({
     >
       {/* Translucent (no blur) — keeps the scrolling list smooth on Android. */}
       <GlassCard className="flex-row items-center px-4 py-3">
-        {received ? (
-          <ArrowDownLeft color={theme.accent} size={20} />
-        ) : (
-          <ArrowUpRight color={theme.subtext} size={20} />
-        )}
+        {/* Aurora identicon for the counterparty + a small direction badge. */}
+        <View style={{ width: 44, height: 44 }}>
+          <BusinessAvatar
+            logoUrl={logoUrl}
+            seed={item.counterparty}
+            size={44}
+            label={name?.trim()?.[0]}
+          />
+          <View
+            className="absolute items-center justify-center rounded-full border-2 border-brisk-bg1 bg-brisk-bg2"
+            style={{ width: 20, height: 20, right: -2, bottom: -2 }}
+          >
+            {received ? (
+              <ArrowDownLeft color={theme.accent} size={12} strokeWidth={3} />
+            ) : (
+              <ArrowUpRight color={theme.subtext} size={12} strokeWidth={3} />
+            )}
+          </View>
+        </View>
         <View className="ml-3 flex-1">
           <View className="flex-row items-center">
             <Text className="text-sm text-brisk-text">{received ? "Received" : "Sent"}</Text>

@@ -3,7 +3,7 @@ import { blake2b } from "@noble/hashes/blake2.js";
 import * as Crypto from "expo-crypto";
 
 import type { AuthSession } from "@/types/user";
-import { getSuiClientForBuild } from "@/services/blockchain/suiClient";
+import { getSuiClientForBuild, waitForTxIndexed } from "@/services/blockchain/suiClient";
 import { executeSponsored } from "@/services/blockchain/sponsoredExec";
 import {
   buildMintGiftCardTx,
@@ -41,7 +41,9 @@ function hashSecret(secret: Uint8Array): Uint8Array {
 /** Resolve the created GiftCard object id from a mint tx's effects. */
 async function giftCardIdFromTx(digest: string): Promise<string | null> {
   const client = await getSuiClientForBuild();
-  const r = await client.getTransaction({ digest, include: { effects: true, objectTypes: true } });
+  // Enoki executes the sponsored tx on its own node; our GraphQL fullnode lags, so a
+  // one-shot read races indexing. Poll until it's indexed (Hermes-safe; see helper).
+  const r = await waitForTxIndexed(client, digest, { effects: true, objectTypes: true });
   const txn = r.Transaction ?? r.FailedTransaction;
   const types: Record<string, string> = txn?.objectTypes ?? {};
   for (const c of txn?.effects?.changedObjects ?? []) {

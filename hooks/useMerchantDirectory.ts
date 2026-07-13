@@ -5,11 +5,16 @@ import { lookupMerchants, type MerchantProfile } from "@/services/api/backendApi
 // Session-lifetime cache of merchant id/address → business name, so any screen
 // can render names instead of 0x. Shared across hook instances via a module map.
 const nameCache = new Map<string, string>(); // key: merchantId OR ownerAddr
+const logoCache = new Map<string, string>(); // key: merchantId OR ownerAddr → logoUrl
 const inFlight = new Set<string>();
 
 function cacheProfile(p: MerchantProfile) {
   if (p.merchantId) nameCache.set(p.merchantId, p.businessName);
   if (p.ownerAddr) nameCache.set(p.ownerAddr, p.businessName);
+  if (p.logoUrl) {
+    if (p.merchantId) logoCache.set(p.merchantId, p.logoUrl);
+    if (p.ownerAddr) logoCache.set(p.ownerAddr, p.logoUrl);
+  }
 }
 
 /**
@@ -45,5 +50,10 @@ export function useMerchantDirectory() {
     return nameCache.get(key);
   }, []);
 
-  return { nameFor, resolve };
+  const logoFor = useCallback((key: string | null | undefined): string | undefined => {
+    if (!key) return undefined;
+    return logoCache.get(key);
+  }, []);
+
+  return { nameFor, logoFor, resolve };
 }

@@ -217,6 +217,12 @@ export default function ChargeScreen() {
                 <Pressable className="mt-4 py-2" onPress={() => router.push("/links")}>
                   <Text className="text-center text-sm text-brisk-subtext">My payment links</Text>
                 </Pressable>
+
+                <Pressable className="py-2" onPress={() => router.push("/terminal")}>
+                  <Text className="text-center text-sm text-brisk-subtext">
+                    Connect ERP terminal
+                  </Text>
+                </Pressable>
               </Animated.View>
             </ScrollView>
           ) : (

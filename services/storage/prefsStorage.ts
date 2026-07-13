@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ExpoCrypto from "expo-crypto";
 
 /**
  * Non-sensitive UI preferences (e.g. Personal/Pro app mode). Unlike the auth
@@ -11,6 +12,9 @@ const APP_MODE_KEY = "brisk.app.mode";
 const THEME_KEY = "brisk.theme.scheme";
 const PRO_PROVISIONED_KEY = "brisk.pro.provisioned";
 const MERCHANT_NAME_KEY = "brisk.merchant.name";
+const POS_DEVICE_ID_KEY = "brisk.pos.deviceId";
+const POS_TERMINAL_ID_KEY = "brisk.pos.terminalId";
+const POS_TERMINAL_TOKEN_KEY = "brisk.pos.terminalToken";
 const inMemoryFallback = new Map<string, string>();
 
 async function setLocalValue(key: string, value: string): Promise<void> {
@@ -72,6 +76,39 @@ export async function saveMerchantName(name: string): Promise<void> {
 
 export async function loadMerchantName(): Promise<string | null> {
   return getLocalValue(MERCHANT_NAME_KEY);
+}
+
+/**
+ * A stable per-device key Brisk generates once and persists. It's an internal
+ * routing key (not shown to anyone): the backend maps it to a short, human-
+ * typeable terminal code that stays bound to this device across re-registrations.
+ */
+export async function getOrCreateDeviceId(): Promise<string> {
+  const existing = await getLocalValue(POS_DEVICE_ID_KEY);
+  if (existing) return existing;
+  const id = ExpoCrypto.randomUUID();
+  await setLocalValue(POS_DEVICE_ID_KEY, id);
+  return id;
+}
+
+/** The short terminal code the backend assigned this device (shown to the
+ *  merchant to configure their ERP). Cached so it displays instantly. */
+export async function saveTerminalId(terminalId: string): Promise<void> {
+  await setLocalValue(POS_TERMINAL_ID_KEY, terminalId);
+}
+
+export async function loadTerminalId(): Promise<string | null> {
+  return getLocalValue(POS_TERMINAL_ID_KEY);
+}
+
+/** The auth token returned by the backend when this terminal registered. Used
+ *  for the terminal WebSocket + reporting sale results. */
+export async function saveTerminalToken(token: string): Promise<void> {
+  await setLocalValue(POS_TERMINAL_TOKEN_KEY, token);
+}
+
+export async function loadTerminalToken(): Promise<string | null> {
+  return getLocalValue(POS_TERMINAL_TOKEN_KEY);
 }
 
 /**

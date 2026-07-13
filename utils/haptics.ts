@@ -25,7 +25,12 @@ export async function hapticTxSuccess(): Promise<void> {
 }
 
 export async function hapticSettleWin(): Promise<void> {
-  await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  // Two beats — a soft impact "thunk" then the success "ding" — so a settled
+  // payment feels more rewarding than a single buzz.
+  await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  setTimeout(() => {
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, 90);
 }
 
 export async function hapticSettleLoss(): Promise<void> {

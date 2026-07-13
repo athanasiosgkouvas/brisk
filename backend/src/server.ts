@@ -1,3 +1,4 @@
+import { WebSocketServer, WebSocket, type RawData } from "ws";
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
@@ -10,6 +11,7 @@ import * as linkStore from "./services/linkStore.js";
 import * as tillStore from "./services/tillStore.js";
 import * as merchantStore from "./services/merchantStore.js";
 import * as giftCardStore from "./services/giftCardStore.js";
+import * as posStore from "./services/posStore.js";
 import { ensureSchema, isDbConfigured } from "./db.js";
 
 dotenv.config();
@@ -50,6 +52,10 @@ app.use(
   }),
 );
 app.use(express.json({ limit: "1mb" }));
+// Fallbacks so ERP/webhook posts in other content types are still captured
+// (see POST /pos/v1/sale). JSON above wins for application/json.
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+app.use(express.text({ type: ["text/*", "application/xml", "*/xml"], limit: "1mb" }));
 app.use(
   rateLimit({
     windowMs: 60_000,
@@ -157,11 +163,21 @@ const cancelLinkSchema = z.object({
 
 const merchantQuerySchema = z.string().startsWith("0x").min(4);
 
-// Merchant directory: a business name tied to the on-chain Merchant + owner.
+// Merchant directory: a business name tied to the on-chain Merchant + owner,
+// plus optional business metadata. Only businessName is required here so partial
+// updates (e.g. an inline rename) validate; the app enforces name + VAT at setup.
+const optionalField = (max: number) => z.string().trim().max(max).optional();
 const merchantProfileSchema = z.object({
   sender: z.string().startsWith("0x"),
   merchantId: z.string().startsWith("0x"),
   businessName: z.string().trim().min(2).max(40),
+  vatId: optionalField(32),
+  city: optionalField(64),
+  country: optionalField(64),
+  phone: optionalField(32),
+  email: z.string().trim().max(120).email().optional().or(z.literal("")),
+  category: optionalField(40),
+  logoUrl: z.string().trim().url().max(512).optional().or(z.literal("")),
 });
 
 const microAmount = z
@@ -330,6 +346,298 @@ const faucetRedirectUrl = process.env.FAUCET_REDIRECT_URL ?? "https://faucet.sui
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", service: "brisk-backend" });
+});
+
+// ─── ERP point-of-sale integration ───────────────────────────────────────────
+// Real-time bridge: an external ERP initiates a sale (POST /pos/v1/sale) tagged
+// with a terminalId (embedded in aadeProviderSignatureData); the backend routes
+// it over a WebSocket to the specific merchant phone bound to that terminal; the
+// phone runs the NFC charge, settles on-chain, and reports the tx digest, which
+// the ERP polls for via GET /pos/v1/sessions/:sessionId.
+//
+// Transport: single free Render instance ⇒ an in-memory terminalId→socket map is
+// sufficient (no pub/sub). Durable state (terminals, sessions) lives in Postgres
+// so nothing is lost across a socket reconnect or a redeploy — a sale that lands
+// while the socket is briefly down is drained to the terminal on reconnect.
+
+// terminalId -> live WebSocket (this instance only).
+const terminalSockets = new Map<string, WebSocket>();
+
+// How long a sale may stay PROCESSING before it's lazily timed out, so a sale the
+// device never resolved doesn't leave the ERP polling forever. Generous enough to
+// cover the NFC charge + settlement + digest lookup (and a short device queue).
+const posSessionTtlSec = Number(process.env.POS_SESSION_TTL_SEC ?? 300);
+
+const terminalRegisterSchema = z.object({
+  deviceId: z.string().min(8).max(128),
+  sender: z.string().startsWith("0x"),
+  merchantId: z.string().startsWith("0x"),
+  tillId: z.string().startsWith("0x"),
+  name: z.string().trim().min(1).max(64),
+});
+
+const saleSchema = z.object({
+  sessionId: z.string().min(1).max(128),
+  aadeProviderSignatureData: z.string().min(1).max(512),
+});
+
+// Success is reported by supplying a `digest` (→ becomes the aadeTransactionId);
+// a failure is reported with `state`. `state` therefore only carries the two
+// non-success outcomes, so it can never be mistaken for a success-without-digest.
+const saleResultSchema = z
+  .object({
+    token: z.string().min(1),
+    digest: z.string().min(10).optional(),
+    state: z.enum(["FAILED", "TIMEOUT", "CANCELED"]).optional(),
+  })
+  .refine((v) => !!v.digest || !!v.state, {
+    message: "Provide a digest (success) or a terminal state",
+  });
+
+/**
+ * Parse the ERP's `aadeProviderSignatureData` — a `;`-delimited string whose
+ * meaningful fields are the LAST FIVE: price, net, vat, total (all integer
+ * cents), and terminalId. Parsing from the end ignores the variable-length
+ * prefix (signature hash, timestamps). `total` includes any tip and is the
+ * charge amount. Example:
+ *   95A9…;;20260712115724;700;618;82;700;12345678
+ *                          ^price ^net ^vat ^total ^terminalId
+ */
+function parseAadeProviderSignatureData(raw: string): {
+  priceCents: number;
+  netCents: number;
+  vatCents: number;
+  totalCents: number;
+  terminalId: string;
+} | null {
+  const parts = raw.split(";");
+  if (parts.length < 5) return null;
+  const [priceStr, netStr, vatStr, totalStr, terminalId] = parts.slice(-5);
+  const priceCents = Number(priceStr);
+  const netCents = Number(netStr);
+  const vatCents = Number(vatStr);
+  const totalCents = Number(totalStr);
+  if (
+    !Number.isInteger(priceCents) ||
+    !Number.isInteger(netCents) ||
+    !Number.isInteger(vatCents) ||
+    !Number.isInteger(totalCents) ||
+    totalCents <= 0 ||
+    !terminalId
+  ) {
+    return null;
+  }
+  return { priceCents, netCents, vatCents, totalCents, terminalId };
+}
+
+/** Push a JSON message to a terminal's socket if it's connected. */
+function pushToTerminal(terminalId: string, message: Record<string, unknown>): boolean {
+  const ws = terminalSockets.get(terminalId);
+  if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+  ws.send(JSON.stringify(message));
+  return true;
+}
+
+/** Build the SALE message a terminal acts on. */
+function saleMessage(session: posStore.PosSession, tillId: string) {
+  return {
+    type: "SALE" as const,
+    sessionId: session.sessionId,
+    amountMicros: session.amountMicros,
+    totalCents: session.totalCents,
+    netCents: session.netCents,
+    vatCents: session.vatCents,
+    tillId,
+  };
+}
+
+// Register (or re-register) a terminal — called by the merchant device. Returns
+// the auth token used for the socket + result reporting. Gated by the per-sender
+// daily cap as cheap anti-abuse, like the other device-driven POST routes.
+app.post("/pos/v1/terminals", async (req, res) => {
+  if (!isDbConfigured()) {
+    res.status(503).json({ error: "POS is not available" });
+    return;
+  }
+  const parsed = terminalRegisterSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid payload" });
+    return;
+  }
+  try {
+    assertWithinDailyLimit(parsed.data.sender);
+  } catch (err) {
+    if (err instanceof SponsorshipLimitError) {
+      res.status(429).json({ error: err.message, used: err.used, limit: err.limit });
+      return;
+    }
+    throw err;
+  }
+  try {
+    const terminal = await posStore.registerTerminal({
+      deviceId: parsed.data.deviceId,
+      ownerAddr: parsed.data.sender,
+      merchantId: parsed.data.merchantId,
+      tillId: parsed.data.tillId,
+      name: parsed.data.name,
+    });
+    console.log("[pos] terminal registered", {
+      terminalId: terminal.terminalId,
+      ownerAddr: terminal.ownerAddr,
+      tillId: terminal.tillId,
+    });
+    res.json({ terminalId: terminal.terminalId, token: terminal.token });
+  } catch (error: unknown) {
+    console.error("[pos] terminal register failed", error instanceof Error ? error.message : error);
+    res.status(500).json({ error: "Failed to register terminal" });
+  }
+});
+
+app.post("/pos/v1/sale", async (req, res) => {
+  console.log("[pos] POST /pos/v1/sale", {
+    timestamp: new Date().toISOString(),
+    ip: req.ip,
+    headers: req.headers,
+    query: req.query,
+    body: req.body,
+    rawBodyType: typeof req.body,
+  });
+  if (!isDbConfigured()) {
+    res.status(503).json({ error: "POS is not available" });
+    return;
+  }
+  const parsed = saleSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid payload" });
+    return;
+  }
+  const sig = parseAadeProviderSignatureData(parsed.data.aadeProviderSignatureData);
+  if (!sig) {
+    res.status(400).json({ error: "Malformed aadeProviderSignatureData" });
+    return;
+  }
+
+  try {
+    // Normalize the code as a human may have keyed it into the ERP (lowercase,
+    // spaces/hyphens) into the canonical stored form before lookup.
+    const terminalId = posStore.normalizeTerminalCode(sig.terminalId);
+    const terminal = await posStore.getTerminal(terminalId);
+    if (!terminal) {
+      console.warn("[pos] sale for unknown terminal", { terminalId });
+      res.status(404).json({ error: "Unknown terminal" });
+      return;
+    }
+
+    const amountMicros = sig.totalCents * 10_000; // 1 cent = 10^4 USDC micros
+    // Store + route under the canonical terminalId so redelivery on reconnect
+    // (which keys on the socket's normalized id) always finds the session.
+    const session = await posStore.createSession({
+      sessionId: parsed.data.sessionId,
+      terminalId,
+      amountMicros,
+      netCents: sig.netCents,
+      vatCents: sig.vatCents,
+      totalCents: sig.totalCents,
+    });
+
+    // Push to the live terminal socket (best-effort). The session is marked
+    // delivered only when the device ACKs it over the socket, so a push that
+    // never lands (offline / half-open socket) is redelivered on next connect.
+    const pushed = pushToTerminal(terminalId, saleMessage(session, terminal.tillId));
+    console.log("[pos] sale routed", {
+      sessionId: session.sessionId,
+      terminalId,
+      amountMicros,
+      pushed,
+    });
+
+    res
+      .status(200)
+      .json({ state: "PROCESSING", sessionType: "SALE", sessionId: session.sessionId });
+  } catch (error: unknown) {
+    console.error("[pos] sale failed", error instanceof Error ? error.message : error);
+    res.status(500).json({ error: "Failed to initiate sale" });
+  }
+});
+
+app.get("/pos/v1/sessions/:sessionId", async (req, res) => {
+  const { sessionId } = req.params;
+  console.log("[pos] GET /pos/v1/sessions/:sessionId", {
+    timestamp: new Date().toISOString(),
+    ip: req.ip,
+    query: req.query,
+    sessionId,
+  });
+  if (!isDbConfigured()) {
+    res.status(503).json({ error: "POS is not available" });
+    return;
+  }
+  try {
+    // Time out a stale PROCESSING session before reading, so the ERP gets a
+    // terminal answer rather than polling a never-resolved sale indefinitely.
+    await posStore.expireStaleSession(sessionId, posSessionTtlSec);
+    const session = await posStore.getSession(sessionId);
+    if (!session) {
+      console.log("[pos] session not found", { sessionId });
+      res.status(404).json({ error: "Session not found" });
+      return;
+    }
+    // Map the internal state to the ERP-facing shape. A merchant cancel is
+    // surfaced as a FAILURE of type CANCEL; every other outcome is a SALE.
+    const responseBody =
+      session.state === "CANCELED"
+        ? { state: "FAILURE", sessionType: "CANCEL", aadeData: { aadeTransactionId: null } }
+        : {
+            state: session.state,
+            sessionType: "SALE",
+            aadeData: { aadeTransactionId: session.aadeTransactionId },
+          };
+    console.log("[pos] session resolved", { sessionId, responseBody });
+    res.status(200).json(responseBody);
+  } catch (error: unknown) {
+    console.error("[pos] session lookup failed", error instanceof Error ? error.message : error);
+    res.status(500).json({ error: "Failed to load session" });
+  }
+});
+
+// The merchant device reports the sale outcome: a digest on success (→ becomes
+// the aadeTransactionId the ERP polls), or a terminal FAILED/TIMEOUT state.
+// Authenticated with the terminal's token.
+app.post("/pos/v1/sessions/:sessionId/result", async (req, res) => {
+  const { sessionId } = req.params;
+  if (!isDbConfigured()) {
+    res.status(503).json({ error: "POS is not available" });
+    return;
+  }
+  const parsed = saleResultSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid payload" });
+    return;
+  }
+  try {
+    const session = await posStore.getSession(sessionId);
+    if (!session) {
+      res.status(404).json({ error: "Session not found" });
+      return;
+    }
+    const terminal = await posStore.getTerminal(session.terminalId);
+    if (!terminal || terminal.token !== parsed.data.token) {
+      res.status(403).json({ error: "Invalid terminal token" });
+      return;
+    }
+    if (parsed.data.digest) {
+      const updated = await posStore.markSuccess(sessionId, parsed.data.digest);
+      console.log("[pos] session settled", { sessionId, digest: parsed.data.digest, updated });
+    } else {
+      const state = parsed.data.state ?? "FAILED";
+      const updated = await posStore.markFailed(sessionId, state);
+      console.log("[pos] session marked", { sessionId, state, updated });
+    }
+    res.json({ ok: true });
+  } catch (error: unknown) {
+    console.error("[pos] result failed", error instanceof Error ? error.message : error);
+    res.status(500).json({ error: "Failed to record result" });
+  }
 });
 
 // ─── Google OAuth mobile redirect proxy ─────────────────────────────────────
@@ -948,6 +1256,13 @@ app.post("/api/merchants", async (req, res) => {
       merchantId: parsed.data.merchantId,
       ownerAddr: parsed.data.sender,
       businessName: parsed.data.businessName,
+      vatId: parsed.data.vatId,
+      city: parsed.data.city,
+      country: parsed.data.country,
+      phone: parsed.data.phone,
+      email: parsed.data.email,
+      category: parsed.data.category,
+      logoUrl: parsed.data.logoUrl,
     });
     res.json({ profile });
   } catch (error: unknown) {
@@ -1005,19 +1320,19 @@ app.get("/api/merchants/lookup", async (req, res) => {
   }
 });
 
-// Search the directory by business name (customer "buy a gift card" picker).
+// Search the directory by business name (customer "buy a gift card" picker). An
+// empty query browses ALL merchants so the customer can discover businesses
+// without knowing an exact name; a query does a substring match.
 app.get("/api/merchants/search", async (req, res) => {
   if (!isDbConfigured()) {
     res.json({ profiles: [] });
     return;
   }
-  const q = typeof req.query.q === "string" ? req.query.q : "";
-  if (q.trim().length < 2) {
-    res.json({ profiles: [] });
-    return;
-  }
+  const q = (typeof req.query.q === "string" ? req.query.q : "").trim();
   try {
-    res.json({ profiles: await merchantStore.searchByName(q) });
+    const profiles =
+      q.length >= 1 ? await merchantStore.searchByName(q) : await merchantStore.listAll();
+    res.json({ profiles });
   } catch (error: unknown) {
     console.error("[merchants] search failed", error instanceof Error ? error.message : error);
     res.json({ profiles: [] });
@@ -1325,6 +1640,119 @@ display:flex;min-height:100vh;align-items:center;justify-content:center;text-ali
 const server = app.listen(port, () => {
   console.log(`[brisk-backend] listening on :${port}`);
 });
+
+// ─── POS terminal WebSocket ──────────────────────────────────────────────────
+// Merchant phones (in terminal mode) hold a socket open here; the backend pushes
+// SALE messages down the socket for the matching terminalId. Attached to the same
+// http.Server (Render free supports WS upgrades on the same port). Auth: the
+// terminalId + token issued at registration, passed as query params.
+
+type LiveSocket = WebSocket & { isAlive?: boolean };
+
+const posWss = new WebSocketServer({ noServer: true });
+
+server.on("upgrade", (req, socket, head) => {
+  let url: URL;
+  try {
+    url = new URL(req.url ?? "", "http://localhost");
+  } catch {
+    socket.destroy();
+    return;
+  }
+  if (url.pathname !== "/pos/v1/socket") {
+    socket.destroy();
+    return;
+  }
+  const terminalId = url.searchParams.get("terminalId") ?? "";
+  const token = url.searchParams.get("token") ?? "";
+
+  void (async () => {
+    if (!isDbConfigured()) {
+      socket.write("HTTP/1.1 503 Service Unavailable\r\n\r\n");
+      socket.destroy();
+      return;
+    }
+    const terminal = await posStore.getTerminal(terminalId).catch(() => null);
+    if (!terminal || !token || terminal.token !== token) {
+      socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+      socket.destroy();
+      return;
+    }
+    posWss.handleUpgrade(req, socket, head, (ws) => {
+      posWss.emit("connection", ws, terminal);
+    });
+  })();
+});
+
+posWss.on("connection", (ws: LiveSocket, terminal: posStore.PosTerminal) => {
+  const { terminalId, tillId } = terminal;
+  console.log("[pos] terminal socket connected", { terminalId });
+
+  // Last-writer-wins: if the same terminal reconnects, drop the stale socket.
+  const prior = terminalSockets.get(terminalId);
+  if (prior && prior !== ws) prior.terminate();
+  terminalSockets.set(terminalId, ws);
+  void posStore.touchTerminal(terminalId).catch(() => {});
+
+  ws.isAlive = true;
+  ws.on("pong", () => {
+    ws.isAlive = true;
+  });
+  // The device ACKs each SALE it receives; that (not the send) is what marks the
+  // session delivered, so an un-received push is redelivered on the next connect.
+  ws.on("message", (data: RawData) => {
+    let msg: unknown;
+    try {
+      msg = JSON.parse(data.toString());
+    } catch {
+      return; // ignore non-JSON frames
+    }
+    const m = msg as { type?: unknown; sessionId?: unknown };
+    if (m?.type === "ACK" && typeof m.sessionId === "string") {
+      void posStore
+        .markDelivered(m.sessionId)
+        .catch((e) =>
+          console.warn("[pos] ack markDelivered failed", e instanceof Error ? e.message : e),
+        );
+    }
+  });
+  ws.on("close", () => {
+    if (terminalSockets.get(terminalId) === ws) terminalSockets.delete(terminalId);
+    console.log("[pos] terminal socket closed", { terminalId });
+  });
+  ws.on("error", (err) => {
+    console.warn("[pos] terminal socket error", { terminalId, error: err.message });
+  });
+
+  // Redeliver any sales that haven't been ACKed yet (arrived while offline, or a
+  // prior push that never landed). The device de-dupes by sessionId.
+  void posStore
+    .getUndeliveredSessions(terminalId, posSessionTtlSec)
+    .then((pending) => {
+      for (const session of pending) {
+        ws.send(JSON.stringify(saleMessage(session, tillId)));
+        console.log("[pos] redelivering pending sale", {
+          terminalId,
+          sessionId: session.sessionId,
+        });
+      }
+    })
+    .catch((e) => console.error("[pos] drain failed", e instanceof Error ? e.message : e));
+});
+
+// Heartbeat: terminate sockets that stop answering pings (30s) so the registry
+// doesn't leak dead entries (Render's proxy silently drops idle connections).
+const posHeartbeat = setInterval(() => {
+  for (const ws of posWss.clients as Set<LiveSocket>) {
+    if (ws.isAlive === false) {
+      ws.terminate();
+      continue;
+    }
+    ws.isAlive = false;
+    ws.ping();
+  }
+}, 30_000);
+posHeartbeat.unref();
 
 void ensureSchema().catch((e) => console.error("[db] ensureSchema failed", e));
 

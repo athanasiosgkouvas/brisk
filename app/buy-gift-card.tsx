@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, ScrollView, Text, TextInput, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Search, Store } from "lucide-react-native";
+import { Search } from "lucide-react-native";
 
 import { Screen } from "@/components/ui/Screen";
 import { ListRow } from "@/components/ui/ListRow";
+import { BusinessAvatar } from "@/components/ui/BusinessAvatar";
 import { ShareSheet } from "@/components/ui/ShareSheet";
 import { ErrorText } from "@/components/ui/ErrorText";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
@@ -37,7 +38,9 @@ export default function BuyGiftCardScreen() {
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<MerchantProfile[]>([]);
-  const [searching, setSearching] = useState(false);
+  // Start true so the initial browse doesn't flash the "no businesses" empty
+  // state before the first results land.
+  const [searching, setSearching] = useState(true);
 
   const [amountText, setAmountText] = useState("");
   const [status, setStatus] = useState<"form" | "buying" | "done" | "error">("form");
@@ -47,27 +50,32 @@ export default function BuyGiftCardScreen() {
   const micros = usdToMicros(Number(amountText || "0"));
   const canBuy = micros > 0 && !!merchantId;
 
-  // Debounced merchant search (only when no merchant is chosen yet).
+  // Debounced merchant search (only when no merchant is chosen yet). An empty
+  // query browses ALL businesses so the customer can discover them; typing
+  // filters. Debounce only while typing — browse the full list immediately.
   useEffect(() => {
     if (merchantId) return;
     const q = query.trim();
-    if (q.length < 2) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setResults([]);
-      return;
-    }
     let active = true;
-    setSearching(true);
-    const t = setTimeout(() => {
-      searchMerchants(q)
-        .then((r) => active && setResults(r))
-        .finally(() => active && setSearching(false));
-    }, 250);
+    const t = setTimeout(
+      () => {
+        if (!active) return;
+        setSearching(true);
+        searchMerchants(q)
+          .then((r) => active && setResults(r))
+          .finally(() => active && setSearching(false));
+      },
+      q ? 250 : 0,
+    );
     return () => {
       active = false;
       clearTimeout(t);
     };
   }, [query, merchantId]);
+
+  // A short line distinguishing similar-named businesses (category/city, else slug).
+  const subtitleFor = (m: MerchantProfile) =>
+    [m.category, m.city].filter(Boolean).join(" · ") || m.slug;
 
   const onBuy = async () => {
     if (!canBuy) return;
@@ -88,7 +96,7 @@ export default function BuyGiftCardScreen() {
       {!merchantId ? (
         <Animated.View entering={FadeIn.duration(300)} className="flex-1 pt-2">
           <Text className="text-center text-sm text-brisk-subtext">
-            Find the business you want to gift store credit for.
+            Browse businesses, or search to gift store credit for one.
           </Text>
           <View className="mt-6 w-full flex-row items-center rounded-2xl border border-brisk-borderStrong bg-brisk-bg1/70 px-4 py-3">
             <Search color={theme.subtext} size={ICON.inlineAction} />
@@ -113,16 +121,24 @@ export default function BuyGiftCardScreen() {
             {results.map((m) => (
               <View key={m.merchantId} className="mt-2">
                 <ListRow
-                  icon={Store}
+                  leading={
+                    <BusinessAvatar
+                      logoUrl={m.logoUrl}
+                      seed={m.merchantId}
+                      size={40}
+                      label={m.businessName?.trim()?.[0]}
+                    />
+                  }
                   title={m.businessName}
+                  subtitle={subtitleFor(m)}
                   onPress={() => setPicked({ merchantId: m.merchantId, name: m.businessName })}
                   chevron
                 />
               </View>
             ))}
-            {query.trim().length >= 2 && !searching && results.length === 0 ? (
+            {!searching && results.length === 0 ? (
               <Text className="mt-6 text-center text-sm text-brisk-subtext">
-                No businesses found for “{query.trim()}”.
+                {query.trim() ? `No businesses found for “${query.trim()}”.` : "No businesses yet."}
               </Text>
             ) : null}
           </ScrollView>
@@ -182,7 +198,6 @@ export default function BuyGiftCardScreen() {
           </View>
           <Text className="mt-3 text-center text-xs text-brisk-subtext">
             Your friend gets a gift card for the full amount to spend at {merchantName}.
-            {merchantName} is paid right away (Brisk keeps a 3% fee).
           </Text>
         </Animated.View>
       )}

@@ -9,6 +9,25 @@ export type MerchantProfile = {
   ownerAddr: string;
   businessName: string;
   slug: string;
+  // Optional directory metadata (null until the merchant fills them in).
+  vatId: string | null;
+  city: string | null;
+  country: string | null;
+  phone: string | null;
+  email: string | null;
+  category: string | null;
+  logoUrl: string | null;
+};
+
+/** The optional metadata fields a caller may set on a profile. */
+export type MerchantProfileFields = {
+  vatId?: string | null;
+  city?: string | null;
+  country?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  category?: string | null;
+  logoUrl?: string | null;
 };
 
 function requirePool() {
@@ -36,32 +55,85 @@ function rowToProfile(r: any): MerchantProfile {
     ownerAddr: r.owner_addr,
     businessName: r.business_name,
     slug: r.slug,
+    vatId: r.vat_id ?? null,
+    city: r.city ?? null,
+    country: r.country ?? null,
+    phone: r.phone ?? null,
+    email: r.email ?? null,
+    category: r.category ?? null,
+    logoUrl: r.logo_url ?? null,
   };
 }
 
-const SELECT_COLS = `merchant_id, owner_addr, business_name, slug`;
+const SELECT_COLS = `merchant_id, owner_addr, business_name, slug,
+            vat_id, city, country, phone, email, category, logo_url`;
 
 /**
  * Create or update a merchant's profile. The caller must have already verified
  * `ownerAddr` controls `merchantId` (endpoint owner-claim gate). On update, only
  * the row whose owner_addr matches is touched.
  */
-export async function upsertProfile(input: {
-  merchantId: string;
-  ownerAddr: string;
-  businessName: string;
-}): Promise<MerchantProfile> {
+export async function upsertProfile(
+  input: {
+    merchantId: string;
+    ownerAddr: string;
+    businessName: string;
+  } & MerchantProfileFields,
+): Promise<MerchantProfile> {
   const db = requirePool();
   const slug = makeSlug(input.businessName, input.merchantId);
+  // Empty string → NULL (an explicit clear); trim otherwise.
+  const nz = (v: string | null | undefined) => (v == null ? null : v.trim() || null);
+
+  // Only optional fields the caller actually PROVIDED (key present, i.e. not
+  // `undefined`) are written on update; omitted fields are preserved. This lets
+  // a name-only rename keep the rest, while the details editor can clear a field
+  // by sending "" (→ NULL). On first insert, omitted fields default to NULL.
+  const optionalKeys = [
+    "vatId",
+    "city",
+    "country",
+    "phone",
+    "email",
+    "category",
+    "logoUrl",
+  ] as const;
+  const colFor: Record<(typeof optionalKeys)[number], string> = {
+    vatId: "vat_id",
+    city: "city",
+    country: "country",
+    phone: "phone",
+    email: "email",
+    category: "category",
+    logoUrl: "logo_url",
+  };
+  const provided = optionalKeys.filter((k) => input[k] !== undefined);
+
+  const insertCols = ["merchant_id", "owner_addr", "business_name", "slug"];
+  const values: (string | null)[] = [
+    input.merchantId,
+    input.ownerAddr,
+    input.businessName.trim(),
+    slug,
+  ];
+  for (const k of provided) {
+    insertCols.push(colFor[k]);
+    values.push(nz(input[k]));
+  }
+  const placeholders = values.map((_, i) => `$${i + 1}`).join(", ");
+  const updateSet = [
+    "business_name = EXCLUDED.business_name",
+    "slug = EXCLUDED.slug",
+    "updated_at = now()",
+    ...provided.map((k) => `${colFor[k]} = EXCLUDED.${colFor[k]}`),
+  ].join(", ");
+
   const { rows } = await db.query(
-    `INSERT INTO merchant_profiles (merchant_id, owner_addr, business_name, slug)
-     VALUES ($1, $2, $3, $4)
-     ON CONFLICT (merchant_id) DO UPDATE
-       SET business_name = EXCLUDED.business_name,
-           slug          = EXCLUDED.slug,
-           updated_at    = now()
+    `INSERT INTO merchant_profiles (${insertCols.join(", ")})
+     VALUES (${placeholders})
+     ON CONFLICT (merchant_id) DO UPDATE SET ${updateSet}
      RETURNING ${SELECT_COLS}`,
-    [input.merchantId, input.ownerAddr, input.businessName.trim(), slug],
+    values,
   );
   return rowToProfile(rows[0]);
 }
@@ -94,6 +166,17 @@ export async function searchByName(query: string, limit = 20): Promise<MerchantP
     `SELECT ${SELECT_COLS} FROM merchant_profiles
        WHERE business_name ILIKE $1 ORDER BY business_name ASC LIMIT $2`,
     [`%${q}%`, limit],
+  );
+  return rows.map(rowToProfile);
+}
+
+/** All merchants (newest-relevant browse), alphabetical, capped — powers the
+ *  gift-card picker's "browse everything" state when no query is typed. */
+export async function listAll(limit = 100): Promise<MerchantProfile[]> {
+  const db = requirePool();
+  const { rows } = await db.query(
+    `SELECT ${SELECT_COLS} FROM merchant_profiles ORDER BY business_name ASC LIMIT $1`,
+    [limit],
   );
   return rows.map(rowToProfile);
 }

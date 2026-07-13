@@ -4,6 +4,7 @@ import type { AuthSession } from "@/types/user";
 import { enokiAuthService } from "@/services/auth/enokiAuth";
 import { executeSponsored } from "@/services/blockchain/sponsoredExec";
 import { getSuiClientForBuild, suiClient } from "@/services/blockchain/suiClient";
+import { fetchAddressTransactions } from "@/services/blockchain/txHistory";
 import {
   buildGaslessTransferTx,
   buildRecordPaymentTx,
@@ -103,6 +104,53 @@ export async function payGasless(
 export async function getUsdcBalanceMicros(owner: string): Promise<number> {
   const res = await suiClient.getBalance({ owner, coinType: ENV.usdcType });
   return Number(res.totalBalance ?? "0");
+}
+
+/**
+ * Find the on-chain digest of the incoming USDC payment that just credited a
+ * till. Used by the ERP/terminal flow: the merchant device has no digest of its
+ * own (the customer signs the transfer), so after settlement we look up the
+ * crediting transaction from the till's history and report its digest.
+ *
+ * Matches the newest transaction with a positive USDC credit to `till` of at
+ * least `amountMicros`, restricted to `sinceMs` (with slack) so an older
+ * identical-amount payment can't be mistaken for this one. Retries to ride out
+ * GraphQL indexing lag (settlement is detected via balance, which can be indexed
+ * a beat before the tx is queryable).
+ */
+export async function findIncomingDigest(input: {
+  till: string;
+  amountMicros: number;
+  sinceMs: number;
+  attempts?: number;
+  intervalMs?: number;
+}): Promise<string | null> {
+  const attempts = input.attempts ?? 8;
+  const intervalMs = input.intervalMs ?? 1_500;
+  const till = input.till.toLowerCase();
+  // Clock-skew slack between device time (sinceMs) and on-chain timestamps.
+  const floorMs = input.sinceMs - 60_000;
+
+  for (let i = 0; i < attempts; i++) {
+    if (i > 0) await new Promise((r) => setTimeout(r, intervalMs));
+    try {
+      const txs = await fetchAddressTransactions(input.till, { direction: "affected", last: 25 });
+      const match = txs.find(
+        (tx) =>
+          tx.timestampMs >= floorMs &&
+          tx.balanceChanges.some(
+            (bc) =>
+              (bc.address ?? "").toLowerCase() === till &&
+              bc.coinType === ENV.usdcType &&
+              Number(bc.amount) >= input.amountMicros,
+          ),
+      );
+      if (match?.digest) return match.digest;
+    } catch {
+      // transient GraphQL error — keep retrying until attempts run out
+    }
+  }
+  return null;
 }
 
 /**

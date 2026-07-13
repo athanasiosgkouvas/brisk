@@ -1,7 +1,7 @@
 import { toBase64 } from "@mysten/sui/utils";
 
 import type { AuthSession } from "@/types/user";
-import { getSuiClientForBuild } from "@/services/blockchain/suiClient";
+import { getSuiClientForBuild, waitForTxIndexed } from "@/services/blockchain/suiClient";
 import { getSpendableUsdcMicros } from "@/services/blockchain/wallet";
 import { executeSponsored } from "@/services/blockchain/sponsoredExec";
 import { ensureMerchant, findMerchantId } from "@/services/blockchain/merchant";
@@ -74,7 +74,9 @@ async function ensureMerchantCap(
 /** Pull the created shared `Till` id out of a create_till tx's object changes. */
 async function tillIdFromTx(digest: string): Promise<string | null> {
   const client = await getSuiClientForBuild();
-  const r = await client.getTransaction({ digest, include: { effects: true, objectTypes: true } });
+  // Sponsored tx is executed on Enoki's node; poll until our (lagging) GraphQL
+  // fullnode indexes the digest rather than racing it with a one-shot read.
+  const r = await waitForTxIndexed(client, digest, { effects: true, objectTypes: true });
   const txn = r.Transaction ?? r.FailedTransaction;
   const types: Record<string, string> = txn?.objectTypes ?? {};
   for (const c of txn?.effects?.changedObjects ?? []) {

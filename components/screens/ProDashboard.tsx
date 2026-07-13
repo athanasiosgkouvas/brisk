@@ -42,7 +42,7 @@ export function ProDashboard() {
   const { state: save, refresh: refreshSave } = useSave();
   const { liveValueMicros: saveValue } = useLiveYield(save);
   const { items: activity, refresh: refreshActivity } = useActivity();
-  const { nameFor, resolve } = useMerchantDirectory();
+  const { nameFor, logoFor, resolve } = useMerchantDirectory();
   const { name: businessName } = useMerchantProfile();
   const { tills, status, refresh: refreshTills, sweep } = useTills();
   const [refreshing, setRefreshing] = useState(false);
@@ -240,6 +240,7 @@ export function ProDashboard() {
                 item={it}
                 index={i}
                 name={nameFor(it.counterparty)}
+                logoUrl={logoFor(it.counterparty)}
               />
             ))}
           </View>

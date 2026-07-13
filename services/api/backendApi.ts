@@ -187,14 +187,34 @@ export type MerchantProfile = {
   ownerAddr: string;
   businessName: string;
   slug: string;
+  vatId: string | null;
+  city: string | null;
+  country: string | null;
+  phone: string | null;
+  email: string | null;
+  category: string | null;
+  logoUrl: string | null;
+};
+
+/** The optional business-metadata fields a merchant can set on their profile. */
+export type MerchantProfileFields = {
+  vatId?: string;
+  city?: string;
+  country?: string;
+  phone?: string;
+  email?: string;
+  category?: string;
+  logoUrl?: string;
 };
 
 /** Create or update the caller's business profile (the merchant directory). */
-export async function upsertMerchantProfile(input: {
-  sender: string;
-  merchantId: string;
-  businessName: string;
-}): Promise<MerchantProfile> {
+export async function upsertMerchantProfile(
+  input: {
+    sender: string;
+    merchantId: string;
+    businessName: string;
+  } & MerchantProfileFields,
+): Promise<MerchantProfile> {
   const res = await backendFetch<{ profile: MerchantProfile }>("/api/merchants", {
     method: "POST",
     body: JSON.stringify(input),
@@ -214,9 +234,9 @@ export async function getMerchantByOwner(address: string): Promise<MerchantProfi
   }
 }
 
-/** Search the merchant directory by business name (the buy-gift-card picker). */
+/** Search the merchant directory (the buy-gift-card picker). An empty query
+ *  browses ALL businesses; a non-empty query does a substring match. */
 export async function searchMerchants(query: string): Promise<MerchantProfile[]> {
-  if (query.trim().length < 2) return [];
   try {
     const res = await backendFetch<{ profiles: MerchantProfile[] }>(
       `/api/merchants/search?q=${encodeURIComponent(query.trim())}`,
@@ -293,6 +313,35 @@ export type SponsorshipQuota = {
 
 export async function fetchSponsorshipQuota(address: string): Promise<SponsorshipQuota> {
   return backendFetch<SponsorshipQuota>(`/api/user/${address}/sponsorship`);
+}
+
+// --- POS terminal (ERP ↔ backend ↔ this device) ---
+/** Register/refresh this device as a POS terminal; returns the auth token used
+ *  for the terminal WebSocket + result reporting. */
+export async function registerTerminal(input: {
+  deviceId: string;
+  sender: string;
+  merchantId: string;
+  tillId: string;
+  name: string;
+}): Promise<{ terminalId: string; token: string }> {
+  return backendFetch<{ terminalId: string; token: string }>("/pos/v1/terminals", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+/** Report a POS sale outcome: a digest on success (becomes the ERP's
+ *  aadeTransactionId), or a terminal FAILED/TIMEOUT state. */
+export async function reportSaleResult(
+  sessionId: string,
+  token: string,
+  outcome: { digest: string } | { state: "FAILED" | "TIMEOUT" | "CANCELED" },
+): Promise<void> {
+  await backendFetch<{ ok: boolean }>(`/pos/v1/sessions/${sessionId}/result`, {
+    method: "POST",
+    body: JSON.stringify({ token, ...outcome }),
+  });
 }
 
 export async function trackAnalyticsEvent(event: string, properties?: Record<string, unknown>) {

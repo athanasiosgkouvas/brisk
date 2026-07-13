@@ -4,6 +4,7 @@ import { Text, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { AnimatedCheck } from "@/components/ui/AnimatedCheck";
+import { AuroraBurst } from "@/components/ui/AuroraBurst";
 import { HeroAmount } from "@/components/ui/HeroAmount";
 import { hapticSettleWin } from "@/utils/haptics";
 
@@ -35,7 +36,11 @@ export function SuccessSheet({
 
   return (
     <Animated.View entering={FadeInDown.duration(500).springify()} className="items-center">
-      <AnimatedCheck size={72} />
+      {/* Decorative celebratory burst behind the check (one-shot, on-brand). */}
+      <View className="items-center justify-center">
+        <AuroraBurst size={72} />
+        <AnimatedCheck size={72} />
+      </View>
       <Text className="mt-5 text-2xl font-inter-bold text-brisk-text">{title}</Text>
       <HeroAmount micros={amountMicros} tier="confirm" fromZero className="mt-1" />
       {subtitle ? <Text className="mt-1 text-base text-brisk-subtext">{subtitle}</Text> : null}

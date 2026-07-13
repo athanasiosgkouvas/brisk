@@ -1,7 +1,7 @@
 import { toBase64 } from "@mysten/sui/utils";
 
 import type { AuthSession } from "@/types/user";
-import { getSuiClientForBuild } from "@/services/blockchain/suiClient";
+import { getSuiClientForBuild, waitForTxIndexed } from "@/services/blockchain/suiClient";
 import { executeSponsored } from "@/services/blockchain/sponsoredExec";
 import {
   buildRegisterMerchantTx,
@@ -35,7 +35,9 @@ export async function findMerchantId(owner: string): Promise<string | null> {
 /** Pull the created shared `Merchant` id out of a register tx's object changes. */
 async function merchantIdFromTx(digest: string): Promise<string | null> {
   const client = await getSuiClientForBuild();
-  const r = await client.getTransaction({ digest, include: { effects: true, objectTypes: true } });
+  // Sponsored tx is executed on Enoki's node; poll until our (lagging) GraphQL
+  // fullnode indexes the digest rather than racing it with a one-shot read.
+  const r = await waitForTxIndexed(client, digest, { effects: true, objectTypes: true });
   const txn = r.Transaction ?? r.FailedTransaction;
   const types: Record<string, string> = txn?.objectTypes ?? {};
   for (const c of txn?.effects?.changedObjects ?? []) {

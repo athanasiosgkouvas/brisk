@@ -73,3 +73,37 @@ export const suiClient: SuiClientLike = {
 export async function getSuiClientForBuild() {
   return getRawClient();
 }
+
+/**
+ * Poll `getTransaction` until our (lagging) GraphQL fullnode has indexed `digest`.
+ * A sponsored tx is executed on Enoki's node, so an immediate one-shot read races
+ * indexing and throws ("Missing response data"). The SDK's own `waitForTransaction`
+ * relies on `AbortSignal.timeout`/`AbortSignal.any`, which Hermes (RN) does not
+ * implement ("undefined is not a function"), so we poll manually with `setTimeout`.
+ */
+export async function waitForTxIndexed(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  client: any,
+  digest: string,
+  include: Record<string, boolean>,
+  opts?: { timeoutMs?: number; intervalMs?: number },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<any> {
+  const timeoutMs = opts?.timeoutMs ?? 30_000;
+  const intervalMs = opts?.intervalMs ?? 800;
+  const deadline = Date.now() + timeoutMs;
+  let lastErr: unknown;
+  let first = true;
+  while (Date.now() < deadline) {
+    if (!first) await new Promise((r) => setTimeout(r, intervalMs));
+    first = false;
+    try {
+      return await client.getTransaction({ digest, include });
+    } catch (e) {
+      lastErr = e; // not indexed yet — keep polling until the deadline
+    }
+  }
+  throw lastErr instanceof Error
+    ? lastErr
+    : new Error(`transaction ${digest} was not indexed within ${timeoutMs}ms`);
+}

@@ -7,8 +7,7 @@ import { ShareSheet } from "@/components/ui/ShareSheet";
 import { useAuth } from "@/hooks/useAuth";
 
 // Receive / top up: show the user's address as a QR + copy. Anyone can send USDC
-// to it (testnet: get test USDC from the Circle faucet). Fiat on/off-ramp is v2 —
-// see docs/ONRAMP_OFFRAMP.md.
+// to it (testnet: get test USDC from the Circle faucet). Fiat on/off-ramp is next.
 export default function ReceiveScreen() {
   const router = useRouter();
   const { session } = useAuth();
