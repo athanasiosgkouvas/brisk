@@ -79,7 +79,8 @@ export function ActivityRow({
             </Text>
           </View>
           <Text className="text-xs text-brisk-subtext">
-            {received ? "from" : "to"} {name ?? shortAddr(item.counterparty)}
+            {received ? "from" : "to"}{" "}
+            {name ?? (item.counterparty ? shortAddr(item.counterparty) : "someone")}
           </Text>
           {item.digest ? (
             <Pressable

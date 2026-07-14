@@ -268,7 +268,13 @@ export async function lookupMerchants(
 }
 
 // --- User directory (Brisk usernames) ---
-export type BriskUser = { ownerAddr: string; handle: string; alias: string };
+export type BriskUser = {
+  ownerAddr: string;
+  handle: string;
+  alias: string;
+  /** Optional compressed avatar as a small data URI (personal profile photo). */
+  avatar?: string | null;
+};
 
 /** Register or change the caller's handle. Throws on 409 (taken) / other errors. */
 export async function upsertUsername(input: {

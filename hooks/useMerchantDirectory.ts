@@ -6,9 +6,12 @@ import { lookupMerchants, lookupUsers, type MerchantProfile } from "@/services/a
 // can render names instead of 0x. Shared across hook instances via a module map.
 const nameCache = new Map<string, string>(); // key: merchantId OR ownerAddr
 const logoCache = new Map<string, string>(); // key: merchantId OR ownerAddr → logoUrl
-// Ordinary users' Brisk aliases (ownerAddr → `handle@brisk`). A merchant business
-// name wins over an alias when an address is both (nameFor checks nameCache first).
+// Ordinary users' Brisk aliases (ownerAddr → `handle@brisk`) and optional avatar
+// data URIs. The personal identity WINS over a business name/logo: an address can
+// be both a person and a merchant owner, and in the P2P/activity feed we want to
+// show the person's @brisk alias + their photo, not their business name.
 const aliasCache = new Map<string, string>(); // key: ownerAddr → alias
+const avatarCache = new Map<string, string>(); // key: ownerAddr → avatar data URI
 const inFlight = new Set<string>();
 
 function cacheProfile(p: MerchantProfile) {
@@ -55,7 +58,10 @@ export function useMerchantDirectory() {
         .catch(() => 0),
       lookupUsers(wanted)
         .then((users) => {
-          users.forEach((u) => aliasCache.set(u.ownerAddr, u.alias));
+          users.forEach((u) => {
+            aliasCache.set(u.ownerAddr, u.alias);
+            if (u.avatar) avatarCache.set(u.ownerAddr, u.avatar);
+          });
           return users.length;
         })
         .catch(() => 0),
@@ -68,13 +74,15 @@ export function useMerchantDirectory() {
 
   const nameFor = useCallback((key: string | null | undefined): string | undefined => {
     if (!key) return undefined;
-    // Merchant business name wins over a personal alias.
-    return nameCache.get(key) ?? aliasCache.get(key);
+    // Personal @brisk alias wins over a business name (P2P identity).
+    return aliasCache.get(key) ?? nameCache.get(key);
   }, []);
 
   const logoFor = useCallback((key: string | null | undefined): string | undefined => {
     if (!key) return undefined;
-    return logoCache.get(key);
+    // Personal avatar wins; a merchant logo only shows for a pure-merchant key
+    // (one with no personal alias).
+    return avatarCache.get(key) ?? (aliasCache.has(key) ? undefined : logoCache.get(key));
   }, []);
 
   return { nameFor, logoFor, resolve };

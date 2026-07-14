@@ -66,6 +66,9 @@ export function useSend() {
   const settle = useCallback(
     async (to: string, amountMicros: number): Promise<SettleOutcome> => {
       if (!session) throw new Error("Not signed in");
+      // Backstop: never send to an empty/invalid address (e.g. an unresolved
+      // recent or a mangled input that slipped past the form).
+      if (!isValidSuiAddress(to)) throw new Error("Invalid recipient address.");
       if ((await ensureSpendable(session, amountMicros)) === "cancelled") return "cancelled";
       return sendUsdc(session, to, amountMicros);
     },

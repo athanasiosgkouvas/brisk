@@ -79,10 +79,16 @@ export default function SendScreen() {
     }
   };
 
+  // A never-empty, never-business-name label for a recipient: the @brisk alias
+  // (or resolved name) if known, else a friendly display, else the short address.
+  const recipientLabel = (address: string, display?: string) =>
+    nameFor(address) ?? (display && !display.startsWith("0x") ? display : shortAddr(address));
+
   // Tap a recent: pre-fill the (already-resolved) recipient; jump straight to
-  // review when an amount is already entered.
+  // review when an amount is already entered. The pinned display carries the
+  // resolved address so the tap never has to re-resolve a business name.
   const onPickRecent = (r: RecentRecipient) => {
-    const picked = { address: r.address, display: nameFor(r.address) ?? r.display };
+    const picked = { address: r.address, display: recipientLabel(r.address, r.display) };
     setTo(picked.display);
     setPinned(picked);
     setFormError(null);
@@ -151,9 +157,7 @@ export default function SendScreen() {
                 contentContainerStyle={{ gap: 12 }}
               >
                 {recents.map((r) => {
-                  const label =
-                    nameFor(r.address) ??
-                    (r.display.startsWith("0x") ? shortAddr(r.display) : r.display);
+                  const label = recipientLabel(r.address, r.display);
                   return (
                     <Pressable
                       key={r.address}
