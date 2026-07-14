@@ -102,11 +102,15 @@ export default function SendScreen() {
             state={flow.state}
             amountMicros={micros}
             eyebrow="Send"
-            payeeLabel={`to ${resolved.display === resolved.address ? shortAddr(resolved.address) : resolved.display}`}
+            payeeLabel={`to ${
+              resolved.display && resolved.display !== resolved.address
+                ? resolved.display
+                : shortAddr(resolved.address)
+            }`}
             // Anti-phishing: when the recipient was a name/username, still show the
             // resolved on-chain address the money is actually going to.
             reviewNote={
-              resolved.display !== resolved.address ? (
+              resolved.display && resolved.display !== resolved.address ? (
                 <Text className="mt-1 text-xs text-brisk-subtext">
                   {shortAddr(resolved.address)}
                 </Text>

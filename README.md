@@ -52,12 +52,19 @@ Everything is **self‑custodial** (your money is yours), **feeless** to the pay
   hold any other token.
 - **Your money earns while it waits.** Move idle balance into **Save** with one tap and it earns yield in
   the background — and it's still instantly spendable.
-- **Send & receive** dollars peer‑to‑peer, feelessly, by QR or address.
+- **Your `@brisk` username.** Claim a handle once (`you@brisk`) and friends send you money **by name** —
+  no long addresses. Your username, not a `0x…` address, is what people see when you pay, send, or receive.
+- **Send to anyone, any way.** Send feelessly to a **`@brisk` username**, a raw **address**, or a **SuiNS
+  `.sui` name** — Brisk resolves and verifies it before you confirm, and shows the real destination so you
+  always know where the money is going. **Re‑send** to a friend in **one tap** from your recents.
+- **Exchange money in person, no business needed.** Two friends can **tap phones to pay each other** on the
+  spot — one enters the amount, the other taps. No addresses, no setup, feeless.
 - **Gift cards.** Buy a gift card for any business — **browse and search** businesses (with their logos),
   then share the card by link. Recipients **claim** it, **redeem** it at checkout (it's applied
   automatically), or **re‑gift** it to someone else.
-- **A clean history.** Your activity feed shows who you paid with real **business names and logos**, plus
-  an on‑chain receipt for every purchase.
+- **A clean history.** Your activity feed shows who you paid — businesses by their real **name and logo**,
+  friends by their **`@brisk` username** — plus an on‑chain receipt for every purchase. Tap **See all** for
+  your full history (payments and Save moves), loaded as you scroll.
 
 ---
 

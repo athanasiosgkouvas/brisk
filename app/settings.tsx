@@ -1,16 +1,29 @@
-import { useCallback } from "react";
-import { ActivityIndicator, Alert, Linking, Pressable, Text, View } from "react-native";
+import { useCallback, useState } from "react";
+import { ActivityIndicator, Alert, Linking, Pressable, Text, TextInput, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useRouter } from "expo-router";
-import { ChevronRight, FileText, LogOut, Mail, Moon, Sun } from "lucide-react-native";
+import {
+  AtSign,
+  Check,
+  ChevronRight,
+  FileText,
+  LogOut,
+  Mail,
+  Moon,
+  Pencil,
+  Sun,
+} from "lucide-react-native";
 
 import { Screen } from "@/components/ui/Screen";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { ModeSwitch } from "@/components/ui/ModeSwitch";
+import { ErrorText } from "@/components/ui/ErrorText";
 import { useAuth } from "@/hooks/useAuth";
 import { useProActivation } from "@/hooks/useProActivation";
+import { useUsername } from "@/hooks/useUsername";
 import { useTheme, useThemeMode } from "@/hooks/useTheme";
+import { handleError, normalizeHandle } from "@/utils/handle";
 import { ICON } from "@/theme/scale";
 import type { ThemeScheme } from "@/store/themeStore";
 
@@ -33,6 +46,43 @@ export default function SettingsScreen() {
   const { logout } = useAuth();
   const { requestMode, activating } = useProActivation();
   const { scheme, setScheme } = useThemeMode();
+  const { handle, alias, register } = useUsername();
+
+  // Inline username edit (uniqueness enforced by the backend → 409).
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  const [savingName, setSavingName] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+
+  const startEditName = () => {
+    setNameDraft(handle ?? "");
+    setNameError(null);
+    setEditingName(true);
+  };
+
+  const saveName = useCallback(async () => {
+    const err = handleError(nameDraft);
+    if (err) {
+      setNameError(err);
+      return;
+    }
+    const norm = normalizeHandle(nameDraft)!;
+    if (norm === handle) {
+      setEditingName(false);
+      return;
+    }
+    setSavingName(true);
+    setNameError(null);
+    try {
+      await register(nameDraft);
+      setEditingName(false);
+    } catch (e) {
+      // 409 (taken) and other failures surface here.
+      setNameError(e instanceof Error ? e.message : "Couldn't update your username");
+    } finally {
+      setSavingName(false);
+    }
+  }, [nameDraft, handle, register]);
 
   const confirmLogout = useCallback(() => {
     Alert.alert("Log out", "You'll need to sign in again to use Brisk.", [
@@ -55,9 +105,59 @@ export default function SettingsScreen() {
 
   return (
     <Screen title="Settings" onClose={() => router.back()} scroll bottomInset={40}>
-      {/* Mode */}
+      {/* Brisk username — how friends send you money; editable, unique. */}
       <Animated.View entering={FadeInDown.duration(400).springify()}>
-        <SectionLabel className="mb-2 mt-2">Mode</SectionLabel>
+        <SectionLabel className="mb-2 mt-2">Your Brisk name</SectionLabel>
+        <GlassCard className="px-4 py-4" blur={false}>
+          {editingName ? (
+            <View className="flex-row items-center">
+              <TextInput
+                className="flex-1 text-base font-inter-semibold text-brisk-text"
+                style={{ padding: 0 }}
+                value={nameDraft}
+                onChangeText={setNameDraft}
+                autoFocus
+                autoCapitalize="none"
+                autoCorrect={false}
+                maxLength={20}
+                placeholder="username"
+                placeholderTextColor={theme.placeholder}
+                onSubmitEditing={() => void saveName()}
+              />
+              <Text className="mr-2 text-base font-inter-semibold text-brisk-subtext">@brisk</Text>
+              {savingName ? (
+                <ActivityIndicator size="small" color={theme.accent} />
+              ) : (
+                <Pressable
+                  onPress={() => void saveName()}
+                  hitSlop={10}
+                  accessibilityLabel="Save username"
+                >
+                  <Check color={theme.accent} size={ICON.inlineAction} />
+                </Pressable>
+              )}
+            </View>
+          ) : (
+            <View className="flex-row items-center">
+              <AtSign color={theme.accent} size={ICON.row} />
+              <Text className="ml-3 flex-1 text-base font-inter-semibold text-brisk-text">
+                {alias ?? "Not set"}
+              </Text>
+              <Pressable onPress={startEditName} hitSlop={10} accessibilityLabel="Change username">
+                <Pencil color={theme.subtext} size={ICON.inlineAction} />
+              </Pressable>
+            </View>
+          )}
+          {nameError ? <ErrorText className="mt-2">{nameError}</ErrorText> : null}
+          <Text className="mt-3 text-xs text-brisk-subtext">
+            Friends can send you money at this name — no address needed.
+          </Text>
+        </GlassCard>
+      </Animated.View>
+
+      {/* Mode */}
+      <Animated.View entering={FadeInDown.duration(400).delay(60).springify()}>
+        <SectionLabel className="mb-2 mt-6">Mode</SectionLabel>
         <GlassCard className="px-4 py-4" blur={false}>
           <ModeSwitch onRequestMode={requestMode} />
           {activating ? (

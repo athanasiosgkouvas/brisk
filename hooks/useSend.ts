@@ -7,7 +7,7 @@ import { ensureSpendable } from "@/services/blockchain/coverFromSave";
 import { formatUsd } from "@/services/blockchain/paymentTx";
 import { resolveSuiNS } from "@/services/blockchain/suins";
 import { resolveUsername } from "@/services/api/backendApi";
-import { isBriskHandle, normalizeHandle } from "@/utils/handle";
+import { formatAlias, isBriskHandle, normalizeHandle } from "@/utils/handle";
 import type { SettleOutcome } from "@/hooks/usePayFlow";
 
 /** A recipient resolved from free text: the on-chain `address` to send to, and a
@@ -43,9 +43,11 @@ export function useSend() {
     }
     // Brisk username.
     if (isBriskHandle(text)) {
-      const user = await resolveUsername(normalizeHandle(text)!);
+      const norm = normalizeHandle(text);
+      if (!norm) return { error: "That username isn't valid." };
+      const user = await resolveUsername(norm);
       return user
-        ? { address: user.ownerAddr, display: user.alias }
+        ? { address: user.ownerAddr, display: user.alias || formatAlias(user.handle) }
         : { error: "No Brisk user with that username." };
     }
     return { error: "Enter an address, @brisk username, or name.sui." };

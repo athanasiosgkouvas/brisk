@@ -181,15 +181,49 @@ const merchantProfileSchema = z.object({
   logoUrl: z.string().trim().url().max(512).optional().or(z.literal("")),
 });
 
-// Brisk username: 3–20 chars, lowercase letters / digits / underscore. Stored
-// bare; the `@brisk` suffix is added in responses.
+// Brisk username rules (kept in lockstep with utils/handle.ts on the app):
+// 3–20 chars; lowercase letters/digits/underscore; must start with a letter; no
+// trailing or consecutive underscores; not reserved. Stored bare; the `@brisk`
+// suffix is added in responses.
+const RESERVED_HANDLES = new Set([
+  "brisk",
+  "admin",
+  "administrator",
+  "support",
+  "help",
+  "helpdesk",
+  "root",
+  "system",
+  "official",
+  "security",
+  "team",
+  "staff",
+  "mod",
+  "moderator",
+  "contact",
+  "info",
+  "noreply",
+  "no_reply",
+  "payments",
+  "payment",
+  "wallet",
+  "account",
+  "null",
+  "undefined",
+  "me",
+  "everyone",
+]);
 const registerUserSchema = z.object({
   sender: z.string().startsWith("0x"),
   handle: z
     .string()
     .trim()
     .toLowerCase()
-    .regex(/^[a-z0-9_]{3,20}$/, "3–20 lowercase letters, numbers, or _"),
+    .regex(/^[a-z0-9_]{3,20}$/, "3–20 lowercase letters, numbers, or _")
+    .refine((h) => /^[a-z]/.test(h), "Must start with a letter")
+    .refine((h) => !h.endsWith("_"), "Can't end with an underscore")
+    .refine((h) => !h.includes("__"), "No consecutive underscores")
+    .refine((h) => !RESERVED_HANDLES.has(h), "That username is reserved"),
 });
 
 const microAmount = z

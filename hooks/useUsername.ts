@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUsernameStore } from "@/store/userStore";
 import { getUserByOwner, upsertUsername } from "@/services/api/backendApi";
 import { loadUsername, saveUsername } from "@/services/storage/prefsStorage";
-import { formatAlias, normalizeHandle } from "@/utils/handle";
+import { formatAlias, handleError, normalizeHandle } from "@/utils/handle";
 
 /**
  * The current account's Brisk username, backed by the backend directory. On
@@ -51,8 +51,9 @@ export function useUsername() {
   const register = useCallback(
     async (raw: string) => {
       if (!session) throw new Error("Not signed in");
-      const norm = normalizeHandle(raw);
-      if (!norm) throw new Error("3–20 lowercase letters, numbers, or _");
+      const err = handleError(raw);
+      if (err) throw new Error(err);
+      const norm = normalizeHandle(raw)!;
       const user = await upsertUsername({ sender: session.address, handle: norm });
       void saveUsername(session.address, user.handle);
       setState({ handle: user.handle, status: "has", checkedAddress: session.address });

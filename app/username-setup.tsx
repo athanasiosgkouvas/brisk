@@ -8,7 +8,7 @@ import { Screen } from "@/components/ui/Screen";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { ErrorText } from "@/components/ui/ErrorText";
 import { useUsername } from "@/hooks/useUsername";
-import { formatAlias, normalizeHandle } from "@/utils/handle";
+import { formatAlias, handleError, normalizeHandle } from "@/utils/handle";
 import { useTheme } from "@/hooks/useTheme";
 
 // Mandatory one-time username step. Reached from the auth gate when the address
@@ -24,6 +24,8 @@ export default function UsernameSetupScreen() {
 
   const normalized = normalizeHandle(input);
   const valid = !!normalized;
+  // Precise inline hint once the user starts typing.
+  const hint = input.length === 0 ? null : handleError(input);
 
   const onContinue = async () => {
     if (!valid) return;
@@ -71,12 +73,12 @@ export default function UsernameSetupScreen() {
         <Text className="ml-1 text-2xl font-inter-bold text-brisk-subtext">@brisk</Text>
       </View>
 
-      <Text className="mt-2 text-xs text-brisk-subtext">
+      <Text className={`mt-2 text-xs ${hint ? "text-brisk-danger" : "text-brisk-subtext"}`}>
         {input.length === 0
-          ? "3–20 characters: lowercase letters, numbers, or _"
+          ? "3–20 characters: letters, numbers, or _. Must start with a letter."
           : valid
             ? `You'll be ${formatAlias(normalized)}`
-            : "3–20 characters: lowercase letters, numbers, or _"}
+            : hint}
       </Text>
 
       <ErrorText className="mt-3">{error}</ErrorText>

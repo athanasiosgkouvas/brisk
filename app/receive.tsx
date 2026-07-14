@@ -11,6 +11,7 @@ import { HeroAmount } from "@/components/ui/HeroAmount";
 import { SuccessSheet } from "@/components/ui/SuccessSheet";
 import { PulseRing } from "@/components/ui/PulseRing";
 import { useAuth } from "@/hooks/useAuth";
+import { useUsername } from "@/hooks/useUsername";
 import { useReceiveTap } from "@/hooks/useReceiveTap";
 import { isHceAvailable } from "@/services/nfc/hce";
 import { openNfcSettings } from "@/services/nfc/reader";
@@ -24,6 +25,7 @@ export default function ReceiveScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { session } = useAuth();
+  const { alias } = useUsername();
   const address = session?.address ?? "";
   const tap = useReceiveTap();
   const [amountText, setAmountText] = useState("");
@@ -51,7 +53,23 @@ export default function ReceiveScreen() {
               copyLabel="Copy address"
               qrAccessibilityLabel="QR code of your Brisk receiving address"
             />
-            <Text className="mt-5 text-center text-sm text-brisk-subtext">Your Brisk address</Text>
+            {alias ? (
+              <>
+                <Text className="mt-5 text-center text-xs uppercase tracking-[2px] text-brisk-subtext">
+                  You&apos;re
+                </Text>
+                <Text className="mt-1 text-center text-xl font-inter-bold text-brisk-text">
+                  {alias}
+                </Text>
+                <Text className="mt-3 text-center text-xs text-brisk-subtext">
+                  Your Brisk address
+                </Text>
+              </>
+            ) : (
+              <Text className="mt-5 text-center text-sm text-brisk-subtext">
+                Your Brisk address
+              </Text>
+            )}
             <Text className="mt-2 px-6 text-center text-sm text-brisk-text" selectable>
               {address}
             </Text>
