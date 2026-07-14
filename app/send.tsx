@@ -29,7 +29,7 @@ export default function SendScreen() {
   const router = useRouter();
   const { resolveRecipient, authorize, settle } = useSend();
   const { recents, record } = useRecents();
-  const { nameFor, resolve } = useMerchantDirectory();
+  const { nameFor, logoFor, resolve } = useMerchantDirectory();
   const flow = usePayFlow();
   const [to, setTo] = useState("");
   const [amountText, setAmountText] = useState("");
@@ -168,6 +168,7 @@ export default function SendScreen() {
                       accessibilityLabel={`Send to ${label}`}
                     >
                       <BusinessAvatar
+                        logoUrl={logoFor(r.address)}
                         seed={r.address}
                         size={48}
                         label={label?.[0]?.toUpperCase()}
