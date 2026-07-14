@@ -93,6 +93,7 @@ export async function createPaymentLink(input: {
   invoiceId: string;
   merchant: string;
   expiresInSec?: number;
+  reusable?: boolean;
 }): Promise<{ code: string; url: string }> {
   return backendFetch<{ code: string; url: string }>("/api/links", {
     method: "POST",

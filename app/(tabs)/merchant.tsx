@@ -38,6 +38,9 @@ export default function ChargeScreen() {
   const bottomPad = useTabBarClearance();
   const [amountText, setAmountText] = useState("");
   const [expirySec, setExpirySec] = useState(EXPIRY_OPTIONS[1].seconds); // default 24h
+  // One-time by default; when on, the link keeps accepting payments after the
+  // first (backend leaves it "pending" for reusable links).
+  const [reusable, setReusable] = useState(false);
   // Which receiving account this charge collects into (customers never see the
   // merchant's private treasury). Falls back to the first till until one is
   // explicitly picked — derived during render so there's no setState-in-effect.
@@ -202,12 +205,41 @@ export default function ChargeScreen() {
                       );
                     })}
                   </View>
+                  {/* Reusable toggle — off = link dies after the first payment,
+                      on = it keeps accepting payments until it expires. */}
+                  <Pressable
+                    onPress={() => setReusable((r) => !r)}
+                    className="mt-3 flex-row items-center justify-between rounded-xl border border-brisk-borderStrong bg-brisk-bg1/70 px-3 py-3"
+                    accessibilityRole="switch"
+                    accessibilityState={{ checked: reusable }}
+                    accessibilityLabel="Reusable link"
+                    accessibilityHint="Accept multiple payments on this link"
+                  >
+                    <View className="mr-3 flex-1">
+                      <Text className="text-sm font-inter-semibold text-brisk-text">Reusable</Text>
+                      <Text className="mt-0.5 text-xs text-brisk-subtext">
+                        Accept multiple payments
+                      </Text>
+                    </View>
+                    <View
+                      className={`h-6 w-10 justify-center rounded-full px-0.5 ${
+                        reusable ? "bg-brisk-accent" : "bg-brisk-border"
+                      }`}
+                    >
+                      <View
+                        className={`h-5 w-5 rounded-full bg-white ${
+                          reusable ? "self-end" : "self-start"
+                        }`}
+                      />
+                    </View>
+                  </Pressable>
                   <View className="mt-3">
                     <PrimaryButton
                       label="Create payment link"
                       variant={isHceAvailable ? "secondary" : "primary"}
                       onPress={() =>
-                        selectedTillId && void createLink(amountMicros, selectedTillId, expirySec)
+                        selectedTillId &&
+                        void createLink(amountMicros, selectedTillId, expirySec, reusable)
                       }
                       disabled={!canCharge}
                     />
