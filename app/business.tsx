@@ -7,7 +7,11 @@ import { Check, Gift, Pencil, Share2 } from "lucide-react-native";
 import { Screen } from "@/components/ui/Screen";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { LabeledInput } from "@/components/ui/LabeledInput";
+import {
+  BusinessProfileForm,
+  EMPTY_BUSINESS_PROFILE,
+  type BusinessProfileValue,
+} from "@/components/ui/BusinessProfileForm";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { BusinessAvatar } from "@/components/ui/BusinessAvatar";
 import { useMerchantProfile } from "@/hooks/useMerchantProfile";
@@ -25,32 +29,40 @@ export default function BusinessScreen() {
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
 
-  // Editable business details (VAT + optional metadata).
+  // Editable business details (VAT + optional metadata). The business name is
+  // edited separately via the identity rename above, so the shared form runs
+  // with nameEditable off.
   const [editingDetails, setEditingDetails] = useState(false);
   const [savingDetails, setSavingDetails] = useState(false);
-  const [vatId, setVatId] = useState("");
-  const [category, setCategory] = useState("");
-  const [city, setCity] = useState("");
-  const [country, setCountry] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [logoUrl, setLogoUrl] = useState("");
+  const [details, setDetails] = useState<BusinessProfileValue>(EMPTY_BUSINESS_PROFILE);
 
   const startEditDetails = () => {
-    setVatId(profile?.vatId ?? "");
-    setCategory(profile?.category ?? "");
-    setCity(profile?.city ?? "");
-    setCountry(profile?.country ?? "");
-    setPhone(profile?.phone ?? "");
-    setEmail(profile?.email ?? "");
-    setLogoUrl(profile?.logoUrl ?? "");
+    setDetails({
+      businessName: name ?? "",
+      vatId: profile?.vatId ?? "",
+      category: profile?.category ?? "",
+      city: profile?.city ?? "",
+      country: profile?.country ?? "",
+      phone: profile?.phone ?? "",
+      email: profile?.email ?? "",
+      logoUrl: profile?.logoUrl ?? "",
+    });
     setEditingDetails(true);
   };
 
   const commitDetails = async () => {
     setSavingDetails(true);
     try {
-      await update({ vatId, category, city, country, phone, email, logoUrl });
+      // Name is preserved server-side; send only the editable metadata fields.
+      await update({
+        vatId: details.vatId,
+        category: details.category,
+        city: details.city,
+        country: details.country,
+        phone: details.phone,
+        email: details.email,
+        logoUrl: details.logoUrl,
+      });
       setEditingDetails(false);
     } catch {
       // keep the form open on failure
@@ -145,53 +157,7 @@ export default function BusinessScreen() {
         <GlassCard className="px-4 py-4" blur={false}>
           {editingDetails ? (
             <View className="gap-3">
-              <LabeledInput
-                label="VAT / Tax ID"
-                required
-                value={vatId}
-                onChangeText={setVatId}
-                placeholder="e.g. EL123456789"
-                autoCapitalize="characters"
-                maxLength={32}
-              />
-              <LabeledInput
-                label="Category"
-                value={category}
-                onChangeText={setCategory}
-                placeholder="e.g. Café, Retail"
-                maxLength={40}
-              />
-              <LabeledInput label="City" value={city} onChangeText={setCity} maxLength={64} />
-              <LabeledInput
-                label="Country"
-                value={country}
-                onChangeText={setCountry}
-                maxLength={64}
-              />
-              <LabeledInput
-                label="Phone"
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="phone-pad"
-                maxLength={32}
-              />
-              <LabeledInput
-                label="Email"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                maxLength={120}
-              />
-              <LabeledInput
-                label="Logo URL"
-                value={logoUrl}
-                onChangeText={setLogoUrl}
-                placeholder="https://…/logo.png"
-                keyboardType="url"
-                autoCapitalize="none"
-                maxLength={512}
-              />
+              <BusinessProfileForm value={details} onChange={setDetails} />
               <View className="mt-1 flex-row gap-3">
                 <View className="flex-1">
                   <PrimaryButton
@@ -205,7 +171,7 @@ export default function BusinessScreen() {
                     label="Save"
                     onPress={() => void commitDetails()}
                     loading={savingDetails}
-                    disabled={vatId.trim().length < 1}
+                    disabled={details.vatId.trim().length < 1}
                   />
                 </View>
               </View>

@@ -75,61 +75,56 @@ export default function TerminalScreen() {
       : connection === "connecting"
         ? "#F0B400"
         : theme.subtext;
-  const connLabel =
+  const connShort =
     connection === "connected"
-      ? "Connected — ready for sales"
+      ? "Connected"
       : connection === "connecting"
         ? "Connecting…"
         : "Disconnected";
 
   return (
     <Screen title="ERP terminal" onClose={() => router.back()} scroll>
-      <Text className="text-sm text-brisk-subtext">
-        Configure your ERP with this terminal ID. Sales sent from the ERP appear here and charge
-        automatically over tap.
-      </Text>
-
-      {/* Terminal ID (for ERP configuration) — short, human-typeable code. */}
-      <GlassCard className="mt-5 items-center py-6">
-        <Text className="text-xs uppercase tracking-[2px] text-brisk-subtext">Terminal ID</Text>
-        {terminalId ? (
-          <>
+      {/* Terminal ID + live connection — compact: it's a set-once code the ERP
+          reuses, so it stays out of the way and the live sale below is the focus. */}
+      <GlassCard className="mt-2 flex-row items-center justify-between px-4 py-3.5">
+        <View className="flex-1">
+          <View className="flex-row items-center">
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dot }} />
+            <Text className="ml-2 text-[11px] uppercase tracking-[1.5px] text-brisk-subtext">
+              Terminal ID · {connShort}
+            </Text>
+          </View>
+          {terminalId ? (
             <Text
-              className="mt-3 text-center text-4xl font-inter-bold text-brisk-text"
-              style={{ letterSpacing: 4 }}
+              className="mt-1 text-2xl font-inter-bold text-brisk-text"
+              style={{ letterSpacing: 3 }}
               selectable
               accessibilityLabel={`Terminal ID ${terminalId.split("").join(" ")}`}
             >
               {`${terminalId.slice(0, 4)} ${terminalId.slice(4)}`}
             </Text>
-            <Text className="mt-2 text-center text-xs text-brisk-subtext">
-              Enter this code in your ERP to link this terminal.
-            </Text>
-            <Pressable
-              onPress={copyTerminalId}
-              hitSlop={8}
-              className="mt-4 flex-row items-center rounded-lg border border-brisk-borderStrong px-4 py-2"
-              accessibilityRole="button"
-              accessibilityLabel="Copy terminal ID"
-            >
-              <Copy color={theme.accent} size={14} />
-              <Text className="ml-1.5 text-xs font-inter-semibold text-brisk-accent">
-                {copied ? "Copied" : "Copy"}
-              </Text>
-            </Pressable>
-          </>
-        ) : (
-          <Text className="mt-3 text-center text-sm text-brisk-subtext">
-            Generating your terminal ID…
+          ) : (
+            <Text className="mt-1 text-sm text-brisk-subtext">Generating…</Text>
+          )}
+        </View>
+        <Pressable
+          onPress={copyTerminalId}
+          hitSlop={8}
+          disabled={!terminalId}
+          className="ml-3 flex-row items-center rounded-lg border border-brisk-borderStrong px-3 py-2"
+          accessibilityRole="button"
+          accessibilityLabel="Copy terminal ID"
+        >
+          <Copy color={theme.accent} size={14} />
+          <Text className="ml-1.5 text-xs font-inter-semibold text-brisk-accent">
+            {copied ? "Copied" : "Copy"}
           </Text>
-        )}
+        </Pressable>
       </GlassCard>
-
-      {/* Connection status. */}
-      <View className="mt-4 flex-row items-center">
-        <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: dot }} />
-        <Text className="ml-2 text-sm text-brisk-subtext">{connLabel}</Text>
-      </View>
+      <Text className="mt-2 text-xs text-brisk-subtext">
+        Enter this code in your ERP once to link this terminal — sales then appear below and charge
+        automatically over tap.
+      </Text>
 
       {/* Receiving account (till) this terminal collects into. */}
       <View className="mt-5">

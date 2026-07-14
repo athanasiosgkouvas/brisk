@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Pressable, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
-import { PiggyBank, ShieldCheck, TrendingUp } from "lucide-react-native";
+import { PiggyBank, TrendingUp } from "lucide-react-native";
 
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { AuroraText } from "@/components/ui/AuroraText";
@@ -11,8 +11,6 @@ import { AuroraBackground } from "@/components/ui/AuroraBackground";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { PulseRing } from "@/components/ui/PulseRing";
-import { StatChip } from "@/components/ui/StatChip";
-import { Sparkline } from "@/components/ui/Sparkline";
 import { PresetAmountRow } from "@/components/ui/PresetAmountRow";
 import { SaveHistory } from "@/components/ui/SaveHistory";
 import { useSave } from "@/hooks/useSave";
@@ -25,7 +23,6 @@ import {
   NATIONAL_AVG_APY_BPS,
   netApyBps,
   perDayMicros,
-  perYearMicros,
 } from "@/services/blockchain/yieldMath";
 import { ENV } from "@/utils/constants";
 import { STAGGER_MS } from "@/theme/scale";
@@ -57,15 +54,11 @@ export default function SaveScreen() {
     setRefreshing(false);
   };
 
-  // A gently-rising curve ending at the current live value (24 daily steps back).
-  const sparkPoints = useMemo(() => {
-    const base = Math.max(liveValueMicros, 1);
-    const perDay = perDayMicros(base, net);
-    return Array.from({ length: 24 }, (_, i) => base - perDay * (23 - i));
-  }, [liveValueMicros, net]);
-
-  const APYvsBank = (
-    <GlassCard className="mt-4 w-full p-4" glow sheen>
+  // The single value pitch shown only before Save is activated — merges the
+  // bank comparison and a one-line safety note so the marketing lives in exactly
+  // one place (the funded screen carries none of it).
+  const ValuePitch = (
+    <GlassCard className="mt-6 w-full p-4" glow sheen>
       <View className="flex-row items-center">
         <TrendingUp color={theme.accent} size={20} />
         <Text className="ml-2 text-sm font-inter-semibold text-brisk-text">High-yield, on Sui</Text>
@@ -82,18 +75,9 @@ export default function SaveScreen() {
           </Text>
         </View>
       </View>
-      <Text className="mt-2 text-xs text-brisk-subtext">
-        ~{Math.round(net / NATIONAL_AVG_APY_BPS)}× the national savings average.
-      </Text>
-    </GlassCard>
-  );
-
-  const Safety = (
-    <GlassCard className="mt-4 w-full flex-row items-center p-4">
-      <ShieldCheck color={theme.accent} size={22} />
-      <Text className="ml-3 flex-1 text-xs text-brisk-subtext">
-        Your principal is always redeemable and stays instantly spendable. Yield is supplied through
-        a blue-chip lender (a mock market on testnet).
+      <Text className="mt-3 text-xs text-brisk-subtext">
+        ~{Math.round(net / NATIONAL_AVG_APY_BPS)}× the national average. Your principal is always
+        redeemable and stays instantly spendable.
       </Text>
     </GlassCard>
   );
@@ -140,6 +124,12 @@ export default function SaveScreen() {
                   <Text className="mt-0.5 text-xs text-brisk-subtext">
                     Principal {formatUsd(state.principalMicros)}
                   </Text>
+                  {/* The one and only rate surface on the funded screen. */}
+                  <Text className="mt-2 text-xs text-brisk-subtext">
+                    {formatApy(net)} APY · +
+                    {formatUsdPrecise(perDayMicros(liveValueMicros, net), 3)}
+                    /day
+                  </Text>
                 </>
               ) : (
                 <Text className="mt-2 text-center text-sm text-brisk-subtext">
@@ -160,44 +150,18 @@ export default function SaveScreen() {
                 entering={FadeInDown.duration(500).delay(STAGGER_MS * 2)}
                 className="mt-6"
               >
-                {APYvsBank}
-                {Safety}
+                {ValuePitch}
                 <View className="mt-6">
                   <PrimaryButton label="Activate Save" onPress={activate} loading={busy} />
                 </View>
               </Animated.View>
             ) : (
               <>
-                {funded ? (
-                  <Animated.View entering={FadeInDown.duration(500).delay(STAGGER_MS)}>
-                    <GlassCard className="mt-6 w-full p-4" glow sheen>
-                      <Sparkline points={sparkPoints} endDot />
-                      <Text className="mt-1 text-center text-xs text-brisk-subtext">
-                        Growing every second.
-                      </Text>
-                    </GlassCard>
-                    <View className="mt-4 flex-row gap-3">
-                      <StatChip
-                        label="Per day"
-                        value={`+${formatUsdPrecise(perDayMicros(liveValueMicros, net), 3)}`}
-                        tone="accent"
-                      />
-                      <StatChip
-                        label="Per year"
-                        value={`+${formatUsd(perYearMicros(liveValueMicros, net))}`}
-                        tone="accent"
-                      />
-                      <StatChip label="APY" value={formatApy(net)} />
-                    </View>
-                  </Animated.View>
-                ) : null}
-
-                {APYvsBank}
-
-                {/* Quick actions */}
+                {/* Quick actions — directly under the hero; the funded screen is
+                    just balance → actions → history, no marketing. */}
                 <Animated.View
-                  entering={FadeInDown.duration(500).delay(STAGGER_MS * 2)}
-                  className="mt-6"
+                  entering={FadeInDown.duration(500).delay(STAGGER_MS)}
+                  className="mt-8"
                 >
                   <View className="flex-row items-center rounded-2xl border border-brisk-borderStrong bg-brisk-bg1/70 px-4 py-3">
                     <Text className="text-2xl font-inter-bold text-brisk-subtext">$</Text>
@@ -256,7 +220,6 @@ export default function SaveScreen() {
                   ) : null}
                 </Animated.View>
 
-                {Safety}
                 <SaveHistory />
               </>
             )}

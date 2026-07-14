@@ -1,57 +1,85 @@
 import { useState } from "react";
-import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
-import Animated, { FadeIn } from "react-native-reanimated";
+import { Pressable, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import { ClipboardPaste } from "lucide-react-native";
 
 import { Screen } from "@/components/ui/Screen";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
-import { SuccessSheet } from "@/components/ui/SuccessSheet";
 import { ErrorText } from "@/components/ui/ErrorText";
+import { PayConfirm } from "@/components/pay/PayConfirm";
 import { useSend } from "@/hooks/useSend";
+import { usePayFlow } from "@/hooks/usePayFlow";
 import { usdToMicros } from "@/services/blockchain/paymentTx";
 import { useTheme } from "@/hooks/useTheme";
 
-// Send / withdraw: cash out USDC to any Sui address — feeless. Paste the address,
-// enter the amount, Face ID, done.
+function shortAddr(a: string): string {
+  return a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
+}
+
+// Send / withdraw: cash out USDC to any Sui address — feeless. Paste the address
+// and amount, review, Face ID on confirm, done. The review → settle → done tail
+// is the shared PayConfirm; this screen owns the address/amount form.
 export default function SendScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { status, error, send, reset } = useSend();
+  const { validate, authorize, settle } = useSend();
+  const flow = usePayFlow();
   const [to, setTo] = useState("");
   const [amountText, setAmountText] = useState("");
+  const [reviewing, setReviewing] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const micros = usdToMicros(Number(amountText || "0"));
-  const busy = status === "authorizing" || status === "sending";
 
-  const close = () => {
-    reset();
-    router.back();
+  const close = () => router.back();
+  const paste = async () => setTo((await Clipboard.getStringAsync()).trim());
+
+  // Form → review: validate, then hand off to the shared tail.
+  const onReview = () => {
+    const err = validate(to, micros);
+    if (err) {
+      setFormError(err);
+      return;
+    }
+    setFormError(null);
+    flow.reset();
+    setReviewing(true);
   };
 
-  const paste = async () => setTo((await Clipboard.getStringAsync()).trim());
+  const backToForm = () => {
+    flow.reset();
+    setReviewing(false);
+  };
 
   return (
     <Screen title="Send" onClose={close}>
-      {status === "done" ? (
+      {reviewing ? (
         <View className="flex-1 items-center justify-center">
-          <SuccessSheet
+          <PayConfirm
+            state={flow.state}
             amountMicros={micros}
-            title="Sent"
-            subtitle="no fee"
-            footer={<PrimaryButton label="Done" onPress={close} />}
+            eyebrow="Send"
+            payeeLabel={`to ${shortAddr(to)}`}
+            confirmLabel="Confirm & Pay"
+            settlingLabel="Sending on Sui…"
+            onConfirm={() =>
+              void flow.confirm({
+                authorize: () => authorize(micros),
+                settle: () => settle(to, micros),
+              })
+            }
+            onCancel={backToForm}
+            success={{
+              title: "Sent",
+              subtitle: "no fee",
+              footer: <PrimaryButton label="Done" onPress={close} />,
+            }}
+            errorMessage={flow.error}
+            errorHint="Nothing was sent — check the details and try again."
+            onRetry={backToForm}
+            retryLabel="Back"
           />
         </View>
-      ) : busy ? (
-        <Animated.View
-          entering={FadeIn.duration(300)}
-          className="flex-1 items-center justify-center"
-        >
-          <ActivityIndicator color={theme.accent} size="large" />
-          <Text className="mt-4 text-sm text-brisk-subtext">
-            {status === "authorizing" ? "Authorizing…" : "Sending on Sui…"}
-          </Text>
-        </Animated.View>
       ) : (
         <View className="flex-1">
           <Text className="mb-2 text-sm text-brisk-subtext">Recipient address</Text>
@@ -94,14 +122,10 @@ export default function SendScreen() {
             />
           </View>
 
-          {status === "error" ? <ErrorText className="mt-4">{error}</ErrorText> : null}
+          {formError ? <ErrorText className="mt-4">{formError}</ErrorText> : null}
 
           <View className="mt-8">
-            <PrimaryButton
-              label="Send"
-              onPress={() => void send(to, micros)}
-              disabled={!to || micros <= 0}
-            />
+            <PrimaryButton label="Review" onPress={onReview} disabled={!to || micros <= 0} />
           </View>
           <Text className="mt-3 text-center text-xs text-brisk-subtext">
             Feeless — you&apos;re charged exactly the amount.

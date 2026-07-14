@@ -88,3 +88,65 @@ export async function fetchAddressTransactions(
   // `last` returns the most-recent N in ascending order; reverse to newest-first.
   return nodes.map(normalize).reverse();
 }
+
+// Cursor-paginated variant for the "All activity" screen — fetches one page of
+// older transactions at a time (relay `last` + `before`) instead of a single
+// large window, so scrolling loads more on demand.
+const TX_HISTORY_PAGE_QUERY = `
+query TxHistoryPage($filter: TransactionFilter!, $last: Int!, $before: String) {
+  transactions(last: $last, before: $before, filter: $filter) {
+    pageInfo { hasPreviousPage startCursor }
+    nodes {
+      digest
+      effects {
+        timestamp
+        balanceChanges { nodes { amount coinType { repr } owner { address } } }
+      }
+      kind {
+        __typename
+        ... on ProgrammableTransaction {
+          commands {
+            nodes {
+              __typename
+              ... on MoveCallCommand { function { name module { name } } }
+            }
+          }
+        }
+      }
+    }
+  }
+}`;
+
+export type TxPage = {
+  nodes: TxHistoryNode[];
+  /** Cursor of the oldest tx in this page — pass as `before` to fetch the next. */
+  startCursor: string | null;
+  /** Whether older transactions exist beyond this page. */
+  hasPreviousPage: boolean;
+};
+
+/** One page of transactions (newest-first within the page). Pass the returned
+ *  `startCursor` as `before` to fetch the next (older) page. */
+export async function fetchAddressTransactionsPage(
+  address: string,
+  opts: { direction: "sent" | "affected"; last?: number; before?: string | null },
+): Promise<TxPage> {
+  const client = await getSuiClientForBuild();
+  const filter =
+    opts.direction === "sent" ? { sentAddress: address } : { affectedAddress: address };
+  const res = await client.query({
+    query: TX_HISTORY_PAGE_QUERY,
+    variables: { filter, last: opts.last ?? 20, before: opts.before ?? null },
+  });
+  if (res?.errors?.length) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    throw new Error(res.errors.map((e: any) => e.message).join("; "));
+  }
+  const conn = res?.data?.transactions;
+  const nodes = (conn?.nodes ?? []).map(normalize).reverse();
+  return {
+    nodes,
+    startCursor: conn?.pageInfo?.startCursor ?? null,
+    hasPreviousPage: !!conn?.pageInfo?.hasPreviousPage,
+  };
+}

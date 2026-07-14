@@ -63,11 +63,11 @@ export default function SettingsScreen() {
           {activating ? (
             <View className="mt-3 flex-row items-center justify-center">
               <ActivityIndicator size="small" color={theme.accent} />
-              <Text className="ml-2 text-xs text-brisk-subtext">Setting up Pro…</Text>
+              <Text className="ml-2 text-xs text-brisk-subtext">Setting up Business…</Text>
             </View>
           ) : (
             <Text className="mt-3 text-xs text-brisk-subtext">
-              Personal is your own wallet. Pro adds merchant tools — tills, charges and links.
+              Personal is your own wallet. Business adds merchant tools — tills, charges and links.
             </Text>
           )}
         </GlassCard>

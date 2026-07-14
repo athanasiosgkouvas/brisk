@@ -15,7 +15,6 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ModePill } from "@/components/ui/ModePill";
 import { ActivityRow } from "@/components/ui/ActivityRow";
-import { PulseRing } from "@/components/ui/PulseRing";
 import { ProDashboard } from "@/components/screens/ProDashboard";
 import { useAppModeStore } from "@/store/appModeStore";
 import { useWallet } from "@/hooks/useWallet";
@@ -77,14 +76,16 @@ export default function HomeScreen() {
     <View className="flex-1 bg-brisk-bg0">
       <AuroraBackground>
         <SafeAreaView edges={["top"]} className="flex-1 px-5">
-          {/* Fixed header: the Personal/Pro mode pill + a Settings entry point.
-              Stays put as the body below swaps between the personal wallet and
-              the Pro dashboard. */}
-          <View className="flex-row items-center justify-between pb-4 pt-2">
+          {/* Fixed header: the Personal/Business mode switch (centered, the
+              primary way to flip personas) with a Settings entry point trailing
+              on the right. Stays put as the body below swaps between the
+              personal wallet and the business dashboard. */}
+          <View className="relative items-center pb-4 pt-2">
             <ModePill />
             <Pressable
               onPress={() => router.push("/settings")}
               hitSlop={12}
+              className="absolute right-0 top-2 h-9 w-9 items-center justify-center"
               accessibilityRole="button"
               accessibilityLabel="Settings"
             >
@@ -153,15 +154,7 @@ export default function HomeScreen() {
                 <View className="mt-3">
                   <ListRow
                     onPress={() => router.push("/save")}
-                    leading={
-                      saveActive ? (
-                        <PulseRing size={ICON.row}>
-                          <PiggyBank color={theme.accent} size={ICON.row} />
-                        </PulseRing>
-                      ) : (
-                        <PiggyBank color={theme.accent} size={ICON.row} />
-                      )
-                    }
+                    icon={PiggyBank}
                     title="Save"
                     subtitle={
                       saveActive
@@ -186,7 +179,20 @@ export default function HomeScreen() {
 
               {/* Activity */}
               <Animated.View entering={FadeInDown.duration(500).delay(STAGGER_MS * 3)}>
-                <SectionLabel className="mt-8">Activity</SectionLabel>
+                <SectionLabel
+                  className="mt-8"
+                  action={
+                    items.length > 0 ? (
+                      <Pressable onPress={() => router.push("/activity")} hitSlop={8}>
+                        <Text className="text-xs font-inter-semibold text-brisk-accent">
+                          See all
+                        </Text>
+                      </Pressable>
+                    ) : undefined
+                  }
+                >
+                  Activity
+                </SectionLabel>
               </Animated.View>
               {items.length === 0 ? (
                 <EmptyState

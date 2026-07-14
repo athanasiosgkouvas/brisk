@@ -44,7 +44,7 @@ export function ProDashboard() {
   const { items: activity, refresh: refreshActivity } = useActivity();
   const { nameFor, logoFor, resolve } = useMerchantDirectory();
   const { name: businessName } = useMerchantProfile();
-  const { tills, status, refresh: refreshTills, sweep } = useTills();
+  const { tills, refresh: refreshTills } = useTills();
   const [refreshing, setRefreshing] = useState(false);
   const bottomPad = useTabBarClearance();
 
@@ -53,7 +53,6 @@ export function ProDashboard() {
   // hidden (managed from the Tills screen via "Manage").
   const fundedTills = tills.filter((t) => t.balanceMicros > 0);
   const totalMicros = usdcMicros + saveValue + pendingMicros;
-  const busy = status === "working";
 
   const refreshAll = useCallback(
     () => Promise.all([refreshWallet(), refreshSave(), refreshTills(), refreshActivity()]),
@@ -65,16 +64,6 @@ export function ProDashboard() {
     await refreshAll();
     setRefreshing(false);
   }, [refreshAll]);
-
-  // After a sweep moves funds out of a till, refresh the treasury balance and
-  // activity too (useTills.sweep only reloads the tills list on its own).
-  const handleSweep = useCallback(
-    async (tillId: string) => {
-      await sweep(tillId);
-      await refreshAll();
-    },
-    [sweep, refreshAll],
-  );
 
   // Warm the merchant directory so Activity shows business names, not 0x.
   useEffect(() => {
@@ -165,24 +154,15 @@ export function ProDashboard() {
             entering={FadeInDown.duration(400).delay(Math.min(i, 8) * STAGGER_MS)}
             className="mt-3"
           >
+            {/* Read-only overview — sweeping ("Move to treasury") lives on the
+                Tills screen (the canonical home), reached via "Manage". */}
             <ListRow
               icon={Store}
               title={t.name}
               subtitle={`${shortAddr(t.tillId)} · sweeps to ${shortAddr(t.treasury)}`}
               value={formatUsd(t.balanceMicros)}
               valueClassName="text-brisk-accent"
-            >
-              {t.balanceMicros > 0 ? (
-                <View className="mt-3">
-                  <PrimaryButton
-                    label="Move to treasury"
-                    variant="secondary"
-                    onPress={() => void handleSweep(t.tillId)}
-                    disabled={busy}
-                  />
-                </View>
-              ) : null}
-            </ListRow>
+            />
           </Animated.View>
         ))}
 
@@ -199,14 +179,24 @@ export function ProDashboard() {
         ) : null}
       </Animated.View>
 
-      {/* Collect */}
+      {/* Collect — the two ways to get paid, side by side. ERP terminal sits
+          next to New charge (not hidden) since it's the primary in-store flow. */}
       <Animated.View
         entering={FadeInDown.duration(500)
           .delay(STAGGER_MS * 2)
           .springify()}
-        className="mt-7"
+        className="mt-7 flex-row gap-3"
       >
-        <PrimaryButton label="New charge" onPress={() => router.push("/merchant")} />
+        <View className="flex-1">
+          <PrimaryButton label="New charge" onPress={() => router.push("/merchant")} />
+        </View>
+        <View className="flex-1">
+          <PrimaryButton
+            label="ERP terminal"
+            variant="secondary"
+            onPress={() => router.push("/terminal")}
+          />
+        </View>
       </Animated.View>
 
       {/* Business tools — canonical entry to the Business hub. */}
@@ -232,7 +222,16 @@ export function ProDashboard() {
             .delay(STAGGER_MS * 4)
             .springify()}
         >
-          <SectionLabel className="mt-8">Activity</SectionLabel>
+          <SectionLabel
+            className="mt-8"
+            action={
+              <Pressable onPress={() => router.push("/activity")} hitSlop={8}>
+                <Text className="text-xs font-inter-semibold text-brisk-accent">See all</Text>
+              </Pressable>
+            }
+          >
+            Activity
+          </SectionLabel>
           <View className="mt-3">
             {activity.map((it, i) => (
               <ActivityRow

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { Gift, Send, Share2 } from "lucide-react-native";
@@ -9,6 +9,7 @@ import { ListRow } from "@/components/ui/ListRow";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorText } from "@/components/ui/ErrorText";
+import { GiftShare } from "@/components/ui/GiftShare";
 import { useGiftCards } from "@/hooks/useGiftCards";
 import { useMerchantDirectory } from "@/hooks/useMerchantDirectory";
 import { formatUsd } from "@/services/blockchain/paymentTx";
@@ -28,17 +29,24 @@ export default function GiftCardsScreen() {
   const { nameFor, resolve } = useMerchantDirectory();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The claim link to share, presented in place as a bottom sheet (re-gift or
+  // re-share) — no separate screen.
+  const [share, setShare] = useState<{
+    url: string;
+    amountMicros: number;
+    merchantName: string;
+  } | null>(null);
 
   useEffect(() => {
     resolve([...cards.map((c) => c.merchantId), ...shareable.map((c) => c.merchantId)]);
   }, [cards, shareable, resolve]);
 
-  const openLink = (url: string, faceValueMicros: number, merchantId: string) => {
-    router.push(
-      `/gift-link?url=${encodeURIComponent(url)}&amount=${faceValueMicros}&merchant=${encodeURIComponent(
-        nameFor(merchantId) ?? "this merchant",
-      )}`,
-    );
+  const openShare = (url: string, faceValueMicros: number, merchantId: string) => {
+    setShare({
+      url,
+      amountMicros: faceValueMicros,
+      merchantName: nameFor(merchantId) ?? "this merchant",
+    });
   };
 
   const onRegift = async (c: {
@@ -56,7 +64,7 @@ export default function GiftCardsScreen() {
         claimCode: c.claimCode,
         faceValueMicros: c.balanceMicros,
       });
-      openLink(url, c.balanceMicros, c.merchantId);
+      openShare(url, c.balanceMicros, c.merchantId);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't re-gift this card");
     } finally {
@@ -144,7 +152,7 @@ export default function GiftCardsScreen() {
                 icon={Share2}
                 title={nameFor(c.merchantId) ?? shortId(c.merchantId)}
                 subtitle={`${formatUsd(c.faceValueMicros)} · tap to share the link`}
-                onPress={() => openLink(c.url, c.faceValueMicros, c.merchantId)}
+                onPress={() => openShare(c.url, c.faceValueMicros, c.merchantId)}
                 trailing={
                   <Text className="text-xs font-inter-semibold text-brisk-accent">Share</Text>
                 }
@@ -159,6 +167,31 @@ export default function GiftCardsScreen() {
           ) : null}
         </ScrollView>
       )}
+
+      {/* Share a claim link in place (re-gift / re-share) — one shared UI. */}
+      <Modal
+        visible={!!share}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShare(null)}
+      >
+        <Pressable className="flex-1 justify-end bg-black/60" onPress={() => setShare(null)}>
+          <Pressable
+            className="rounded-t-3xl border-t border-brisk-border bg-brisk-bg0 px-5 pb-10 pt-6"
+            onPress={(e) => e.stopPropagation()}
+          >
+            {share ? (
+              <GiftShare
+                url={share.url}
+                amountMicros={share.amountMicros}
+                merchantName={share.merchantName}
+                onDone={() => setShare(null)}
+                doneLabel="Close"
+              />
+            ) : null}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Screen>
   );
 }

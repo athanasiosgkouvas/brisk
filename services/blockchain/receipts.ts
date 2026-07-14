@@ -1,5 +1,10 @@
 import { ENV } from "@/utils/constants";
-import { fetchAddressTransactions, type TxHistoryNode } from "@/services/blockchain/txHistory";
+import {
+  fetchAddressTransactions,
+  fetchAddressTransactionsPage,
+  type TxHistoryNode,
+  type TxPage,
+} from "@/services/blockchain/txHistory";
 
 /**
  * The activity feed = on-chain USDC movements. We read the address's transaction
@@ -54,13 +59,22 @@ function toItem(tx: TxHistoryNode, address: string): ActivityItem | null {
   };
 }
 
-/** Recent USDC activity for an address (both sent and received), newest first. */
-export async function queryActivity(address: string, limit = 30): Promise<ActivityItem[]> {
+/**
+ * Recent USDC activity for an address (both sent and received), newest first.
+ * `limit` caps the returned items; `fetchLast` is the transaction window scanned
+ * (raise both together for the full "All activity" screen's load-more).
+ */
+export async function queryActivity(
+  address: string,
+  limit = 30,
+  fetchLast = 50,
+): Promise<ActivityItem[]> {
   // `affectedAddress` captures txs the address sent OR received, so a single
   // query covers both legs; direction is derived from the net balance change.
-  const txs = await fetchAddressTransactions(address, { direction: "affected", last: 50 }).catch(
-    () => [] as TxHistoryNode[],
-  );
+  const txs = await fetchAddressTransactions(address, {
+    direction: "affected",
+    last: fetchLast,
+  }).catch(() => [] as TxHistoryNode[]);
 
   const byDigest = new Map<string, ActivityItem>();
   for (const tx of txs) {
@@ -68,4 +82,38 @@ export async function queryActivity(address: string, limit = 30): Promise<Activi
     if (item && item.digest && !byDigest.has(item.digest)) byDigest.set(item.digest, item);
   }
   return [...byDigest.values()].sort((a, b) => b.timestampMs - a.timestampMs).slice(0, limit);
+}
+
+export type ActivityPage = {
+  items: ActivityItem[];
+  /** Cursor to pass as `before` for the next (older) page, or null at the end. */
+  nextCursor: string | null;
+  hasMore: boolean;
+};
+
+/**
+ * One page of USDC activity (newest-first), for the paginated "All activity"
+ * screen. Scans a page of `last` transactions before the cursor and keeps the
+ * USDC-moving ones; pass `nextCursor` back as `before` to load the next page.
+ */
+export async function queryActivityPage(
+  address: string,
+  opts: { last?: number; before?: string | null } = {},
+): Promise<ActivityPage> {
+  const page = await fetchAddressTransactionsPage(address, {
+    direction: "affected",
+    last: opts.last ?? 20,
+    before: opts.before ?? null,
+  }).catch(() => ({ nodes: [], startCursor: null, hasPreviousPage: false }) as TxPage);
+
+  const items: ActivityItem[] = [];
+  const seen = new Set<string>();
+  for (const tx of page.nodes) {
+    const item = toItem(tx, address);
+    if (item && item.digest && !seen.has(item.digest)) {
+      seen.add(item.digest);
+      items.push(item);
+    }
+  }
+  return { items, nextCursor: page.startCursor, hasMore: page.hasPreviousPage };
 }

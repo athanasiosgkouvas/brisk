@@ -5,15 +5,16 @@ import type { AppMode } from "@/store/appModeStore";
 
 const OPTIONS: { mode: AppMode; label: string }[] = [
   { mode: "personal", label: "Personal" },
-  { mode: "pro", label: "Pro" },
+  { mode: "pro", label: "Business" },
 ];
 
 /**
- * Segmented Personal/Pro control pinned to the top of the home screen. Flipping
- * it swaps the tab bar + reskins the dashboard (see app/(tabs)/_layout.tsx).
+ * Segmented Personal/Business control (the redundant Settings path; the primary
+ * switch is the ModePill in the home header). Flipping it swaps the tab bar +
+ * reskins the dashboard (see app/(tabs)/_layout.tsx).
  *
  * `onRequestMode` lets a caller intercept the selection — e.g. to run one-time
- * Pro activation (register merchant + create the first till) before committing
+ * Business activation (register merchant + create the first till) before committing
  * the switch. When omitted, the change is applied immediately.
  */
 export function ModeSwitch({ onRequestMode }: { onRequestMode?: (mode: AppMode) => void }) {

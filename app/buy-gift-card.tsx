@@ -7,7 +7,7 @@ import { Search } from "lucide-react-native";
 import { Screen } from "@/components/ui/Screen";
 import { ListRow } from "@/components/ui/ListRow";
 import { BusinessAvatar } from "@/components/ui/BusinessAvatar";
-import { ShareSheet } from "@/components/ui/ShareSheet";
+import { GiftShare } from "@/components/ui/GiftShare";
 import { ErrorText } from "@/components/ui/ErrorText";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { PresetAmountRow } from "@/components/ui/PresetAmountRow";
@@ -144,26 +144,14 @@ export default function BuyGiftCardScreen() {
           </ScrollView>
         </Animated.View>
       ) : status === "done" && link ? (
-        <Animated.View entering={FadeIn.duration(300)} className="flex-1 items-center pt-6">
-          <Text className="text-sm uppercase tracking-[2px] text-brisk-subtext">Gift card</Text>
-          <Text className="mt-2 text-center text-2xl font-inter-bold text-brisk-text">
-            {formatUsd(micros)} at {merchantName}
-          </Text>
-          <Text className="mt-2 text-center text-sm text-brisk-subtext">
-            Send this to a friend — they tap to add it to their account.
-          </Text>
-          <View className="mt-6 w-full">
-            <ShareSheet
-              value={link}
-              qrSize={180}
-              shareMessage={`I sent you a ${formatUsd(micros)} gift card for ${merchantName} on Brisk: ${link}`}
-              qrAccessibilityLabel="Gift card claim QR code"
-            />
-          </View>
-          <View className="mt-6 w-full max-w-[360px]">
-            <PrimaryButton label="Done" variant="secondary" onPress={() => router.back()} />
-          </View>
-        </Animated.View>
+        <View className="flex-1 items-center pt-6">
+          <GiftShare
+            url={link}
+            amountMicros={micros}
+            merchantName={merchantName}
+            onDone={() => router.back()}
+          />
+        </View>
       ) : (
         <Animated.View entering={FadeIn.duration(300)} className="pt-2">
           <Text className="text-center text-sm text-brisk-subtext">

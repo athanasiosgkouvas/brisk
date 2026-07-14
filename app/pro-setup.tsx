@@ -6,7 +6,12 @@ import { Store } from "lucide-react-native";
 
 import { Screen } from "@/components/ui/Screen";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
-import { LabeledInput } from "@/components/ui/LabeledInput";
+import {
+  BusinessProfileForm,
+  EMPTY_BUSINESS_PROFILE,
+  isValidProfile,
+  type BusinessProfileValue,
+} from "@/components/ui/BusinessProfileForm";
 import { ErrorText } from "@/components/ui/ErrorText";
 import { useProActivation } from "@/hooks/useProActivation";
 import { useTheme } from "@/hooks/useTheme";
@@ -21,29 +26,25 @@ export default function ProSetupScreen() {
   const params = useLocalSearchParams<{ name?: string; hasShop?: string }>();
   const { provision, activating, error } = useProActivation();
 
-  const [name, setName] = useState(typeof params.name === "string" ? params.name : "");
-  const [vatId, setVatId] = useState("");
-  const [city, setCity] = useState("");
-  const [country, setCountry] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [category, setCategory] = useState("");
-  const [logoUrl, setLogoUrl] = useState("");
+  const [form, setForm] = useState<BusinessProfileValue>(() => ({
+    ...EMPTY_BUSINESS_PROFILE,
+    businessName: typeof params.name === "string" ? params.name : "",
+  }));
 
-  const valid = name.trim().length >= 2 && vatId.trim().length >= 1;
   const returning = params.hasShop === "1";
+  const valid = isValidProfile(form, true);
 
   const onCreate = async () => {
     try {
       await provision({
-        businessName: name,
-        vatId,
-        city,
-        country,
-        phone,
-        email,
-        category,
-        logoUrl,
+        businessName: form.businessName,
+        vatId: form.vatId,
+        city: form.city,
+        country: form.country,
+        phone: form.phone,
+        email: form.email,
+        category: form.category,
+        logoUrl: form.logoUrl,
       });
       router.back(); // mode is now Pro; returning reveals the dashboard
     } catch {
@@ -64,72 +65,12 @@ export default function ProSetupScreen() {
         </Text>
       </Animated.View>
 
-      <View className="mt-7 gap-4">
-        <LabeledInput
-          label="Business name"
-          required
-          value={name}
-          onChangeText={setName}
-          placeholder="e.g. Acme Coffee"
-          maxLength={40}
-          autoFocus={!returning}
-        />
-        <LabeledInput
-          label="VAT / Tax ID"
-          required
-          value={vatId}
-          onChangeText={setVatId}
-          placeholder="e.g. EL123456789"
-          autoCapitalize="characters"
-          maxLength={32}
-          autoFocus={returning}
-        />
-        <LabeledInput
-          label="Category"
-          value={category}
-          onChangeText={setCategory}
-          placeholder="e.g. Café, Retail, Services"
-          maxLength={40}
-        />
-        <LabeledInput
-          label="City"
-          value={city}
-          onChangeText={setCity}
-          placeholder="e.g. Athens"
-          maxLength={64}
-        />
-        <LabeledInput
-          label="Country"
-          value={country}
-          onChangeText={setCountry}
-          placeholder="e.g. Greece"
-          maxLength={64}
-        />
-        <LabeledInput
-          label="Phone"
-          value={phone}
-          onChangeText={setPhone}
-          placeholder="e.g. +30 210 1234567"
-          keyboardType="phone-pad"
-          maxLength={32}
-        />
-        <LabeledInput
-          label="Email"
-          value={email}
-          onChangeText={setEmail}
-          placeholder="e.g. hello@acme.gr"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          maxLength={120}
-        />
-        <LabeledInput
-          label="Logo URL"
-          value={logoUrl}
-          onChangeText={setLogoUrl}
-          placeholder="https://…/logo.png"
-          keyboardType="url"
-          autoCapitalize="none"
-          maxLength={512}
+      <View className="mt-7">
+        <BusinessProfileForm
+          value={form}
+          onChange={setForm}
+          nameEditable
+          autoFocus={returning ? "vat" : "name"}
         />
       </View>
 

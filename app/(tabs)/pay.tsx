@@ -1,28 +1,66 @@
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { SmartphoneNfc, XCircle } from "lucide-react-native";
 
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
-import { HeroAmount } from "@/components/ui/HeroAmount";
-import { SuccessSheet } from "@/components/ui/SuccessSheet";
 import { AuroraBackground } from "@/components/ui/AuroraBackground";
 import { PulseRing } from "@/components/ui/PulseRing";
+import { PayConfirm } from "@/components/pay/PayConfirm";
 import { usePay } from "@/hooks/usePay";
+import { usePayFlow } from "@/hooks/usePayFlow";
 import { openNfcSettings } from "@/services/nfc/reader";
 import { useTheme } from "@/hooks/useTheme";
 
 // Customer "Pay" tab (iOS + Android). Tap the Brisk Terminal -> review ->
-// Confirm & Pay -> feeless settlement. The whole point of the app.
+// Confirm & Pay -> feeless settlement. The whole point of the app. The review →
+// settle → done/error tail is the shared PayConfirm; this screen only owns the
+// NFC-read head.
 export default function PayScreen() {
   const theme = useTheme();
-  const { status, invoice, result, error, tapToRead, confirmAndPay, reset, cancel } = usePay();
+  const { status, invoice, error, tapToRead, settle, reset, cancel } = usePay();
+  const flow = usePayFlow();
+
+  // Start a fresh read: clear any prior tail state, then read the tag.
+  const onTap = () => {
+    flow.reset();
+    void tapToRead();
+  };
+
+  // Return to idle for a fresh tap (used by cancel, done, and settle-error).
+  const toIdle = () => {
+    flow.reset();
+    reset();
+  };
 
   return (
     <View className="flex-1 bg-brisk-bg0">
       <AuroraBackground>
         <SafeAreaView edges={["top"]} className="flex-1 px-5 pt-10">
           <View className="flex-1 items-center justify-center">
+            {/* Once an invoice is read, hand off to the shared pay tail. */}
+            {status === "review" && invoice ? (
+              <PayConfirm
+                state={flow.state}
+                amountMicros={invoice.amountMicros}
+                eyebrow="Pay"
+                payeeLabel={`to ${invoice.merchant}`}
+                confirmLabel="Confirm & Pay"
+                onConfirm={() => void flow.confirm({ settle })}
+                onCancel={toIdle}
+                success={{
+                  subtitle: `to ${invoice.merchant}`,
+                  caption: flow.result?.receiptIssued
+                    ? "Settled on Sui in seconds — on-chain receipt minted, zero gas."
+                    : "Settled on Sui in seconds — zero gas.",
+                  footer: <PrimaryButton label="Done" onPress={toIdle} />,
+                }}
+                errorMessage={flow.error}
+                errorHint="Nothing was charged — give it another tap."
+                onRetry={toIdle}
+              />
+            ) : null}
+
             {status === "idle" || status === "reading" ? (
               <Animated.View entering={FadeIn.duration(300)} className="items-center">
                 <PulseRing size={64} color={status === "reading" ? theme.accent : theme.bg2}>
@@ -35,7 +73,7 @@ export default function PayScreen() {
                 <View className="mt-8 w-full max-w-[360px]">
                   <PrimaryButton
                     label={status === "reading" ? "Hold near terminal…" : "Tap to pay"}
-                    onPress={() => void tapToRead()}
+                    onPress={onTap}
                     loading={status === "reading"}
                   />
                   {status === "reading" ? (
@@ -45,48 +83,6 @@ export default function PayScreen() {
                   ) : null}
                 </View>
               </Animated.View>
-            ) : null}
-
-            {status === "review" && invoice ? (
-              <Animated.View
-                entering={FadeIn.duration(300)}
-                className="w-full max-w-[360px] items-center"
-              >
-                <Text className="text-sm uppercase tracking-[2px] text-brisk-subtext">Pay</Text>
-                <HeroAmount
-                  micros={invoice.amountMicros}
-                  tier="focused"
-                  countUp={false}
-                  className="mt-2"
-                />
-                <Text className="mt-2 text-base text-brisk-subtext">to {invoice.merchant}</Text>
-                <View className="mt-8 w-full">
-                  <PrimaryButton label="Confirm & Pay" onPress={() => void confirmAndPay()} />
-                  <Pressable className="mt-3 py-3" onPress={reset}>
-                    <Text className="text-center text-sm text-brisk-subtext">Cancel</Text>
-                  </Pressable>
-                </View>
-              </Animated.View>
-            ) : null}
-
-            {status === "paying" ? (
-              <Animated.View entering={FadeIn.duration(300)} className="items-center">
-                <ActivityIndicator color={theme.accent} size="large" />
-                <Text className="mt-4 text-sm text-brisk-subtext">Settling on Sui…</Text>
-              </Animated.View>
-            ) : null}
-
-            {status === "done" && result && invoice ? (
-              <SuccessSheet
-                amountMicros={invoice.amountMicros}
-                subtitle={`to ${invoice.merchant}`}
-                caption={
-                  result.receiptIssued
-                    ? "Settled on Sui in seconds — on-chain receipt minted, zero gas."
-                    : "Settled on Sui in seconds — zero gas."
-                }
-                footer={<PrimaryButton label="Done" onPress={reset} />}
-              />
             ) : null}
 
             {status === "nfc_off" ? (
@@ -100,7 +96,7 @@ export default function PayScreen() {
                 </Text>
                 <View className="mt-8 w-full max-w-[360px]">
                   <PrimaryButton label="Open NFC settings" onPress={() => void openNfcSettings()} />
-                  <Pressable className="mt-3 py-3" onPress={() => void tapToRead()}>
+                  <Pressable className="mt-3 py-3" onPress={onTap}>
                     <Text className="text-center text-sm text-brisk-subtext">Try again</Text>
                   </Pressable>
                 </View>
@@ -118,7 +114,7 @@ export default function PayScreen() {
                   Nothing was charged — give it another tap.
                 </Text>
                 <View className="mt-8 w-full max-w-[360px]">
-                  <PrimaryButton label="Try again" onPress={reset} />
+                  <PrimaryButton label="Try again" onPress={toIdle} />
                 </View>
               </Animated.View>
             ) : null}

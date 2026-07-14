@@ -23,9 +23,11 @@ const TAB_BAR_HEIGHT = FLOATING_TAB_BAR_HEIGHT;
 // Which tab routes are hidden in each mode. The custom bar maps `state.routes`
 // directly, so `href: null` (which only the default bar honors) doesn't hide
 // anything here — we filter explicitly by name. Personal: Wallet · Pay · Save.
-// Pro: Dashboard · Charge · Links · Save.
+// Business: Business · Charge · Save. Both modes are a symmetric 3-tab set
+// (overview → verb → grow). `links` stays registered but hidden — it's reached
+// by pushing from Charge, so link creation + management read as one surface.
 const HIDDEN_IN_PERSONAL = new Set(["merchant", "links"]);
-const HIDDEN_IN_PRO = new Set(["pay"]);
+const HIDDEN_IN_PRO = new Set(["pay", "links"]);
 
 function TabIcon({ Icon, color, size }: { Icon: LucideIcon; color: string; size: number }) {
   return <Icon color={color} size={size} />;
@@ -151,10 +153,10 @@ function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 export default function TabsLayout() {
   // The tab set is driven by app mode. Every screen is always registered (the
   // navigator never remounts); FloatingTabBar decides which appear per mode
-  // (see HIDDEN_IN_* above). Here we only reskin the shared `index`/`save` tabs.
-  // Personal: Wallet · Pay · Save. Pro: Dashboard · Charge · Links · Save. The
-  // mode chip that flips this lives on the home tab (present in both modes), so
-  // the user is never stranded on a hidden tab.
+  // (see HIDDEN_IN_* above). Here we only reskin the shared `index` tab.
+  // Personal: Wallet · Pay · Save. Business: Business · Charge · Save. The
+  // mode switch that flips this lives on the home tab (present in both modes),
+  // so the user is never stranded on a hidden tab.
   const pro = useAppModeStore((s) => s.mode === "pro");
   const theme = useTheme();
 
@@ -171,7 +173,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: pro ? "Dashboard" : "Wallet",
+          title: pro ? "Business" : "Wallet",
           tabBarIcon: ({ color, size }) => (
             <TabIcon Icon={pro ? LayoutDashboard : Wallet} color={color} size={size} />
           ),
@@ -201,7 +203,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="save"
         options={{
-          title: pro ? "Treasury" : "Save",
+          title: "Save",
           tabBarIcon: ({ color, size }) => <TabIcon Icon={PiggyBank} color={color} size={size} />,
         }}
       />

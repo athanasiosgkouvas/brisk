@@ -2,26 +2,28 @@ import { useCallback, useRef, useState } from "react";
 import { Platform } from "react-native";
 
 import { useAuth } from "@/hooks/useAuth";
-import { hapticError } from "@/utils/haptics";
 import { cancelRead, isNfcEnabled, isNfcSupported, readInvoiceTag } from "@/services/nfc/reader";
-import { payInvoice, type PayResult } from "@/services/blockchain/payments";
+import { payInvoice } from "@/services/blockchain/payments";
 import { ensureSpendable } from "@/services/blockchain/coverFromSave";
 import { parseInvoice, type Invoice } from "@/services/blockchain/paymentTx";
+import type { SettleOutcome } from "@/hooks/usePayFlow";
 
-export type PayStatus = "idle" | "reading" | "review" | "paying" | "done" | "error" | "nfc_off";
+// The NFC Pay "head": reading a terminal's invoice tag. The review → settle →
+// done/error tail is the shared usePayFlow, driven by the Pay screen. `status`
+// covers only the acquisition phase; once `invoice` is set (status "review"),
+// the screen hands off to usePayFlow.
+export type PayReadStatus = "idle" | "reading" | "review" | "error" | "nfc_off";
 
 export function usePay() {
   const { session } = useAuth();
-  const [status, setStatus] = useState<PayStatus>("idle");
+  const [status, setStatus] = useState<PayReadStatus>("idle");
   const [invoice, setInvoice] = useState<Invoice | null>(null);
-  const [result, setResult] = useState<PayResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const cancelledRef = useRef(false);
 
   const reset = useCallback(() => {
     setStatus("idle");
     setInvoice(null);
-    setResult(null);
     setError(null);
   }, []);
 
@@ -64,31 +66,13 @@ export function usePay() {
     }
   }, []);
 
-  /** Pay the reviewed invoice. The explicit "Confirm & Pay" tap is the
-   *  authorization — no separate biometric prompt (one less friction point). */
-  const confirmAndPay = useCallback(async () => {
-    if (!session || !invoice) return;
-    setError(null);
-    setStatus("paying");
-    try {
-      // If the Wallet is short, offer to cover the shortfall from Save first.
-      if ((await ensureSpendable(session, invoice.amountMicros)) === "cancelled") {
-        setStatus("review");
-        return null;
-      }
-      const res = await payInvoice(session, invoice);
-      setResult(res);
-      setStatus("done");
-      // The success haptic fires from the SuccessSheet on the done screen.
-      return res;
-    } catch (e) {
-      console.error("[brisk-pay] failed:", e instanceof Error ? e.message : e, e);
-      setError(e instanceof Error ? e.message : "Payment failed");
-      setStatus("error");
-      void hapticError();
-      return null;
-    }
+  /** Settle the reviewed invoice (feeless), covering any shortfall from Save
+   *  first. Pure runner for usePayFlow — sets no local state. */
+  const settle = useCallback(async (): Promise<SettleOutcome> => {
+    if (!session || !invoice) throw new Error("Nothing to pay");
+    if ((await ensureSpendable(session, invoice.amountMicros)) === "cancelled") return "cancelled";
+    return payInvoice(session, invoice);
   }, [session, invoice]);
 
-  return { status, invoice, result, error, tapToRead, confirmAndPay, reset, cancel };
+  return { status, invoice, error, tapToRead, settle, reset, cancel };
 }
