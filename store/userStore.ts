@@ -9,10 +9,12 @@ export type UsernameStatus = "unknown" | "has" | "needs";
 
 type UsernameStore = {
   handle: string | null;
+  avatar: string | null;
   status: UsernameStatus;
   checkedAddress: string | null;
   setState: (s: {
     handle?: string | null;
+    avatar?: string | null;
     status?: UsernameStatus;
     checkedAddress?: string | null;
   }) => void;
@@ -21,8 +23,9 @@ type UsernameStore = {
 
 export const useUsernameStore = create<UsernameStore>((set) => ({
   handle: null,
+  avatar: null,
   status: "unknown",
   checkedAddress: null,
   setState: (s) => set(s),
-  reset: () => set({ handle: null, status: "unknown", checkedAddress: null }),
+  reset: () => set({ handle: null, avatar: null, status: "unknown", checkedAddress: null }),
 }));

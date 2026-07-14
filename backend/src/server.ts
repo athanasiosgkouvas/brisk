@@ -224,6 +224,8 @@ const registerUserSchema = z.object({
     .refine((h) => !h.endsWith("_"), "Can't end with an underscore")
     .refine((h) => !h.includes("__"), "No consecutive underscores")
     .refine((h) => !RESERVED_HANDLES.has(h), "That username is reserved"),
+  // Optional compressed avatar data URI: undefined = preserve, "" = remove.
+  avatar: z.string().max(300_000).nullable().optional(),
 });
 
 const microAmount = z
@@ -1358,8 +1360,13 @@ app.get("/api/merchants/lookup", async (req, res) => {
   const ids = split(req.query.ids);
   const addrs = split(req.query.addrs);
   try {
-    const profiles = await merchantStore.lookupProfiles(ids, addrs);
-    res.json({ profiles });
+    // Also resolve till addresses → their business (so a payment into a till
+    // shows the business name/logo, not a short address).
+    const [profiles, tillBusinesses] = await Promise.all([
+      merchantStore.lookupProfiles(ids, addrs),
+      merchantStore.lookupTillBusinesses(addrs),
+    ]);
+    res.json({ profiles: [...profiles, ...tillBusinesses] });
   } catch (error: unknown) {
     console.error("[merchants] lookup failed", error instanceof Error ? error.message : error);
     res.json({ profiles: [] });
@@ -1437,6 +1444,7 @@ app.post("/api/users", async (req, res) => {
     const user = await userStore.upsertHandle({
       ownerAddr: parsed.data.sender,
       handle: parsed.data.handle,
+      avatar: parsed.data.avatar,
     });
     res.json({ user: withAlias(user) });
   } catch (error: unknown) {

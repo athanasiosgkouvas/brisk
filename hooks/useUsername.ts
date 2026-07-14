@@ -15,7 +15,7 @@ import { formatAlias, handleError, normalizeHandle } from "@/utils/handle";
  */
 export function useUsername() {
   const { session } = useAuth();
-  const { handle, status, checkedAddress, setState, reset } = useUsernameStore();
+  const { handle, avatar, status, checkedAddress, setState, reset } = useUsernameStore();
   const address = session?.address ?? null;
 
   useEffect(() => {
@@ -31,7 +31,12 @@ export function useUsername() {
         if (!mounted) return;
         if (user) {
           void saveUsername(address, user.handle);
-          setState({ handle: user.handle, status: "has", checkedAddress: address });
+          setState({
+            handle: user.handle,
+            avatar: user.avatar ?? null,
+            status: "has",
+            checkedAddress: address,
+          });
         } else {
           // Explicit 404 — no username on record.
           setState({ handle: null, status: "needs", checkedAddress: address });
@@ -48,15 +53,25 @@ export function useUsername() {
 
   const needsUsername = !!address && checkedAddress === address && status === "needs";
 
+  // `avatar`: omit to keep the current photo, "" to remove it, a data URI to set.
   const register = useCallback(
-    async (raw: string) => {
+    async (raw: string, nextAvatar?: string | null) => {
       if (!session) throw new Error("Not signed in");
       const err = handleError(raw);
       if (err) throw new Error(err);
       const norm = normalizeHandle(raw)!;
-      const user = await upsertUsername({ sender: session.address, handle: norm });
+      const user = await upsertUsername({
+        sender: session.address,
+        handle: norm,
+        avatar: nextAvatar,
+      });
       void saveUsername(session.address, user.handle);
-      setState({ handle: user.handle, status: "has", checkedAddress: session.address });
+      setState({
+        handle: user.handle,
+        avatar: user.avatar ?? null,
+        status: "has",
+        checkedAddress: session.address,
+      });
       return user;
     },
     [session, setState],
@@ -64,6 +79,7 @@ export function useUsername() {
 
   return {
     handle,
+    avatar,
     alias: handle ? formatAlias(handle) : null,
     needsUsername,
     register,

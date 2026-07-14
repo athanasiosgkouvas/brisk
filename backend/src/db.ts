@@ -135,6 +135,8 @@ export async function ensureSchema(): Promise<void> {
   await pool.query(
     `CREATE UNIQUE INDEX IF NOT EXISTS users_handle_lower_idx ON users (lower(handle));`,
   );
+  // Optional compressed avatar as a small data URI (personal profile photo).
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar TEXT;`);
 
   // --- Gift cards: merchant-prepaid (this table is a metadata INDEX) ------
   // Mint/claim/redeem/regift live on-chain (Move `gift_card`); the merchant is

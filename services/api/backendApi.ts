@@ -276,10 +276,12 @@ export type BriskUser = {
   avatar?: string | null;
 };
 
-/** Register or change the caller's handle. Throws on 409 (taken) / other errors. */
+/** Register or change the caller's handle (and optionally avatar). `avatar`:
+ *  omit to preserve, "" to remove, a data URI to set. Throws on 409 / errors. */
 export async function upsertUsername(input: {
   sender: string;
   handle: string;
+  avatar?: string | null;
 }): Promise<BriskUser> {
   const res = await backendFetch<{ user: BriskUser }>("/api/users", {
     method: "POST",

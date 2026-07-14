@@ -1,13 +1,16 @@
 import { useState } from "react";
-import { Text, TextInput, View } from "react-native";
+import { Pressable, Text, TextInput, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useRouter } from "expo-router";
-import { AtSign } from "lucide-react-native";
+import { Camera } from "lucide-react-native";
 
 import { Screen } from "@/components/ui/Screen";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { ErrorText } from "@/components/ui/ErrorText";
+import { BusinessAvatar } from "@/components/ui/BusinessAvatar";
+import { useAuth } from "@/hooks/useAuth";
 import { useUsername } from "@/hooks/useUsername";
+import { pickAvatarDataUri } from "@/services/media/avatar";
 import { formatAlias, handleError, normalizeHandle } from "@/utils/handle";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -17,10 +20,21 @@ import { useTheme } from "@/hooks/useTheme";
 export default function UsernameSetupScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const { session } = useAuth();
   const { register } = useUsername();
   const [input, setInput] = useState("");
+  const [avatar, setAvatar] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const onPickAvatar = async () => {
+    try {
+      const uri = await pickAvatarDataUri();
+      if (uri) setAvatar(uri);
+    } catch {
+      // ignore picker/permission errors — the photo is optional
+    }
+  };
 
   const normalized = normalizeHandle(input);
   const valid = !!normalized;
@@ -32,7 +46,7 @@ export default function UsernameSetupScreen() {
     setError(null);
     setBusy(true);
     try {
-      await register(input);
+      await register(input, avatar ?? undefined);
       router.replace("/");
     } catch (e) {
       // 409 (taken) and other failures surface here.
@@ -45,7 +59,18 @@ export default function UsernameSetupScreen() {
   return (
     <Screen title="Choose your username" scroll bottomInset={40}>
       <Animated.View entering={FadeInDown.duration(500).springify()} className="mt-2 items-center">
-        <AtSign color={theme.accent} size={44} />
+        <Pressable onPress={() => void onPickAvatar()} accessibilityLabel="Add a profile photo">
+          {avatar ? (
+            <BusinessAvatar logoUrl={avatar} seed={session?.address ?? "brisk"} size={88} />
+          ) : (
+            <View className="h-[88px] w-[88px] items-center justify-center rounded-full border border-brisk-borderStrong bg-brisk-bg1/70">
+              <Camera color={theme.accent} size={30} />
+            </View>
+          )}
+        </Pressable>
+        <Text className="mt-2 text-xs font-inter-semibold text-brisk-accent">
+          {avatar ? "Change photo" : "Add photo (optional)"}
+        </Text>
         <Text className="mt-4 text-center text-2xl font-inter-bold text-brisk-text">
           Claim your @brisk name
         </Text>

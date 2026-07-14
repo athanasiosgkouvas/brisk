@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, Linking, Pressable, Text, TextInput, View } f
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import {
-  AtSign,
+  Camera,
   Check,
   ChevronRight,
   FileText,
@@ -19,10 +19,12 @@ import { SectionLabel } from "@/components/ui/SectionLabel";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { ModeSwitch } from "@/components/ui/ModeSwitch";
 import { ErrorText } from "@/components/ui/ErrorText";
+import { BusinessAvatar } from "@/components/ui/BusinessAvatar";
 import { useAuth } from "@/hooks/useAuth";
 import { useProActivation } from "@/hooks/useProActivation";
 import { useUsername } from "@/hooks/useUsername";
 import { useTheme, useThemeMode } from "@/hooks/useTheme";
+import { pickAvatarDataUri } from "@/services/media/avatar";
 import { handleError, normalizeHandle } from "@/utils/handle";
 import { ICON } from "@/theme/scale";
 import type { ThemeScheme } from "@/store/themeStore";
@@ -46,13 +48,43 @@ export default function SettingsScreen() {
   const { logout } = useAuth();
   const { requestMode, activating } = useProActivation();
   const { scheme, setScheme } = useThemeMode();
-  const { handle, alias, register } = useUsername();
+  const { handle, alias, avatar, register } = useUsername();
 
   // Inline username edit (uniqueness enforced by the backend → 409).
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [savingName, setSavingName] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+
+  // Avatar add/change: pick + compress, then persist (keeps the current handle).
+  const changeAvatar = useCallback(async () => {
+    if (!handle) return;
+    setNameError(null);
+    try {
+      const uri = await pickAvatarDataUri();
+      if (!uri) return;
+      setAvatarBusy(true);
+      await register(handle, uri);
+    } catch (e) {
+      setNameError(e instanceof Error ? e.message : "Couldn't update your photo");
+    } finally {
+      setAvatarBusy(false);
+    }
+  }, [handle, register]);
+
+  const removeAvatar = useCallback(async () => {
+    if (!handle) return;
+    setNameError(null);
+    setAvatarBusy(true);
+    try {
+      await register(handle, ""); // "" clears the photo
+    } catch (e) {
+      setNameError(e instanceof Error ? e.message : "Couldn't remove your photo");
+    } finally {
+      setAvatarBusy(false);
+    }
+  }, [handle, register]);
 
   const startEditName = () => {
     setNameDraft(handle ?? "");
@@ -139,19 +171,58 @@ export default function SettingsScreen() {
             </View>
           ) : (
             <View className="flex-row items-center">
-              <AtSign color={theme.accent} size={ICON.row} />
+              <Pressable
+                onPress={() => void changeAvatar()}
+                hitSlop={6}
+                accessibilityLabel={avatar ? "Change profile photo" : "Add profile photo"}
+              >
+                {avatar ? (
+                  <BusinessAvatar
+                    logoUrl={avatar}
+                    seed={handle ?? "brisk"}
+                    size={40}
+                    label={handle?.[0]?.toUpperCase()}
+                  />
+                ) : (
+                  <View className="h-10 w-10 items-center justify-center rounded-full border border-brisk-borderStrong bg-brisk-bg1/70">
+                    <Camera color={theme.accent} size={16} />
+                  </View>
+                )}
+              </Pressable>
               <Text className="ml-3 flex-1 text-base font-inter-semibold text-brisk-text">
                 {alias ?? "Not set"}
               </Text>
-              <Pressable onPress={startEditName} hitSlop={10} accessibilityLabel="Change username">
-                <Pencil color={theme.subtext} size={ICON.inlineAction} />
-              </Pressable>
+              {avatarBusy ? (
+                <ActivityIndicator size="small" color={theme.accent} />
+              ) : (
+                <Pressable
+                  onPress={startEditName}
+                  hitSlop={10}
+                  accessibilityLabel="Change username"
+                >
+                  <Pencil color={theme.subtext} size={ICON.inlineAction} />
+                </Pressable>
+              )}
             </View>
           )}
           {nameError ? <ErrorText className="mt-2">{nameError}</ErrorText> : null}
-          <Text className="mt-3 text-xs text-brisk-subtext">
-            Friends can send you money at this name — no address needed.
-          </Text>
+          <View className="mt-3 flex-row items-center justify-between">
+            <Text className="flex-1 text-xs text-brisk-subtext">
+              Friends can send you money at this name — no address needed.
+            </Text>
+            {!editingName ? (
+              <Pressable
+                onPress={() => (avatar ? void removeAvatar() : void changeAvatar())}
+                hitSlop={8}
+                disabled={avatarBusy}
+                accessibilityRole="button"
+              >
+                <Text className="ml-3 text-xs font-inter-semibold text-brisk-accent">
+                  {avatar ? "Remove photo" : "Add photo"}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
         </GlassCard>
       </Animated.View>
 

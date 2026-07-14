@@ -196,3 +196,23 @@ export async function lookupProfiles(
   );
   return rows.map(rowToProfile);
 }
+
+/**
+ * Resolve till object addresses to their merchant's business profile, keyed by
+ * the TILL address (merchantId + ownerAddr overwritten to the till id). Lets the
+ * activity feed show the business name/logo for a payment INTO a till (business
+ * context), while a direct transfer to a personal address stays the alias.
+ */
+export async function lookupTillBusinesses(addrs: string[]): Promise<MerchantProfile[]> {
+  const db = requirePool();
+  if (addrs.length === 0) return [];
+  const { rows } = await db.query(
+    `SELECT t.till_id AS merchant_id, t.till_id AS owner_addr,
+            m.business_name, m.slug, m.vat_id, m.city, m.country, m.phone,
+            m.email, m.category, m.logo_url
+       FROM tills t JOIN merchant_profiles m ON m.merchant_id = t.merchant_id
+      WHERE t.till_id = ANY($1::text[])`,
+    [addrs],
+  );
+  return rows.map(rowToProfile);
+}
