@@ -131,11 +131,11 @@ export function useCharge() {
       setError(null);
       try {
         setStatus("preparing");
-        const { invoice: inv } = await buildInvoice(amountMicros, tillId);
+        const { invoice: inv, merchantId } = await buildInvoice(amountMicros, tillId);
         const baselineMicros = await getTillBalanceMicros(tillId).catch(() => 0);
         const { url } = await createPaymentLink({
           sender: session.address,
-          merchantId: inv.merchantId,
+          merchantId,
           payee: inv.payee,
           tillId,
           amountMicros: inv.amountMicros,

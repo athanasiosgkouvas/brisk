@@ -1,11 +1,14 @@
 import { useCallback, useState } from "react";
 
-import { lookupMerchants, type MerchantProfile } from "@/services/api/backendApi";
+import { lookupMerchants, lookupUsers, type MerchantProfile } from "@/services/api/backendApi";
 
 // Session-lifetime cache of merchant id/address → business name, so any screen
 // can render names instead of 0x. Shared across hook instances via a module map.
 const nameCache = new Map<string, string>(); // key: merchantId OR ownerAddr
 const logoCache = new Map<string, string>(); // key: merchantId OR ownerAddr → logoUrl
+// Ordinary users' Brisk aliases (ownerAddr → `handle@brisk`). A merchant business
+// name wins over an alias when an address is both (nameFor checks nameCache first).
+const aliasCache = new Map<string, string>(); // key: ownerAddr → alias
 const inFlight = new Set<string>();
 
 function cacheProfile(p: MerchantProfile) {
@@ -30,24 +33,43 @@ export function useMerchantDirectory() {
     const wanted = Array.from(
       new Set(
         keys.filter(
-          (k): k is string => !!k && k.startsWith("0x") && !nameCache.has(k) && !inFlight.has(k),
+          (k): k is string =>
+            !!k &&
+            k.startsWith("0x") &&
+            !nameCache.has(k) &&
+            !aliasCache.has(k) &&
+            !inFlight.has(k),
         ),
       ),
     );
     if (wanted.length === 0) return;
     wanted.forEach((k) => inFlight.add(k));
-    // Try each key as both a merchant id and an owner address (cheap, batched).
-    void lookupMerchants(wanted, wanted)
-      .then((profiles) => {
-        profiles.forEach(cacheProfile);
-        if (profiles.length) setVersion((v) => v + 1);
+    // Resolve merchant business names AND ordinary-user Brisk aliases in parallel
+    // (each key tried as both a merchant id and an owner address).
+    void Promise.all([
+      lookupMerchants(wanted, wanted)
+        .then((profiles) => {
+          profiles.forEach(cacheProfile);
+          return profiles.length;
+        })
+        .catch(() => 0),
+      lookupUsers(wanted)
+        .then((users) => {
+          users.forEach((u) => aliasCache.set(u.ownerAddr, u.alias));
+          return users.length;
+        })
+        .catch(() => 0),
+    ])
+      .then(([merchants, users]) => {
+        if (merchants || users) setVersion((v) => v + 1);
       })
       .finally(() => wanted.forEach((k) => inFlight.delete(k)));
   }, []);
 
   const nameFor = useCallback((key: string | null | undefined): string | undefined => {
     if (!key) return undefined;
-    return nameCache.get(key);
+    // Merchant business name wins over a personal alias.
+    return nameCache.get(key) ?? aliasCache.get(key);
   }, []);
 
   const logoFor = useCallback((key: string | null | undefined): string | undefined => {

@@ -28,14 +28,16 @@ const USDC = ENV.usdcType;
 export type Invoice = {
   // Destination of the customer's gasless transfer. For a merchant charge this is
   // the TILL's receiving address (a Till object id) — never the merchant's
-  // private treasury, which the customer must not see. For legacy/P2P it's a
-  // plain address. The receipt is still bound to `merchantId`.
+  // private treasury, which the customer must not see. For a P2P receive it's the
+  // receiver's own wallet address. The receipt (merchant only) is bound to
+  // `merchantId`.
   payee: string;
-  merchantId: string; // shared Merchant object id the receipt is bound to
+  merchantId?: string; // shared Merchant object id the receipt is bound to (merchant charges only)
   tillId?: string; // the receiving account this charge collects into, if any
   amountMicros: number; // USDC micro-units (1 USDC = 1_000_000)
   invoiceId: string; // unique per charge
-  merchant: string; // display name
+  merchant: string; // display name (business name, or the receiver's @brisk alias for P2P)
+  kind?: "p2p"; // present on a friend-to-friend receive tag (no merchant/receipt)
 };
 
 // Upper bound on a single tapped invoice (1,000,000 USDC) — a sanity ceiling so a
@@ -45,12 +47,13 @@ const MAX_INVOICE_MICROS = 1_000_000 * 10 ** 6;
 export function encodeInvoice(inv: Invoice): string {
   const q = [
     `payee=${encodeURIComponent(inv.payee)}`,
-    `merchantId=${encodeURIComponent(inv.merchantId)}`,
     `amount=${inv.amountMicros}`,
     `invoice=${encodeURIComponent(inv.invoiceId)}`,
     `merchant=${encodeURIComponent(inv.merchant)}`,
   ];
+  if (inv.merchantId) q.push(`merchantId=${encodeURIComponent(inv.merchantId)}`);
   if (inv.tillId) q.push(`till=${encodeURIComponent(inv.tillId)}`);
+  if (inv.kind === "p2p") q.push(`kind=p2p`);
   return `brisk://pay?${q.join("&")}`;
 }
 
@@ -68,19 +71,20 @@ export function parseInvoice(uri: string): Invoice | null {
   const payee = params.payee;
   const merchantId = params.merchantId;
   const amountMicros = Number(params.amount);
-  // The invoice arrives over NFC from an untrusted tag: validate the payee and
-  // the merchant object id are real Sui ids (not just a "0x" prefix) and the
-  // amount is a positive integer within a sane bound, so a tampered/garbled tag
-  // can't steer funds to a malformed address or inject a fractional /
-  // precision-lossy amount.
+  const isP2p = params.kind === "p2p";
+  // The invoice arrives over NFC from an untrusted tag: validate the payee is a
+  // real Sui id (not just a "0x" prefix) and the amount is a positive integer
+  // within a sane bound, so a tampered/garbled tag can't steer funds to a
+  // malformed address or inject a fractional / precision-lossy amount. A merchant
+  // charge must ALSO carry a valid merchant object id (the receipt binds to it);
+  // a P2P receive carries no merchant.
   if (
     !payee ||
     !isValidSuiAddress(payee) ||
-    !merchantId ||
-    !isValidSuiAddress(merchantId) ||
     !Number.isInteger(amountMicros) ||
     amountMicros <= 0 ||
-    amountMicros > MAX_INVOICE_MICROS
+    amountMicros > MAX_INVOICE_MICROS ||
+    (!isP2p && (!merchantId || !isValidSuiAddress(merchantId)))
   ) {
     return null;
   }
@@ -88,11 +92,12 @@ export function parseInvoice(uri: string): Invoice | null {
   const tillId = params.till && isValidSuiAddress(params.till) ? params.till : undefined;
   return {
     payee,
-    merchantId,
+    merchantId: isP2p ? undefined : merchantId,
     tillId,
     amountMicros,
     invoiceId: params.invoice ?? "",
-    merchant: params.merchant ?? "Merchant",
+    merchant: params.merchant ?? (isP2p ? "Brisk user" : "Merchant"),
+    kind: isP2p ? "p2p" : undefined,
   };
 }
 

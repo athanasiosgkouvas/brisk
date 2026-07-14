@@ -4,6 +4,8 @@ import { enokiAuthService } from "@/services/auth/enokiAuth";
 import { trackEvent } from "@/services/analytics/analyticsService";
 import { captureError } from "@/services/monitoring/errorService";
 import { useAuthStore } from "@/store/authStore";
+import { useUsernameStore } from "@/store/userStore";
+import { useRecentsStore } from "@/store/recentsStore";
 
 export function useAuth() {
   const {
@@ -72,6 +74,9 @@ export function useAuth() {
       setErrorMessage(null);
       setStatus("idle");
       setHydrated(true);
+      // Clear per-account state so the next login re-checks/reloads.
+      useUsernameStore.getState().reset();
+      useRecentsStore.getState().reset();
     }
   }, [setErrorMessage, setHydrated, setSession, setStatus]);
 

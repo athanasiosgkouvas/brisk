@@ -129,6 +129,20 @@ export type IssuedGiftCard = {
   createdAtMs: number;
 };
 
+/** The user's Brisk handle (bare, e.g. `john123`), cached per owner address so
+ *  the mandatory username gate can read it instantly on warm start (the backend
+ *  directory is the source of truth). Per-owner so accounts don't collide on a
+ *  shared device. */
+const USERNAME_PREFIX = "brisk.username.";
+
+export async function saveUsername(owner: string, handle: string): Promise<void> {
+  await setLocalValue(`${USERNAME_PREFIX}${owner}`, handle);
+}
+
+export async function loadUsername(owner: string): Promise<string | null> {
+  return getLocalValue(`${USERNAME_PREFIX}${owner}`);
+}
+
 const ISSUED_GIFTCARDS_PREFIX = "brisk.giftcards.issued.";
 
 export async function loadIssuedGiftCards(owner: string): Promise<IssuedGiftCard[]> {
@@ -152,4 +166,43 @@ export async function addIssuedGiftCard(owner: string, card: IssuedGiftCard): Pr
   const cards = await loadIssuedGiftCards(owner);
   const next = [card, ...cards.filter((c) => c.objectId !== card.objectId)];
   await saveIssuedGiftCards(owner, next);
+}
+
+/**
+ * Recent P2P send recipients, per owner address, for one-tap re-send. `display`
+ * is the friendly label captured at send time (an @brisk alias, a .sui name, or
+ * the address itself). Newest-first, deduped by address, capped.
+ */
+export type RecentRecipient = { address: string; display: string; lastAtMs: number };
+
+const RECENTS_PREFIX = "brisk.recents.";
+const RECENTS_CAP = 12;
+
+export async function loadRecents(owner: string): Promise<RecentRecipient[]> {
+  const raw = await getLocalValue(`${RECENTS_PREFIX}${owner}`);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as RecentRecipient[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function saveRecents(owner: string, list: RecentRecipient[]): Promise<void> {
+  await setLocalValue(`${RECENTS_PREFIX}${owner}`, JSON.stringify(list.slice(0, RECENTS_CAP)));
+}
+
+/** Upsert a recipient to the front (dedupe by address, case-insensitive). */
+export async function addRecent(
+  owner: string,
+  recipient: RecentRecipient,
+): Promise<RecentRecipient[]> {
+  const list = await loadRecents(owner);
+  const next = [
+    recipient,
+    ...list.filter((r) => r.address.toLowerCase() !== recipient.address.toLowerCase()),
+  ].slice(0, RECENTS_CAP);
+  await saveRecents(owner, next);
+  return next;
 }

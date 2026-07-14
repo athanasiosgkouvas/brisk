@@ -39,6 +39,12 @@ export async function payInvoice(session: AuthSession, invoice: Invoice): Promis
   // Leg 1: the money moves (native gasless). Throws propagate — this must succeed.
   const transfer = await payGasless(session, invoice.payee, invoice.amountMicros);
 
+  // P2P (no merchant): the transfer IS the whole payment — there's no Merchant
+  // object to bind a receipt to, so skip leg 2 entirely.
+  if (!invoice.merchantId) {
+    return { digest: transfer.digest, method: "gasless", receiptIssued: false };
+  }
+
   // Leg 2: best-effort on-chain receipt. Never block the (already-settled) payment.
   let receiptIssued = false;
   try {

@@ -10,6 +10,7 @@ import * as errorService from "./services/errorService.js";
 import * as linkStore from "./services/linkStore.js";
 import * as tillStore from "./services/tillStore.js";
 import * as merchantStore from "./services/merchantStore.js";
+import * as userStore from "./services/userStore.js";
 import * as giftCardStore from "./services/giftCardStore.js";
 import * as posStore from "./services/posStore.js";
 import { ensureSchema, isDbConfigured } from "./db.js";
@@ -178,6 +179,17 @@ const merchantProfileSchema = z.object({
   email: z.string().trim().max(120).email().optional().or(z.literal("")),
   category: optionalField(40),
   logoUrl: z.string().trim().url().max(512).optional().or(z.literal("")),
+});
+
+// Brisk username: 3–20 chars, lowercase letters / digits / underscore. Stored
+// bare; the `@brisk` suffix is added in responses.
+const registerUserSchema = z.object({
+  sender: z.string().startsWith("0x"),
+  handle: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(/^[a-z0-9_]{3,20}$/, "3–20 lowercase letters, numbers, or _"),
 });
 
 const microAmount = z
@@ -1359,6 +1371,123 @@ app.get("/api/merchants/:merchantId", async (req, res) => {
   } catch (error: unknown) {
     console.error("[merchants] get failed", error instanceof Error ? error.message : error);
     res.status(500).json({ error: "Failed to load profile" });
+  }
+});
+
+// --- User directory (Brisk usernames) -------------------------------------
+// A handle per owner address, so the app renders `john123@brisk` instead of a
+// 0x address. Mirrors the merchant-directory routes.
+const withAlias = (u: userStore.BriskUser) => ({ ...u, alias: `${u.handle}@brisk` });
+
+// Register or change the caller's handle. Owner-gated: sender IS the owner.
+app.post("/api/users", async (req, res) => {
+  if (!isDbConfigured()) {
+    res.status(503).json({ error: "User directory is not available" });
+    return;
+  }
+  const parsed = registerUserSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid payload" });
+    return;
+  }
+  try {
+    assertWithinDailyLimit(parsed.data.sender);
+  } catch (err) {
+    if (err instanceof SponsorshipLimitError) {
+      res.status(429).json({ error: err.message, used: err.used, limit: err.limit });
+      return;
+    }
+    throw err;
+  }
+  try {
+    const user = await userStore.upsertHandle({
+      ownerAddr: parsed.data.sender,
+      handle: parsed.data.handle,
+    });
+    res.json({ user: withAlias(user) });
+  } catch (error: unknown) {
+    if (error instanceof userStore.HandleTakenError) {
+      res.status(409).json({ error: error.message });
+      return;
+    }
+    console.error("[users] register failed", error instanceof Error ? error.message : error);
+    res.status(500).json({ error: "Failed to save username" });
+  }
+});
+
+// The mandatory username gate keys on this 404.
+app.get("/api/users/by-owner/:address", async (req, res) => {
+  if (!isDbConfigured()) {
+    res.status(503).json({ error: "User directory is not available" });
+    return;
+  }
+  const addr = merchantQuerySchema.safeParse(req.params.address);
+  if (!addr.success) {
+    res.status(400).json({ error: "A valid address is required" });
+    return;
+  }
+  try {
+    const user = await userStore.getUserByOwner(addr.data);
+    if (!user) {
+      res.status(404).json({ error: "No username" });
+      return;
+    }
+    res.json({ user: withAlias(user) });
+  } catch (error: unknown) {
+    console.error("[users] by-owner failed", error instanceof Error ? error.message : error);
+    res.status(500).json({ error: "Failed to load username" });
+  }
+});
+
+// Batch address→handle lookup for name rendering. Comma-separated, ≤50.
+app.get("/api/users/lookup", async (req, res) => {
+  if (!isDbConfigured()) {
+    res.json({ users: [] });
+    return;
+  }
+  const addrs =
+    typeof req.query.addrs === "string"
+      ? req.query.addrs
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) => s.startsWith("0x"))
+          .slice(0, 50)
+      : [];
+  try {
+    const users = await userStore.lookupUsers(addrs);
+    res.json({ users: users.map(withAlias) });
+  } catch (error: unknown) {
+    console.error("[users] lookup failed", error instanceof Error ? error.message : error);
+    res.json({ users: [] });
+  }
+});
+
+// Resolve a handle → owner address (Send recipient by username).
+app.get("/api/users/resolve/:handle", async (req, res) => {
+  if (!isDbConfigured()) {
+    res.status(503).json({ error: "User directory is not available" });
+    return;
+  }
+  const handle = z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(/^[a-z0-9_]{3,20}$/)
+    .safeParse(req.params.handle);
+  if (!handle.success) {
+    res.status(400).json({ error: "A valid username is required" });
+    return;
+  }
+  try {
+    const user = await userStore.getUserByHandle(handle.data);
+    if (!user) {
+      res.status(404).json({ error: "No such username" });
+      return;
+    }
+    res.json({ user: withAlias(user) });
+  } catch (error: unknown) {
+    console.error("[users] resolve failed", error instanceof Error ? error.message : error);
+    res.status(500).json({ error: "Failed to resolve username" });
   }
 });
 

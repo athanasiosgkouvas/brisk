@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import { ClipboardPaste } from "lucide-react-native";
@@ -7,10 +7,14 @@ import { ClipboardPaste } from "lucide-react-native";
 import { Screen } from "@/components/ui/Screen";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { ErrorText } from "@/components/ui/ErrorText";
+import { BusinessAvatar } from "@/components/ui/BusinessAvatar";
 import { PayConfirm } from "@/components/pay/PayConfirm";
 import { useSend } from "@/hooks/useSend";
 import { usePayFlow } from "@/hooks/usePayFlow";
+import { useRecents } from "@/hooks/useRecents";
+import { useMerchantDirectory } from "@/hooks/useMerchantDirectory";
 import { usdToMicros } from "@/services/blockchain/paymentTx";
+import type { RecentRecipient } from "@/services/storage/prefsStorage";
 import { useTheme } from "@/hooks/useTheme";
 
 function shortAddr(a: string): string {
@@ -23,27 +27,66 @@ function shortAddr(a: string): string {
 export default function SendScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { validate, authorize, settle } = useSend();
+  const { resolveRecipient, authorize, settle } = useSend();
+  const { recents, record } = useRecents();
+  const { nameFor, resolve } = useMerchantDirectory();
   const flow = usePayFlow();
   const [to, setTo] = useState("");
   const [amountText, setAmountText] = useState("");
   const [reviewing, setReviewing] = useState(false);
+  const [resolving, setResolving] = useState(false);
+  const [resolved, setResolved] = useState<{ address: string; display: string } | null>(null);
+  // Set when a recent is tapped — lets Review reuse it and skip the resolver call.
+  const [pinned, setPinned] = useState<{ address: string; display: string } | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const micros = usdToMicros(Number(amountText || "0"));
 
-  const close = () => router.back();
-  const paste = async () => setTo((await Clipboard.getStringAsync()).trim());
+  // Resolve recents' addresses to @brisk aliases / business names for the strip.
+  useEffect(() => {
+    resolve(recents.map((r) => r.address));
+  }, [recents, resolve]);
 
-  // Form → review: validate, then hand off to the shared tail.
-  const onReview = () => {
-    const err = validate(to, micros);
-    if (err) {
-      setFormError(err);
-      return;
-    }
-    setFormError(null);
+  const close = () => router.back();
+  const paste = async () => {
+    setPinned(null);
+    setTo((await Clipboard.getStringAsync()).trim());
+  };
+
+  const goReview = (r: { address: string; display: string }) => {
+    setResolved(r);
     flow.reset();
     setReviewing(true);
+  };
+
+  // Form → review: resolve the recipient (address / @brisk / .sui), reusing a
+  // pinned recent to skip the network call, then hand off to the shared tail.
+  const onReview = async () => {
+    setFormError(null);
+    if (pinned && pinned.display === to.trim()) {
+      goReview(pinned);
+      return;
+    }
+    setResolving(true);
+    try {
+      const r = await resolveRecipient(to);
+      if ("error" in r) {
+        setFormError(r.error);
+        return;
+      }
+      goReview(r);
+    } finally {
+      setResolving(false);
+    }
+  };
+
+  // Tap a recent: pre-fill the (already-resolved) recipient; jump straight to
+  // review when an amount is already entered.
+  const onPickRecent = (r: RecentRecipient) => {
+    const picked = { address: r.address, display: nameFor(r.address) ?? r.display };
+    setTo(picked.display);
+    setPinned(picked);
+    setFormError(null);
+    if (micros > 0) goReview(picked);
   };
 
   const backToForm = () => {
@@ -53,19 +96,29 @@ export default function SendScreen() {
 
   return (
     <Screen title="Send" onClose={close}>
-      {reviewing ? (
+      {reviewing && resolved ? (
         <View className="flex-1 items-center justify-center">
           <PayConfirm
             state={flow.state}
             amountMicros={micros}
             eyebrow="Send"
-            payeeLabel={`to ${shortAddr(to)}`}
+            payeeLabel={`to ${resolved.display === resolved.address ? shortAddr(resolved.address) : resolved.display}`}
+            // Anti-phishing: when the recipient was a name/username, still show the
+            // resolved on-chain address the money is actually going to.
+            reviewNote={
+              resolved.display !== resolved.address ? (
+                <Text className="mt-1 text-xs text-brisk-subtext">
+                  {shortAddr(resolved.address)}
+                </Text>
+              ) : null
+            }
             confirmLabel="Confirm & Pay"
             settlingLabel="Sending on Sui…"
             onConfirm={() =>
               void flow.confirm({
                 authorize: () => authorize(micros),
-                settle: () => settle(to, micros),
+                settle: () => settle(resolved.address, micros),
+                onSettled: () => void record(resolved.address, resolved.display),
               })
             }
             onCancel={backToForm}
@@ -82,18 +135,64 @@ export default function SendScreen() {
         </View>
       ) : (
         <View className="flex-1">
-          <Text className="mb-2 text-sm text-brisk-subtext">Recipient address</Text>
+          {/* Recent recipients — one-tap re-send (no address to type/scan). */}
+          {recents.length > 0 ? (
+            <View className="mb-5">
+              <Text className="mb-2 text-xs uppercase tracking-[2px] text-brisk-subtext">
+                Recent
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 12 }}
+              >
+                {recents.map((r) => {
+                  const label =
+                    nameFor(r.address) ??
+                    (r.display.startsWith("0x") ? shortAddr(r.display) : r.display);
+                  return (
+                    <Pressable
+                      key={r.address}
+                      onPress={() => onPickRecent(r)}
+                      className="items-center"
+                      style={{ width: 64 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Send to ${label}`}
+                    >
+                      <BusinessAvatar
+                        seed={r.address}
+                        size={48}
+                        label={label?.[0]?.toUpperCase()}
+                      />
+                      <Text
+                        numberOfLines={1}
+                        className="mt-1 text-[11px] text-brisk-subtext"
+                        style={{ maxWidth: 64 }}
+                      >
+                        {label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          ) : null}
+
+          <Text className="mb-2 text-sm text-brisk-subtext">Recipient</Text>
           <View className="flex-row items-center rounded-2xl border border-brisk-borderStrong bg-brisk-bg1/70 px-4 py-3">
             <TextInput
               className="flex-1 text-base text-brisk-text"
-              placeholder="0x…"
+              placeholder="Address, @brisk username, or name.sui"
               placeholderTextColor={theme.placeholder}
               value={to}
-              onChangeText={setTo}
+              onChangeText={(t) => {
+                setTo(t);
+                setPinned(null);
+              }}
               autoCapitalize="none"
               autoCorrect={false}
-              accessibilityLabel="Recipient Sui address"
-              accessibilityHint="Paste or type the address to send USDC to"
+              accessibilityLabel="Recipient"
+              accessibilityHint="Paste an address, or type a Brisk username or a .sui name"
             />
             <Pressable
               onPress={paste}
@@ -125,7 +224,12 @@ export default function SendScreen() {
           {formError ? <ErrorText className="mt-4">{formError}</ErrorText> : null}
 
           <View className="mt-8">
-            <PrimaryButton label="Review" onPress={onReview} disabled={!to || micros <= 0} />
+            <PrimaryButton
+              label="Review"
+              onPress={() => void onReview()}
+              loading={resolving}
+              disabled={!to || micros <= 0}
+            />
           </View>
           <Text className="mt-3 text-center text-xs text-brisk-subtext">
             Feeless — you&apos;re charged exactly the amount.

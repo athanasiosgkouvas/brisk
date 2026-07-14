@@ -267,6 +267,63 @@ export async function lookupMerchants(
   }
 }
 
+// --- User directory (Brisk usernames) ---
+export type BriskUser = { ownerAddr: string; handle: string; alias: string };
+
+/** Register or change the caller's handle. Throws on 409 (taken) / other errors. */
+export async function upsertUsername(input: {
+  sender: string;
+  handle: string;
+}): Promise<BriskUser> {
+  const res = await backendFetch<{ user: BriskUser }>("/api/users", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return res.user;
+}
+
+/**
+ * The Brisk user for an address. Returns null ONLY on an explicit 404 (no
+ * username yet — the mandatory gate keys on this); THROWS on any other failure
+ * so a backend blip can't be mistaken for "needs username" (the gate fails open).
+ */
+export async function getUserByOwner(address: string): Promise<BriskUser | null> {
+  const response = await fetch(
+    `${ENV.backendUrl}/api/users/by-owner/${encodeURIComponent(address)}`,
+  );
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new Error((await response.text()) || `Backend request failed (${response.status})`);
+  }
+  const res = (await response.json()) as { user: BriskUser };
+  return res.user;
+}
+
+/** Resolve a handle → Brisk user (Send recipient by username), or null if none. */
+export async function resolveUsername(handle: string): Promise<BriskUser | null> {
+  try {
+    const res = await backendFetch<{ user: BriskUser }>(
+      `/api/users/resolve/${encodeURIComponent(handle)}`,
+    );
+    return res.user;
+  } catch {
+    return null;
+  }
+}
+
+/** Batch-resolve owner addresses to Brisk users (name rendering). */
+export async function lookupUsers(addrs: string[]): Promise<BriskUser[]> {
+  if (!addrs.length) return [];
+  try {
+    const res = await backendFetch<{ users: BriskUser[] }>(
+      `/api/users/lookup?addrs=${encodeURIComponent(addrs.join(","))}`,
+    );
+    return res.users;
+  } catch {
+    return [];
+  }
+}
+
 // --- Gift cards (on-chain escrow; the backend is a metadata index) ---
 export type MyGiftCard = {
   objectId: string;

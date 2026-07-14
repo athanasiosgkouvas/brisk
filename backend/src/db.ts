@@ -120,6 +120,22 @@ export async function ensureSchema(): Promise<void> {
     ADD COLUMN IF NOT EXISTS category TEXT,
     ADD COLUMN IF NOT EXISTS logo_url TEXT;`);
 
+  // --- User directory (Brisk usernames) ----------------------------------
+  // One handle per owner address, so the app renders `john123@brisk` instead of
+  // a 0x address for ordinary (non-merchant) users. Handle stored bare +
+  // lowercase; case-insensitive uniqueness via the lower(handle) index.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      owner_addr TEXT PRIMARY KEY,
+      handle     TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+  await pool.query(
+    `CREATE UNIQUE INDEX IF NOT EXISTS users_handle_lower_idx ON users (lower(handle));`,
+  );
+
   // --- Gift cards: merchant-prepaid (this table is a metadata INDEX) ------
   // Mint/claim/redeem/regift live on-chain (Move `gift_card`); the merchant is
   // paid at issuance and the card holds no escrow. We index object_id +

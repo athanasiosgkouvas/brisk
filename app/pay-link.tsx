@@ -106,7 +106,8 @@ export default function PayLinkScreen() {
   const onConfirm = useCallback(() => {
     if (!session || !invoice) return;
     const plan = disc.buildDiscountPlan();
-    const merchantId = invoice.merchantId;
+    // A resolved payment link always carries a merchant id.
+    const merchantId = invoice.merchantId ?? "";
     void flow.confirm({
       settle: async (): Promise<SettleOutcome> => {
         let digest = "";
@@ -231,7 +232,7 @@ export default function PayLinkScreen() {
                           clearPending();
                           router.replace(
                             `/buy-gift-card?merchantId=${encodeURIComponent(
-                              invoice.merchantId,
+                              invoice.merchantId ?? "",
                             )}&name=${encodeURIComponent(invoice.merchant)}`,
                           );
                         }}

@@ -16,6 +16,7 @@ import "../global.css";
 import { AppProviders } from "@/components/common/AppProviders";
 import { useAppMode } from "@/hooks/useAppMode";
 import { useAuth } from "@/hooks/useAuth";
+import { useUsername } from "@/hooks/useUsername";
 import { usePaymentLinkRouting } from "@/hooks/usePaymentLinkRouting";
 import { useTheme, useThemeMode } from "@/hooks/useTheme";
 
@@ -40,6 +41,9 @@ function RootNavigator({ readyToReveal }: { readyToReveal: () => void }) {
   const pathname = usePathname();
   // Route incoming payment-link deep links to the one-tap confirm screen.
   usePaymentLinkRouting();
+  // Mandatory username: resolves a beat after reveal (backend-authoritative);
+  // `needsUsername` stays false until the backend confirms none exists.
+  const { needsUsername } = useUsername();
 
   useEffect(() => {
     if (!hydrated) return;
@@ -52,8 +56,18 @@ function RootNavigator({ readyToReveal }: { readyToReveal: () => void }) {
 
     if (session && pathname === "/welcome") {
       router.replace("/");
+      return;
     }
-  }, [hydrated, pathname, readyToReveal, router, session]);
+
+    // Gate: an account with no registered username must pick one first.
+    if (session && needsUsername && pathname !== "/username-setup") {
+      router.replace("/username-setup");
+      return;
+    }
+    if (session && !needsUsername && pathname === "/username-setup") {
+      router.replace("/");
+    }
+  }, [hydrated, needsUsername, pathname, readyToReveal, router, session]);
 
   if (!hydrated) return null;
 
@@ -69,6 +83,7 @@ function RootNavigator({ readyToReveal }: { readyToReveal: () => void }) {
       >
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="welcome" />
+        <Stack.Screen name="username-setup" />
         <Stack.Screen name="receive" options={{ presentation: "modal" }} />
         <Stack.Screen name="send" options={{ presentation: "modal" }} />
         <Stack.Screen name="pay-link" options={{ presentation: "modal" }} />
