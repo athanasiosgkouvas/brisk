@@ -37,5 +37,6 @@ export type HeroTier = keyof typeof HERO;
 /** Entrance stagger between sibling sections / cards (ms). */
 export const STAGGER_MS = 60;
 
-/** Shared section-label className (uppercase, tracked caps over a content group). */
-export const SECTION_LABEL = "text-xs uppercase tracking-[2px] text-brisk-subtext";
+/** Shared section-label className (uppercase, tracked mono caps over a content group). */
+export const SECTION_LABEL =
+  "text-xs uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium";

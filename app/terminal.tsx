@@ -90,7 +90,7 @@ export default function TerminalScreen() {
         <View className="flex-1">
           <View className="flex-row items-center">
             <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dot }} />
-            <Text className="ml-2 text-[11px] uppercase tracking-[1.5px] text-brisk-subtext">
+            <Text className="ml-2 text-[11px] uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium">
               Terminal ID · {connShort}
             </Text>
           </View>
@@ -129,7 +129,9 @@ export default function TerminalScreen() {
       {/* Receiving account (till) this terminal collects into. */}
       <View className="mt-5">
         <View className="flex-row items-center justify-between">
-          <Text className="text-xs uppercase tracking-[2px] text-brisk-subtext">Collect into</Text>
+          <Text className="text-xs uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium">
+            Collect into
+          </Text>
           <Pressable onPress={() => router.push("/tills")} hitSlop={8}>
             <Text className="text-xs font-inter-semibold text-brisk-accent">Manage</Text>
           </Pressable>
@@ -178,7 +180,7 @@ export default function TerminalScreen() {
         {chargeStatus === "awaiting" && chargeInvoice ? (
           <>
             <Smartphone color={theme.accent} size={48} />
-            <Text className="mt-4 text-xs uppercase tracking-[2px] text-brisk-subtext">
+            <Text className="mt-4 text-xs uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium">
               Incoming sale · tap to pay
             </Text>
             <HeroAmount

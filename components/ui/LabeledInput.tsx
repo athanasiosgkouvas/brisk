@@ -32,7 +32,7 @@ export function LabeledInput({
   const theme = useTheme();
   return (
     <View className={className}>
-      <Text className="mb-1.5 text-xs uppercase tracking-[2px] text-brisk-subtext">
+      <Text className="mb-1.5 text-xs uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium">
         {label}
         {required ? <Text className="text-brisk-accent"> *</Text> : null}
       </Text>

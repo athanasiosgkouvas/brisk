@@ -32,12 +32,12 @@ export type Palette = {
   borderSoft: string;
   placeholder: string;
   glow: string;
-  /** Brand gradient: emerald → blue → violet. */
+  /** Brand gradient: a tight emerald ramp (single-hue signature). */
   aurora: readonly [string, string, string];
 };
 
 export const DARK: Palette = {
-  bg0: "#060912",
+  bg0: "#06090F",
   bg1: "#0E1422",
   bg2: "#161E30",
   text: "#F4F8FB",
@@ -48,8 +48,8 @@ export const DARK: Palette = {
   borderStrong: "#2C3E55",
   borderSoft: "#27415A",
   placeholder: "#5A6B7B",
-  glow: "#2E8FFF",
-  aurora: ["#00E5A0", "#2E8FFF", "#8B5CF6"],
+  glow: "#00E5A0",
+  aurora: ["#00E5A0", "#34E7C0", "#17C79C"],
 };
 
 export const LIGHT: Palette = {
@@ -64,8 +64,8 @@ export const LIGHT: Palette = {
   borderStrong: "#CBD5E1",
   borderSoft: "#D8E0EA",
   placeholder: "#94A3B8",
-  glow: "#2E8FFF",
-  aurora: ["#00E5A0", "#2E8FFF", "#8B5CF6"],
+  glow: "#00E5A0",
+  aurora: ["#00E5A0", "#34E7C0", "#17C79C"],
 };
 
 /**
@@ -74,7 +74,7 @@ export const LIGHT: Palette = {
  * baked-alpha glass tokens are full color strings (referenced without alpha).
  */
 export const DARK_VARS = {
-  "--brisk-bg0": "6 9 18",
+  "--brisk-bg0": "6 9 15",
   "--brisk-bg1": "14 20 34",
   "--brisk-bg2": "22 30 48",
   "--brisk-text": "244 248 251",
@@ -86,9 +86,9 @@ export const DARK_VARS = {
   "--brisk-borderSoft": "39 65 90",
   "--brisk-placeholder": "90 107 123",
   "--brisk-aurora1": "0 229 160",
-  "--brisk-aurora2": "46 143 255",
-  "--brisk-aurora3": "139 92 246",
-  "--brisk-glow": "46 143 255",
+  "--brisk-aurora2": "52 231 192",
+  "--brisk-aurora3": "23 199 156",
+  "--brisk-glow": "0 229 160",
   "--brisk-glass": "rgba(20,28,46,0.55)",
   "--brisk-glassBorder": "rgba(255,255,255,0.08)",
 } as const;
@@ -106,9 +106,9 @@ export const LIGHT_VARS = {
   "--brisk-borderSoft": "216 224 234",
   "--brisk-placeholder": "148 163 184",
   "--brisk-aurora1": "0 229 160",
-  "--brisk-aurora2": "46 143 255",
-  "--brisk-aurora3": "139 92 246",
-  "--brisk-glow": "46 143 255",
+  "--brisk-aurora2": "52 231 192",
+  "--brisk-aurora3": "23 199 156",
+  "--brisk-glow": "0 229 160",
   "--brisk-glass": "rgba(255,255,255,0.65)",
   "--brisk-glassBorder": "rgba(0,0,0,0.06)",
 } as const;

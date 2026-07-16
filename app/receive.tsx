@@ -55,7 +55,7 @@ export default function ReceiveScreen() {
             />
             {alias ? (
               <>
-                <Text className="mt-5 text-center text-xs uppercase tracking-[2px] text-brisk-subtext">
+                <Text className="mt-5 text-center text-xs uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium">
                   You&apos;re
                 </Text>
                 <Text className="mt-1 text-center text-xl font-inter-bold text-brisk-text">
@@ -81,7 +81,7 @@ export default function ReceiveScreen() {
               entering={FadeInDown.duration(500).delay(80).springify()}
               className="mt-8 rounded-2xl border border-brisk-border bg-brisk-bg1/40 p-4"
             >
-              <Text className="text-xs uppercase tracking-[2px] text-brisk-subtext">
+              <Text className="text-xs uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium">
                 Get paid by tap
               </Text>
               <Text className="mt-1 text-xs text-brisk-subtext">
@@ -123,7 +123,7 @@ export default function ReceiveScreen() {
               <PulseRing size={56}>
                 <Smartphone color={theme.accent} size={52} />
               </PulseRing>
-              <Text className="mt-6 text-sm uppercase tracking-[2px] text-brisk-subtext">
+              <Text className="mt-6 text-sm uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium">
                 Ready to receive
               </Text>
               <HeroAmount

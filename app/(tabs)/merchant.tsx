@@ -136,7 +136,7 @@ export default function ChargeScreen() {
                       accessibilityLabel={`Collect into ${selectedTill?.name ?? "account"}`}
                     >
                       <View>
-                        <Text className="text-xs uppercase tracking-[2px] text-brisk-subtext">
+                        <Text className="text-xs uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium">
                           Collect into
                         </Text>
                         <Text className="mt-0.5 text-sm font-inter-semibold text-brisk-text">
@@ -172,7 +172,7 @@ export default function ChargeScreen() {
                   {/* Link rail — disclosed on HCE, always open on iOS. */}
                   {showLinkOptions ? (
                     <View className="mt-2 w-full rounded-2xl border border-brisk-border bg-brisk-bg1/40 p-4">
-                      <Text className="text-xs uppercase tracking-[2px] text-brisk-subtext">
+                      <Text className="text-xs uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium">
                         Payment link · expires in
                       </Text>
                       <View className="mt-2 flex-row gap-2">
@@ -263,7 +263,7 @@ export default function ChargeScreen() {
                     className="rounded-t-3xl border-t border-brisk-border bg-brisk-bg0 px-5 pb-10 pt-6"
                     onPress={(e) => e.stopPropagation()}
                   >
-                    <Text className="mb-2 text-xs uppercase tracking-[2px] text-brisk-subtext">
+                    <Text className="mb-2 text-xs uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium">
                       Collect into
                     </Text>
                     {tills.map((t) => {
@@ -353,7 +353,7 @@ export default function ChargeScreen() {
                   <PulseRing size={56}>
                     <Store color={theme.accent} size={56} />
                   </PulseRing>
-                  <Text className="mt-6 text-sm uppercase tracking-[2px] text-brisk-subtext">
+                  <Text className="mt-6 text-sm uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium">
                     Preparing
                   </Text>
                   <Text className="mt-3 text-sm text-brisk-subtext">Setting up your merchant…</Text>
@@ -365,7 +365,7 @@ export default function ChargeScreen() {
                   <PulseRing size={56}>
                     <Smartphone color={theme.accent} size={56} />
                   </PulseRing>
-                  <Text className="mt-6 text-sm uppercase tracking-[2px] text-brisk-subtext">
+                  <Text className="mt-6 text-sm uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium">
                     Tap to pay
                   </Text>
                   <HeroAmount
@@ -392,7 +392,7 @@ export default function ChargeScreen() {
                   entering={FadeIn.duration(300)}
                   className="w-full max-w-[360px] items-center"
                 >
-                  <Text className="text-sm uppercase tracking-[2px] text-brisk-subtext">
+                  <Text className="text-sm uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium">
                     Payment link
                   </Text>
                   <HeroAmount

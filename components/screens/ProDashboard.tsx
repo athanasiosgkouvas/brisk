@@ -104,7 +104,7 @@ export function ProDashboard() {
 
       {/* Total balance across all accounts */}
       <Animated.View entering={FadeInDown.duration(500).springify()} className="items-center">
-        <Text className="text-center text-sm uppercase tracking-[2px] text-brisk-subtext">
+        <Text className="text-center text-sm uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium">
           Total balance
         </Text>
         <HeroAmount micros={totalMicros} tier="primary" className="mt-1" />

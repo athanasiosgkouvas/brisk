@@ -115,7 +115,7 @@ export default function ClaimScreen() {
                 className="w-full max-w-[360px] items-center"
               >
                 <Gift color={theme.accent} size={48} />
-                <Text className="mt-4 text-sm uppercase tracking-[2px] text-brisk-subtext">
+                <Text className="mt-4 text-sm uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium">
                   Gift card
                 </Text>
                 <HeroAmount

@@ -1,18 +1,18 @@
 import { Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
-// On-brand aurora gradient pairs. A counterparty address deterministically maps
-// to one pair, so every address gets a stable, colorful identity in the feed —
-// premium fintech feel, derived purely from the address (no new data).
+// On-brand emerald/teal gradient pairs. A counterparty address deterministically
+// maps to one pair, so every address gets a stable identity in the feed — still
+// distinguishable per address, but kept within the emerald signature (no blue/violet).
 const PAIRS: [string, string][] = [
-  ["#00E5A0", "#2E8FFF"],
-  ["#2E8FFF", "#8B5CF6"],
-  ["#00E5A0", "#8B5CF6"],
-  ["#00D0C0", "#2E8FFF"],
-  ["#5B8DEF", "#8B5CF6"],
-  ["#00E5A0", "#00B4D8"],
-  ["#7C5CFF", "#2E8FFF"],
-  ["#12C2A8", "#3AA0FF"],
+  ["#00E5A0", "#17C79C"],
+  ["#34E7C0", "#0FB88C"],
+  ["#2FD3A6", "#00C48A"],
+  ["#3BE8C4", "#14B893"],
+  ["#00D98B", "#1EA97C"],
+  ["#4DE3B0", "#0AA97E"],
+  ["#22E0B8", "#0EC38F"],
+  ["#5CEAC0", "#12B58E"],
 ];
 
 function hashSeed(seed: string): number {

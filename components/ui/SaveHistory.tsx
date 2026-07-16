@@ -22,7 +22,9 @@ export function SaveHistory() {
 
   return (
     <View className="mt-8">
-      <Text className="text-sm uppercase tracking-[2px] text-brisk-subtext">Save activity</Text>
+      <Text className="text-sm uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium">
+        Save activity
+      </Text>
       <View className="mt-3">
         {items.map((it, i) => {
           const m = META[it.kind];

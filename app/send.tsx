@@ -148,7 +148,7 @@ export default function SendScreen() {
           {/* Recent recipients — one-tap re-send (no address to type/scan). */}
           {recents.length > 0 ? (
             <View className="mb-5">
-              <Text className="mb-2 text-xs uppercase tracking-[2px] text-brisk-subtext">
+              <Text className="mb-2 text-xs uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium">
                 Recent
               </Text>
               <ScrollView

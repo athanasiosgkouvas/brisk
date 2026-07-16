@@ -41,6 +41,11 @@ module.exports = {
         "inter-semibold": ["Inter_600SemiBold"],
         "inter-bold": ["Inter_700Bold"],
         "inter-extrabold": ["Inter_800ExtraBold"],
+        // JetBrains Mono (loaded in app/_layout.tsx) for eyebrow/section labels —
+        // the "precise" monospace accent that matches the site + deck.
+        mono: ["JetBrainsMono_400Regular"],
+        "mono-medium": ["JetBrainsMono_500Medium"],
+        "mono-semibold": ["JetBrainsMono_600SemiBold"],
       },
     },
   },

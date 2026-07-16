@@ -106,7 +106,7 @@ export default function SaveScreen() {
               <PulseRing size={56}>
                 <PiggyBank color={theme.accent} size={52} />
               </PulseRing>
-              <Text className="mt-4 text-sm uppercase tracking-[2px] text-brisk-subtext">
+              <Text className="mt-4 text-sm uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium">
                 Save balance
               </Text>
               <HeroAmount

@@ -28,7 +28,9 @@ export function GiftShare({
   const hasAmount = amountMicros > 0;
   return (
     <Animated.View entering={FadeIn.duration(300)} className="w-full items-center">
-      <Text className="text-sm uppercase tracking-[2px] text-brisk-subtext">Gift card</Text>
+      <Text className="text-sm uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium">
+        Gift card
+      </Text>
       <Text className="mt-2 text-center text-2xl font-inter-bold text-brisk-text">
         {hasAmount
           ? `${formatUsd(amountMicros)} at ${merchantName}`

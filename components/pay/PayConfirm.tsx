@@ -65,7 +65,10 @@ export function PayConfirm({
   if (state === "review") {
     return (
       <Animated.View entering={FadeIn.duration(300)} className="w-full max-w-[360px] items-center">
-        <Text numberOfLines={1} className="text-sm uppercase tracking-[2px] text-brisk-subtext">
+        <Text
+          numberOfLines={1}
+          className="text-sm uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium"
+        >
           {eyebrow}
         </Text>
         <HeroAmount micros={amountMicros} tier="focused" countUp={false} className="mt-2" />
