@@ -279,6 +279,23 @@ a { color: inherit; text-decoration: none; }
 }
 .feature-art { display: flex; justify-content: center; }
 
+/* ---------- animated café tap-to-pay illustration ---------- */
+.feature-illo { width: 100%; max-width: 540px; height: auto; display: block; overflow: visible; }
+.illo-amt-t { font-family: "Inter", system-ui, sans-serif; font-weight: 800; fill: var(--text); }
+.illo-paid-t { font-family: "Inter", system-ui, sans-serif; font-weight: 800; fill: #04140e; }
+.illo-scene { transform-box: view-box; transform-origin: center; animation: illoBreathe 6.5s var(--ease) infinite; }
+@keyframes illoBreathe { 50% { transform: translateY(-6px); } }
+.illo-glow { transform-box: view-box; transform-origin: 662px 455px; animation: illoGlow 5s var(--ease) infinite; }
+@keyframes illoGlow { 0%, 100% { opacity: 0.55; transform: scale(0.96); } 50% { opacity: 0.9; transform: scale(1.05); } }
+.illo-nfc { animation: illoNfc 1.5s ease-in-out infinite; }
+@keyframes illoNfc { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+.illo-ring { fill: none; stroke: #00E5A0; stroke-width: 4; transform-box: fill-box; transform-origin: center; animation: illoRing 2.4s ease-out infinite; }
+@keyframes illoRing { 0% { transform: scale(0.55); opacity: 0.85; } 70%, 100% { transform: scale(1.7); opacity: 0; } }
+.illo-chip-amt { animation: illoAmt 4.6s ease-in-out infinite; }
+@keyframes illoAmt { 0% { opacity: 0; transform: translateY(8px); } 9% { opacity: 1; transform: none; } 44% { opacity: 1; transform: none; } 50% { opacity: 0; transform: translateY(-6px); } 100% { opacity: 0; } }
+.illo-chip-paid { opacity: 0; transform-box: fill-box; transform-origin: center; animation: illoPaid 4.6s ease-out infinite; }
+@keyframes illoPaid { 0%, 48% { opacity: 0; transform: scale(0.82); } 55% { opacity: 1; transform: scale(1.06); } 62% { transform: scale(1); } 94% { opacity: 1; } 100% { opacity: 0; } }
+
 /* compare card */
 .compare-card { width: 100%; max-width: 420px; padding: 30px; border-radius: var(--radius); }
 .compare-row { display: grid; grid-template-columns: 120px 1fr 48px; align-items: center; gap: 14px; margin-bottom: 18px; }
@@ -567,4 +584,10 @@ a { color: inherit; text-decoration: none; }
   .terminal .t-paid { opacity: 1; }
   .nfc-arc span { opacity: 0; }
   .marquee-track { transform: none; flex-wrap: wrap; justify-content: center; width: 100%; }
+  /* café illustration: settled "paid" end-state */
+  .illo-scene, .illo-glow, .illo-nfc, .illo-ring, .illo-chip-amt { animation: none; }
+  .illo-nfc { opacity: 1; }
+  .illo-ring, .illo-chip-amt { opacity: 0; }
+  .illo-glow { opacity: 0.7; }
+  .illo-chip-paid { animation: none; opacity: 1; transform: none; }
 }
