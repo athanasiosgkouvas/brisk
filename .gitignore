@@ -72,3 +72,4 @@ move/build/
 # Firebase config (carries an API key) — provide locally / via CI secret
 google-services.json
 android/app/google-services.json
+/brisk-deck.html

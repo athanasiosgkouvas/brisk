@@ -15,19 +15,20 @@
 
   <link rel="icon" type="image/png" href="assets/favicon.png" />
 
-  <!-- Inter, matching the app -->
+  <!-- Inter (UI) + JetBrains Mono (labels / data), matching the app -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="styles.css?v=3" />
+  <link rel="stylesheet" href="styles.css?v=4" />
 </head>
 <body>
-  <!-- aurora background glows -->
-  <div class="aurora-bg" aria-hidden="true">
-    <span class="blob blob-1"></span>
-    <span class="blob blob-2"></span>
-    <span class="blob blob-3"></span>
+  <!-- background field: one emerald halo + static grid + grain (no drifting orbs) -->
+  <div class="bg-field" aria-hidden="true">
+    <span class="bg-halo"></span>
+    <span class="bg-halo two"></span>
+    <span class="bg-grid"></span>
+    <span class="bg-grain"></span>
   </div>
 
   <!-- ============ NAV ============ -->
@@ -54,7 +55,7 @@
         <a href="#tech">Tech</a>
       </nav>
       <div class="nav-cta">
-        <a class="badge badge-track" href="#how">Sui Overflow 2026</a>
+        <a class="badge badge-track" href="#how"><span class="live-dot"></span>Sui Overflow 2026</a>
         <a class="btn btn-primary btn-sm" href="https://appdistribution.firebase.dev/i/daeadf277c746f80" target="_blank" rel="noopener">Test the app</a>
       </div>
     </div>
@@ -87,56 +88,82 @@
       </div>
 
       <div class="hero-phone reveal">
-        <!-- Wallet screen -->
-        <div class="phone phone-glow">
-          <div class="phone-island"></div>
-          <div class="screen">
-            <div class="s-status"><span>9:41</span><span class="s-status-icons">●●● ▮</span></div>
-            <div class="s-pad">
-              <p class="s-label">Your balance</p>
-              <p class="s-hero grad">$1,284.50</p>
-              <p class="s-subtle">USDC · feeless on Sui</p>
+        <!-- interactive tap-to-pay scene: phone taps the Brisk Terminal -->
+        <div class="tap-scene" id="tapScene" aria-hidden="true">
+          <span class="scene-halo"></span>
 
-              <div class="s-actions">
-                <button class="s-action"><span class="s-ico">↓</span>Receive</button>
-                <button class="s-action s-action-primary"><span class="s-ico">↑</span>Send</button>
-              </div>
+          <!-- Wallet screen -->
+          <div class="phone phone-glow">
+            <div class="phone-island"></div>
+            <div class="screen">
+              <div class="s-status"><span>9:41</span><span class="s-status-icons">●●● ▮</span></div>
+              <div class="s-pad">
+                <p class="s-label">Your balance</p>
+                <p class="s-hero grad countup" data-count-decimals="2" data-count-prefix="$">$1,284.50</p>
+                <p class="s-subtle">USDC · feeless on Sui</p>
 
-              <p class="s-section">Your money</p>
-              <div class="s-card s-row">
-                <div class="s-row-ico ico-emerald">◎</div>
-                <div class="s-row-main">
-                  <p class="s-row-title">Save</p>
-                  <p class="s-row-sub">+$0.42 earned · 5.00% APY</p>
+                <div class="s-actions">
+                  <button class="s-action"><span class="s-ico">↓</span>Receive</button>
+                  <button class="s-action s-action-primary"><span class="s-ico">↑</span>Send</button>
                 </div>
-                <div class="s-row-amt">$420.00</div>
-              </div>
-              <div class="s-card s-row">
-                <div class="s-row-ico ico-violet">🎁</div>
-                <div class="s-row-main">
-                  <p class="s-row-title">Gift cards</p>
-                  <p class="s-row-sub">Store credit you can spend</p>
-                </div>
-                <div class="s-row-amt">$25.00</div>
-              </div>
 
-              <p class="s-section">Activity</p>
-              <div class="s-act">
-                <div class="s-act-ico in">↓</div>
-                <div class="s-row-main"><p class="s-row-title">Acme Coffee</p><p class="s-row-sub">Today</p></div>
-                <div class="s-row-amt pos">+$4.20</div>
+                <p class="s-section">Your money</p>
+                <div class="s-card s-row">
+                  <div class="s-row-ico ico-emerald">◎</div>
+                  <div class="s-row-main">
+                    <p class="s-row-title">Save</p>
+                    <p class="s-row-sub">+$0.42 earned · 5.00% APY</p>
+                  </div>
+                  <div class="s-row-amt">$420.00</div>
+                </div>
+                <div class="s-card s-row">
+                  <div class="s-row-ico ico-violet">🎁</div>
+                  <div class="s-row-main">
+                    <p class="s-row-title">Gift cards</p>
+                    <p class="s-row-sub">Store credit you can spend</p>
+                  </div>
+                  <div class="s-row-amt">$25.00</div>
+                </div>
+
+                <p class="s-section">Activity</p>
+                <div class="s-act">
+                  <div class="s-act-ico in">↓</div>
+                  <div class="s-row-main"><p class="s-row-title">Acme Coffee</p><p class="s-row-sub">Today</p></div>
+                  <div class="s-row-amt pos">+$4.20</div>
+                </div>
+                <div class="s-act">
+                  <div class="s-act-ico out">↑</div>
+                  <div class="s-row-main"><p class="s-row-title">0x71bf…9c2a</p><p class="s-row-sub">Yesterday</p></div>
+                  <div class="s-row-amt">−$12.00</div>
+                </div>
               </div>
-              <div class="s-act">
-                <div class="s-act-ico out">↑</div>
-                <div class="s-row-main"><p class="s-row-title">0x71bf…9c2a</p><p class="s-row-sub">Yesterday</p></div>
-                <div class="s-row-amt">−$12.00</div>
+              <div class="s-tabbar">
+                <span class="s-tab active">Wallet</span>
+                <span class="s-tab">Pay</span>
+                <span class="s-tab">Save</span>
               </div>
             </div>
-            <div class="s-tabbar">
-              <span class="s-tab active">Wallet</span>
-              <span class="s-tab">Pay</span>
-              <span class="s-tab">Save</span>
+          </div>
+
+          <!-- NFC arc firing toward the terminal -->
+          <div class="nfc-arc"><span></span><span></span><span></span></div>
+
+          <!-- Brisk Terminal receiving the tap -->
+          <div class="terminal">
+            <div class="terminal-top"><span class="tdot"></span>Brisk Terminal</div>
+            <div class="terminal-amount">$18.00</div>
+            <div class="terminal-to">Acme Coffee</div>
+            <div class="terminal-status">
+              <span class="t-wait">Waiting for tap…</span>
+              <span class="t-paid">✓ Paid · on-chain</span>
             </div>
+          </div>
+
+          <!-- confirmation that springs in over the terminal -->
+          <div class="pay-confirm">
+            <div class="pc-check">✓</div>
+            <div class="pc-amt">$18.00 paid</div>
+            <div class="pc-sub">settled on Sui in 0.6s</div>
           </div>
         </div>
       </div>
@@ -149,8 +176,8 @@
       <div class="strip-item"><strong>$0.00</strong><span>gas, every tap</span></div>
       <div class="strip-item"><strong>0%</strong><span>fees on payments</span></div>
       <div class="strip-item"><strong>&lt;1s</strong><span>on-chain settlement</span></div>
-      <div class="strip-item"><strong>~11×</strong><span>the avg bank APY on Save</span></div>
-      <div class="strip-item"><strong>iOS + Android</strong><span>tap to pay</span></div>
+      <div class="strip-item"><strong class="countup" data-count-prefix="~" data-count-suffix="×">~11×</strong><span>the avg bank APY on Save</span></div>
+      <div class="strip-item"><strong>Android</strong><span>tap to pay, today</span></div>
     </div>
   </section>
 
@@ -182,7 +209,7 @@
       <div class="feature-copy">
         <span class="eyebrow">Tap to pay</span>
         <h2>As easy as Apple Pay, on open rails.</h2>
-        <p>Hold your phone near the Brisk Terminal — pay in USDC, no gas, the exact amount. It works on iPhone <em>and</em> Android, and the merchant is paid instantly.</p>
+        <p>Hold your phone near the Brisk Terminal — pay in USDC, no gas, the exact amount. It works on <em>any Android phone</em> today, and the merchant is paid instantly.</p>
         <ul class="ticks">
           <li>Phone-to-terminal NFC, no app switching</li>
           <li>Charged exactly the amount — never a cent more</li>
@@ -545,17 +572,30 @@
         <span class="eyebrow">Tech stack</span>
         <h2>Open rails, native app feel.</h2>
       </div>
-      <div class="tech-chips reveal">
-        <span class="chip">Sui</span>
-        <span class="chip">Move</span>
-        <span class="chip">USDC</span>
-        <span class="chip">Enoki</span>
-        <span class="chip">zkLogin</span>
-        <span class="chip">Passkey</span>
-        <span class="chip">React Native</span>
-        <span class="chip">Expo</span>
-        <span class="chip">Reanimated</span>
-        <span class="chip">NFC / HCE</span>
+      <div class="marquee reveal">
+        <div class="marquee-track">
+          <span class="chip">Sui</span>
+          <span class="chip">Move</span>
+          <span class="chip">USDC</span>
+          <span class="chip">Enoki</span>
+          <span class="chip">zkLogin</span>
+          <span class="chip">Passkey</span>
+          <span class="chip">React Native</span>
+          <span class="chip">Expo</span>
+          <span class="chip">Reanimated</span>
+          <span class="chip">NFC / HCE</span>
+          <!-- duplicate set for a seamless loop -->
+          <span class="chip" aria-hidden="true">Sui</span>
+          <span class="chip" aria-hidden="true">Move</span>
+          <span class="chip" aria-hidden="true">USDC</span>
+          <span class="chip" aria-hidden="true">Enoki</span>
+          <span class="chip" aria-hidden="true">zkLogin</span>
+          <span class="chip" aria-hidden="true">Passkey</span>
+          <span class="chip" aria-hidden="true">React Native</span>
+          <span class="chip" aria-hidden="true">Expo</span>
+          <span class="chip" aria-hidden="true">Reanimated</span>
+          <span class="chip" aria-hidden="true">NFC / HCE</span>
+        </div>
       </div>
     </div>
   </section>
@@ -598,6 +638,6 @@
     </div>
   </footer>
 
-  <script src="script.js?v=3"></script>
+  <script src="script.js?v=4"></script>
 </body>
 </html>
