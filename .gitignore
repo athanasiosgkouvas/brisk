@@ -73,3 +73,6 @@ move/build/
 google-services.json
 android/app/google-services.json
 /brisk-deck.html
+
+# local design source, not shipped (site inlines a recolored copy)
+/image.svg
