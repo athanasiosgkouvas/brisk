@@ -102,9 +102,10 @@ export function parseInvoice(uri: string): Invoice | null {
 }
 
 /**
- * Parse an incoming `brisk://pay?…` deep link into either a self-contained
- * invoice (the NFC tag form) or a payment-link short `code` (resolved via the
- * backend). Returns null for any non-pay link (e.g. `brisk://oauth`).
+ * Parse an incoming pay link — either the `brisk://…` deep-link forms or the
+ * hosted `https://<host>/p/<code>` payment-link URL (what a QR encodes, scanned
+ * by the in-app scanner) — into a self-contained invoice, a short `code`, a
+ * gift-card claim, or a buy intent. Returns null for any non-pay link.
  */
 export function parsePayDeepLink(
   url: string,
@@ -114,6 +115,10 @@ export function parsePayDeepLink(
   | { kind: "claim"; cardId: string; code?: string; secret?: string }
   | { kind: "buy"; merchantId: string; name?: string }
   | null {
+  // Hosted payment-link URL from a scanned QR: https://<host>/p/<8-char code>.
+  const hosted = url.match(/^https?:\/\/[^/]+\/p\/([A-Za-z0-9]{8})(?:[/?#].*)?$/);
+  if (hosted) return { kind: "code", code: hosted[1] };
+
   const qIndex = url.indexOf("?");
   if (qIndex === -1) return null;
 

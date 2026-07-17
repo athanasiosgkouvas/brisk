@@ -53,6 +53,12 @@
           "faceIDPermission": "Brisk uses Face ID to authorize your payments."
         }
       ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Brisk uses the camera to scan payment QR codes."
+        }
+      ],
       "./plugins/withBriskHce",
       "expo-font"
     ],

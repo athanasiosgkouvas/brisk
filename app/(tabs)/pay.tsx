@@ -1,7 +1,8 @@
 import { Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeIn } from "react-native-reanimated";
-import { SmartphoneNfc } from "lucide-react-native";
+import { useRouter } from "expo-router";
+import { QrCode, SmartphoneNfc } from "lucide-react-native";
 
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { AuroraBackground } from "@/components/ui/AuroraBackground";
@@ -12,7 +13,7 @@ import { PayConfirm } from "@/components/pay/PayConfirm";
 import { usePay } from "@/hooks/usePay";
 import { usePayFlow } from "@/hooks/usePayFlow";
 import { openNfcSettings } from "@/services/nfc/reader";
-import { CONTENT_MAX, DURATION } from "@/theme/scale";
+import { CONTENT_MAX, DURATION, ICON } from "@/theme/scale";
 import { useTheme } from "@/hooks/useTheme";
 
 // Customer "Pay" tab (iOS + Android). Tap the Brisk Terminal -> review ->
@@ -21,6 +22,7 @@ import { useTheme } from "@/hooks/useTheme";
 // NFC-read head.
 export default function PayScreen() {
   const theme = useTheme();
+  const router = useRouter();
   const { status, invoice, error, tapToRead, settle, reset, cancel } = usePay();
   const flow = usePayFlow();
 
@@ -89,7 +91,19 @@ export default function PayScreen() {
                     <Pressable className="mt-3 py-3" onPress={cancel}>
                       <Text className="text-center text-sm text-brisk-subtext">Cancel</Text>
                     </Pressable>
-                  ) : null}
+                  ) : (
+                    <Pressable
+                      className="mt-3 flex-row items-center justify-center py-3"
+                      onPress={() => router.push("/scan")}
+                      accessibilityRole="button"
+                      accessibilityLabel="Scan a QR code"
+                    >
+                      <QrCode color={theme.accent} size={ICON.inlineAction} />
+                      <Text className="ml-2 text-center text-sm font-inter-semibold text-brisk-accent">
+                        Scan a QR code
+                      </Text>
+                    </Pressable>
+                  )}
                 </View>
               </Animated.View>
             ) : null}

@@ -91,6 +91,7 @@ function RootNavigator({ readyToReveal }: { readyToReveal: () => void }) {
         <Stack.Screen name="username-setup" />
         <Stack.Screen name="receive" options={{ presentation: "modal" }} />
         <Stack.Screen name="send" options={{ presentation: "modal" }} />
+        <Stack.Screen name="scan" options={{ presentation: "modal" }} />
         <Stack.Screen name="pay-link" options={{ presentation: "modal" }} />
         <Stack.Screen name="tills" options={{ presentation: "modal" }} />
         <Stack.Screen name="terminal" options={{ presentation: "modal" }} />
