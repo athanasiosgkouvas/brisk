@@ -15,6 +15,7 @@ module.exports = {
           bg2: "rgb(var(--brisk-bg2) / <alpha-value>)",
           accent: "rgb(var(--brisk-accent) / <alpha-value>)",
           danger: "rgb(var(--brisk-danger) / <alpha-value>)",
+          warning: "rgb(var(--brisk-warning) / <alpha-value>)",
           text: "rgb(var(--brisk-text) / <alpha-value>)",
           subtext: "rgb(var(--brisk-subtext) / <alpha-value>)",
           border: "rgb(var(--brisk-border) / <alpha-value>)",
@@ -27,6 +28,7 @@ module.exports = {
           glow: "rgb(var(--brisk-glow) / <alpha-value>)",
           glass: "var(--brisk-glass)",
           glassBorder: "var(--brisk-glassBorder)",
+          scrim: "var(--brisk-scrim)",
         },
       },
       // Inter weights (loaded in app/_layout.tsx). RN maps a font by family

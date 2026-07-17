@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Image } from "react-native";
 
 import { Identicon } from "@/components/ui/Identicon";
+import { useTheme } from "@/hooks/useTheme";
 
 /**
  * A business/counterparty avatar: shows the merchant's logo when a URL is set
@@ -20,13 +21,14 @@ export function BusinessAvatar({
   size?: number;
   label?: string;
 }) {
+  const theme = useTheme();
   const [failed, setFailed] = useState(false);
   if (logoUrl && !failed) {
     return (
       <Image
         source={{ uri: logoUrl }}
         onError={() => setFailed(true)}
-        style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: "#0E1422" }}
+        style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: theme.bg1 }}
       />
     );
   }

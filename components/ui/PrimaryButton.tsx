@@ -5,6 +5,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-na
 import { hapticButtonPress } from "@/utils/haptics";
 import { useTheme } from "@/hooks/useTheme";
 import { BRISK } from "@/theme/tokens";
+import { SHADOW } from "@/theme/scale";
 
 type Props = {
   label: string;
@@ -56,20 +57,7 @@ export function PrimaryButton({
   };
 
   return (
-    <Animated.View
-      style={[
-        animatedStyle,
-        isPrimary && !showSlate
-          ? {
-              shadowColor: BRISK.glow,
-              shadowOpacity: 0.32,
-              shadowRadius: 24,
-              shadowOffset: { width: 0, height: 8 },
-              elevation: 10,
-            }
-          : null,
-      ]}
-    >
+    <Animated.View style={[animatedStyle, isPrimary && !showSlate ? SHADOW.glow : null]}>
       <Pressable
         onPress={() => {
           void hapticButtonPress();
@@ -91,7 +79,7 @@ export function PrimaryButton({
         className="overflow-hidden rounded-2xl"
       >
         {showSlate ? (
-          <View style={innerStyle} className="rounded-2xl bg-slate-700">
+          <View style={innerStyle} className="rounded-2xl bg-brisk-bg2">
             {content}
           </View>
         ) : isPrimary ? (

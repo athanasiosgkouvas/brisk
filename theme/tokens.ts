@@ -27,11 +27,14 @@ export type Palette = {
   subtext: string;
   accent: string;
   danger: string;
+  warning: string;
   border: string;
   borderStrong: string;
   borderSoft: string;
   placeholder: string;
   glow: string;
+  /** Full-color baked-alpha scrim for modal/sheet backdrops. */
+  scrim: string;
   /** Brand gradient: a tight emerald ramp (single-hue signature). */
   aurora: readonly [string, string, string];
 };
@@ -44,11 +47,13 @@ export const DARK: Palette = {
   subtext: "#8FA0B5",
   accent: "#00E5A0",
   danger: "#FF5D77",
+  warning: "#F0B400",
   border: "#1C2A3A",
   borderStrong: "#2C3E55",
   borderSoft: "#27415A",
   placeholder: "#5A6B7B",
   glow: "#00E5A0",
+  scrim: "rgba(0,0,0,0.6)",
   aurora: ["#00E5A0", "#34E7C0", "#17C79C"],
 };
 
@@ -60,11 +65,13 @@ export const LIGHT: Palette = {
   subtext: "#5A6B7B",
   accent: "#00E5A0",
   danger: "#FF5D77",
+  warning: "#E0A400",
   border: "#E2E8F0",
   borderStrong: "#CBD5E1",
   borderSoft: "#D8E0EA",
   placeholder: "#94A3B8",
   glow: "#00E5A0",
+  scrim: "rgba(0,0,0,0.5)",
   aurora: ["#00E5A0", "#34E7C0", "#17C79C"],
 };
 
@@ -81,6 +88,7 @@ export const DARK_VARS = {
   "--brisk-subtext": "143 160 181",
   "--brisk-accent": "0 229 160",
   "--brisk-danger": "255 93 119",
+  "--brisk-warning": "240 180 0",
   "--brisk-border": "28 42 58",
   "--brisk-borderStrong": "44 62 85",
   "--brisk-borderSoft": "39 65 90",
@@ -91,6 +99,7 @@ export const DARK_VARS = {
   "--brisk-glow": "0 229 160",
   "--brisk-glass": "rgba(20,28,46,0.55)",
   "--brisk-glassBorder": "rgba(255,255,255,0.08)",
+  "--brisk-scrim": "rgba(0,0,0,0.6)",
 } as const;
 
 export const LIGHT_VARS = {
@@ -101,6 +110,7 @@ export const LIGHT_VARS = {
   "--brisk-subtext": "90 107 123",
   "--brisk-accent": "0 229 160",
   "--brisk-danger": "255 93 119",
+  "--brisk-warning": "224 164 0",
   "--brisk-border": "226 232 240",
   "--brisk-borderStrong": "203 213 225",
   "--brisk-borderSoft": "216 224 234",
@@ -111,6 +121,7 @@ export const LIGHT_VARS = {
   "--brisk-glow": "0 229 160",
   "--brisk-glass": "rgba(255,255,255,0.65)",
   "--brisk-glassBorder": "rgba(0,0,0,0.06)",
+  "--brisk-scrim": "rgba(0,0,0,0.5)",
 } as const;
 
 /**

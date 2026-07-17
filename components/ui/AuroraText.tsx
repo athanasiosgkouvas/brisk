@@ -6,7 +6,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BRISK } from "@/theme/tokens";
 
 /**
- * Renders text filled with the aurora gradient (emerald→blue→violet). Use for a
+ * Renders text filled with the aurora gradient (a tight single-hue emerald ramp).
+ * Use for a
  * handful of HERO numerals/wordmarks only (balance, Paid amounts, BRISK logo) —
  * MaskedView is per-instance expensive, so never put this inside list rows.
  *

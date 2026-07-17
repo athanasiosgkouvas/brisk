@@ -175,7 +175,7 @@ export default function GiftCardsScreen() {
         animationType="fade"
         onRequestClose={() => setShare(null)}
       >
-        <Pressable className="flex-1 justify-end bg-black/60" onPress={() => setShare(null)}>
+        <Pressable className="flex-1 justify-end bg-brisk-scrim" onPress={() => setShare(null)}>
           <Pressable
             className="rounded-t-3xl border-t border-brisk-border bg-brisk-bg0 px-5 pb-10 pt-6"
             onPress={(e) => e.stopPropagation()}

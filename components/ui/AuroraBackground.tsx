@@ -64,8 +64,8 @@ export function AuroraBackground({
     ],
     opacity: interpolate(t.value, [0, 1], [peak, peak * 0.7]),
   }));
-  // Violet glow drifts bottom-right, counter-phase.
-  const violet = useAnimatedStyle(() => ({
+  // Deep-emerald glow drifts bottom-right, counter-phase.
+  const emeraldDeep = useAnimatedStyle(() => ({
     transform: [
       { translateX: interpolate(t.value, [0, 1], [orb * 0.05, orb * 0.2]) },
       { translateY: interpolate(t.value, [0, 1], [orb * 0.05, -orb * 0.05]) },
@@ -73,8 +73,8 @@ export function AuroraBackground({
     ],
     opacity: interpolate(t.value, [0, 1], [peak * 0.7, peak]),
   }));
-  // Blue glow lower-center, slow vertical sway — ties the two together.
-  const blue = useAnimatedStyle(() => ({
+  // Mid-emerald glow lower-center, slow vertical sway — ties the two together.
+  const emeraldMid = useAnimatedStyle(() => ({
     transform: [
       { translateX: interpolate(t.value, [0, 1], [-orb * 0.05, orb * 0.05]) },
       { translateY: interpolate(t.value, [0, 1], [orb * 0.02, orb * 0.12]) },
@@ -91,17 +91,17 @@ export function AuroraBackground({
         <Animated.View style={[orbBase, { left: -orb * 0.35, top: -orb * 0.3 }, emerald]}>
           <GlowOrb color={BRISK.aurora[0]} size={orb} id="auroraEmerald" />
         </Animated.View>
-        <Animated.View style={[orbBase, { right: -orb * 0.4, bottom: height * 0.04 }, violet]}>
-          <GlowOrb color={BRISK.aurora[2]} size={orb} id="auroraViolet" />
+        <Animated.View style={[orbBase, { right: -orb * 0.4, bottom: height * 0.04 }, emeraldDeep]}>
+          <GlowOrb color={BRISK.aurora[2]} size={orb} id="auroraDeep" />
         </Animated.View>
         <Animated.View
           style={[
             { ...orbBase, width: orb * 0.8, height: orb * 0.8 },
             { left: width * 0.1, bottom: -orb * 0.2 },
-            blue,
+            emeraldMid,
           ]}
         >
-          <GlowOrb color={BRISK.aurora[1]} size={orb * 0.8} id="auroraBlue" />
+          <GlowOrb color={BRISK.aurora[1]} size={orb * 0.8} id="auroraMid" />
         </Animated.View>
       </View>
       {children}

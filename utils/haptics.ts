@@ -12,6 +12,11 @@ export async function hapticSwipeDragStart(): Promise<void> {
   await Haptics.selectionAsync();
 }
 
+/** Light selection tick for segmented controls / toggles. */
+export async function hapticSelect(): Promise<void> {
+  await Haptics.selectionAsync();
+}
+
 export async function hapticSwipeReleaseYes(): Promise<void> {
   await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 }

@@ -4,7 +4,7 @@ import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { useThemeMode } from "@/hooks/useTheme";
-import { BRISK } from "@/theme/tokens";
+import { SHADOW } from "@/theme/scale";
 
 /**
  * Frosted-glass surface: a translucent tinted card with a hairline border.
@@ -40,14 +40,7 @@ export function GlassCard({
         // iOS-only soft lift. Android elevation needs a solid background on this
         // same (overflow-hidden, transparent) view, where it renders as a
         // mismatched rectangular shadow — so we skip elevation here.
-        glow
-          ? {
-              shadowColor: BRISK.glow,
-              shadowOpacity: 0.18,
-              shadowRadius: 22,
-              shadowOffset: { width: 0, height: 10 },
-            }
-          : null,
+        glow ? SHADOW.card : null,
         style,
       ]}
     >

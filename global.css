@@ -8,22 +8,24 @@
    Keep in lockstep with DARK_VARS in theme/tokens.ts. */
 @layer base {
   :root {
-    --brisk-bg0: 6 9 18;
+    --brisk-bg0: 6 9 15;
     --brisk-bg1: 14 20 34;
     --brisk-bg2: 22 30 48;
     --brisk-text: 244 248 251;
     --brisk-subtext: 143 160 181;
     --brisk-accent: 0 229 160;
     --brisk-danger: 255 93 119;
+    --brisk-warning: 240 180 0;
     --brisk-border: 28 42 58;
     --brisk-borderStrong: 44 62 85;
     --brisk-borderSoft: 39 65 90;
     --brisk-placeholder: 90 107 123;
     --brisk-aurora1: 0 229 160;
-    --brisk-aurora2: 46 143 255;
-    --brisk-aurora3: 139 92 246;
-    --brisk-glow: 46 143 255;
+    --brisk-aurora2: 52 231 192;
+    --brisk-aurora3: 23 199 156;
+    --brisk-glow: 0 229 160;
     --brisk-glass: rgba(20, 28, 46, 0.55);
     --brisk-glassBorder: rgba(255, 255, 255, 0.08);
+    --brisk-scrim: rgba(0, 0, 0, 0.6);
   }
 }
