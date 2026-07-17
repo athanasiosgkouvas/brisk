@@ -38,7 +38,19 @@ export default function TillsScreen() {
   // Inline rename: which till is being edited + its draft name.
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  // Which till is mid-sweep — so the spinner shows on that specific button
+  // (the hook's `working` status is global and can't tell them apart).
+  const [sweepingId, setSweepingId] = useState<string | null>(null);
   const busy = status === "working";
+
+  const onSweep = async (tillId: string) => {
+    setSweepingId(tillId);
+    try {
+      await sweep(tillId);
+    } finally {
+      setSweepingId(null);
+    }
+  };
 
   const startEdit = (tillId: string, current: string) => {
     setEditingId(tillId);
@@ -163,7 +175,8 @@ export default function TillsScreen() {
                   <PrimaryButton
                     label="Move to treasury"
                     variant="secondary"
-                    onPress={() => void sweep(t.tillId)}
+                    onPress={() => void onSweep(t.tillId)}
+                    loading={sweepingId === t.tillId}
                     disabled={busy || t.balanceMicros <= 0}
                   />
                 </View>

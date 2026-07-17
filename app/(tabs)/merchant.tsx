@@ -318,11 +318,13 @@ export default function ChargeScreen() {
               </Animated.View>
             </View>
           ) : status === "paid" && invoice ? (
-            <SuccessSheet
-              amountMicros={invoice.amountMicros}
-              subtitle="received"
-              footer={<PrimaryButton label="New charge" onPress={() => void cancel()} />}
-            />
+            <View className="flex-1 items-center justify-center">
+              <SuccessSheet
+                amountMicros={invoice.amountMicros}
+                subtitle="received"
+                footer={<PrimaryButton label="New charge" onPress={() => void cancel()} />}
+              />
+            </View>
           ) : status === "nfc_off" ? (
             <StatusView
               variant="neutral"

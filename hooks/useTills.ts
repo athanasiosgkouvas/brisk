@@ -62,6 +62,35 @@ export function useTills() {
     [session],
   );
 
+  /**
+   * Re-list tills after a sweep, tolerating the node's read-your-writes lag: a
+   * one-shot read right after the tx often still returns the pre-sweep balance,
+   * which would restore the money we just moved. Poll until every swept till
+   * reads empty (or give up after a few tries and keep the optimistic zero).
+   */
+  const reconcileTills = useCallback(
+    async (sweptIds: string[]) => {
+      const addr = session?.address;
+      if (!addr) return;
+      for (let i = 0; i < 6; i++) {
+        await new Promise((r) => setTimeout(r, 1500));
+        try {
+          const fresh = await listTills(addr);
+          const settled = sweptIds.every(
+            (id) => (fresh.find((t) => t.tillId === id)?.balanceMicros ?? 0) === 0,
+          );
+          if (settled) {
+            setTills(fresh);
+            return;
+          }
+        } catch {
+          // keep polling
+        }
+      }
+    },
+    [session],
+  );
+
   const sweep = useCallback(
     async (tillId: string) => {
       if (!session) throw new Error("Not signed in");
@@ -69,16 +98,19 @@ export function useTills() {
       setError(null);
       try {
         await sweepTill(session, tillId);
-        await refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to move funds to treasury");
         setStatus("error");
         throw e;
-      } finally {
-        setStatus("idle");
       }
+      // Sweep drains the whole till → reflect it immediately and stop the spinner
+      // (a one-shot refetch can still read the stale pre-sweep balance). Reconcile
+      // against the node in the background once it catches up.
+      setTills((prev) => prev.map((t) => (t.tillId === tillId ? { ...t, balanceMicros: 0 } : t)));
+      setStatus("idle");
+      void reconcileTills([tillId]);
     },
-    [session, refresh],
+    [session, reconcileTills],
   );
 
   const rename = useCallback(
@@ -124,19 +156,22 @@ export function useTills() {
     if (!session) return;
     setStatus("working");
     setError(null);
+    // Sweep only tills that actually hold funds (sweep is a no-op otherwise).
+    const fundedIds = tills.filter((t) => t.balanceMicros > 0).map((t) => t.tillId);
     try {
-      // Sweep only tills that actually hold funds (sweep is a no-op otherwise).
-      for (const t of tills) {
-        if (t.balanceMicros > 0) await sweepTill(session, t.tillId);
-      }
-      await refresh();
+      for (const id of fundedIds) await sweepTill(session, id);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to move funds to treasury");
       setStatus("error");
-    } finally {
-      setStatus("idle");
+      return;
     }
-  }, [session, tills, refresh]);
+    // Optimistically empty the swept tills + stop the spinner; reconcile in bg.
+    setTills((prev) =>
+      prev.map((t) => (fundedIds.includes(t.tillId) ? { ...t, balanceMicros: 0 } : t)),
+    );
+    setStatus("idle");
+    void reconcileTills(fundedIds);
+  }, [session, tills, reconcileTills]);
 
   return { tills, status, error, refresh, create, sweep, sweepAll, rename, remove };
 }
