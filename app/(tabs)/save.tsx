@@ -1,16 +1,18 @@
 import { useState } from "react";
-import { Pressable, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { PiggyBank, TrendingUp } from "lucide-react-native";
 
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
-import { AuroraText } from "@/components/ui/AuroraText";
 import { HeroAmount } from "@/components/ui/HeroAmount";
 import { AuroraBackground } from "@/components/ui/AuroraBackground";
+import { AmountField } from "@/components/ui/AmountField";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { PulseRing } from "@/components/ui/PulseRing";
+import { SoftGlow } from "@/components/ui/SoftGlow";
+import { Stat } from "@/components/ui/Stat";
 import { PresetAmountRow } from "@/components/ui/PresetAmountRow";
 import { SaveHistory } from "@/components/ui/SaveHistory";
 import { useSave } from "@/hooks/useSave";
@@ -23,9 +25,10 @@ import {
   NATIONAL_AVG_APY_BPS,
   netApyBps,
   perDayMicros,
+  perYearMicros,
 } from "@/services/blockchain/yieldMath";
 import { ENV } from "@/utils/constants";
-import { STAGGER_MS } from "@/theme/scale";
+import { DURATION, HERO_EYEBROW, staggerDelay } from "@/theme/scale";
 import { hapticButtonPress } from "@/utils/haptics";
 import { useTheme } from "@/hooks/useTheme";
 import { useTabBarClearance } from "@/hooks/useTabBarClearance";
@@ -63,21 +66,24 @@ export default function SaveScreen() {
         <TrendingUp color={theme.accent} size={20} />
         <Text className="ml-2 text-sm font-inter-semibold text-brisk-text">High-yield, on Sui</Text>
       </View>
-      <View className="mt-3 flex-row items-end justify-between">
-        <View>
-          <Text className="text-xs text-brisk-subtext">Brisk Save</Text>
-          <AuroraText className="text-2xl font-inter-extrabold">{formatApy(net)} APY</AuroraText>
-        </View>
-        <View className="items-end">
-          <Text className="text-xs text-brisk-subtext">US bank average</Text>
-          <Text className="text-2xl font-inter-bold text-brisk-subtext">
-            {formatApy(NATIONAL_AVG_APY_BPS)}
-          </Text>
-        </View>
+      <View className="mt-4 flex-row justify-around">
+        <Stat label="Brisk Save" value={`${formatApy(net)}`} aurora />
+        <Stat label="US bank avg" value={`${formatApy(NATIONAL_AVG_APY_BPS)}`} tone="subtext" />
+        <Stat
+          label="the average"
+          value={`~${Math.round(net / NATIONAL_AVG_APY_BPS)}×`}
+          tone="accent"
+        />
       </View>
-      <Text className="mt-3 text-xs text-brisk-subtext">
-        ~{Math.round(net / NATIONAL_AVG_APY_BPS)}× the national average. Your principal is always
-        redeemable and stays instantly spendable.
+      {/* Make the pitch concrete — what $1,000 earns in a year here. */}
+      <Text className="mt-4 text-center text-sm text-brisk-text">
+        On $1,000 you'd earn{" "}
+        <Text className="font-inter-bold text-brisk-accent">
+          ~{formatUsd(perYearMicros(usdToMicros(1000), net))}/yr
+        </Text>
+      </Text>
+      <Text className="mt-2 text-center text-xs text-brisk-subtext">
+        Your principal is always redeemable and stays instantly spendable.
       </Text>
     </GlassCard>
   );
@@ -102,34 +108,37 @@ export default function SaveScreen() {
             }
           >
             {/* Hero */}
-            <Animated.View entering={FadeInDown.duration(500).springify()} className="items-center">
+            <Animated.View
+              entering={FadeInDown.duration(DURATION.slow).springify()}
+              className="items-center"
+            >
               <PulseRing size={56}>
                 <PiggyBank color={theme.accent} size={52} />
               </PulseRing>
-              <Text className="mt-4 text-sm uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium">
-                Save balance
-              </Text>
-              <HeroAmount
-                micros={Math.round(liveValueMicros)}
-                tier="focused"
-                fromZero
-                className="mt-1"
-              />
+              <Text className={`mt-4 ${HERO_EYEBROW}`}>Save balance</Text>
+              <View className="mt-1 items-center justify-center">
+                {/* Glowing-vault ambient lift behind the balance. */}
+                <View className="absolute inset-0 items-center justify-center" pointerEvents="none">
+                  <SoftGlow color={theme.accent} size={280} opacity={0.2} />
+                </View>
+                <HeroAmount micros={Math.round(liveValueMicros)} tier="focused" fromZero />
+              </View>
               {funded ? (
                 <>
-                  {/* Live earnings — ticks up every second; the heart of Save. */}
-                  <Text className="mt-2 text-base font-inter-semibold text-brisk-accent">
+                  {/* Live earnings — ticks up every second; the heart of Save.
+                      Kept a plain Text (NOT AuroraText): it re-renders ~8fps and
+                      MaskedView is per-instance expensive → jank. */}
+                  <Text className="mt-3 text-2xl font-inter-extrabold text-brisk-accent">
                     +{formatUsdPrecise(liveEarnedMicros)} earned
                   </Text>
-                  <Text className="mt-0.5 text-xs text-brisk-subtext">
-                    Principal {formatUsd(state.principalMicros)}
-                  </Text>
-                  {/* The one and only rate surface on the funded screen. */}
-                  <Text className="mt-2 text-xs text-brisk-subtext">
-                    {formatApy(net)} APY · +
-                    {formatUsdPrecise(perDayMicros(liveValueMicros, net), 3)}
-                    /day
-                  </Text>
+                  <View className="mt-4 w-full flex-row justify-around">
+                    <Stat label="APY" value={formatApy(net)} tone="accent" />
+                    <Stat
+                      label="Per day"
+                      value={`+${formatUsdPrecise(perDayMicros(liveValueMicros, net), 3)}`}
+                    />
+                    <Stat label="Principal" value={formatUsd(state.principalMicros)} />
+                  </View>
                 </>
               ) : (
                 <Text className="mt-2 text-center text-sm text-brisk-subtext">
@@ -147,7 +156,7 @@ export default function SaveScreen() {
               </View>
             ) : !active ? (
               <Animated.View
-                entering={FadeInDown.duration(500).delay(STAGGER_MS * 2)}
+                entering={FadeInDown.duration(DURATION.slow).delay(staggerDelay(2))}
                 className="mt-6"
               >
                 {ValuePitch}
@@ -160,21 +169,19 @@ export default function SaveScreen() {
                 {/* Quick actions — directly under the hero; the funded screen is
                     just balance → actions → history, no marketing. */}
                 <Animated.View
-                  entering={FadeInDown.duration(500).delay(STAGGER_MS)}
+                  entering={FadeInDown.duration(DURATION.slow).delay(staggerDelay(1))}
                   className="mt-8"
                 >
-                  <View className="flex-row items-center rounded-2xl border border-brisk-borderStrong bg-brisk-bg1/70 px-4 py-3">
-                    <Text className="text-2xl font-inter-bold text-brisk-subtext">$</Text>
-                    <TextInput
-                      className="ml-1 flex-1 text-2xl font-inter-bold text-brisk-text"
-                      placeholder="0.00"
-                      placeholderTextColor={theme.placeholder}
-                      keyboardType="decimal-pad"
-                      value={amountText}
-                      onChangeText={setAmountText}
-                      accessibilityLabel="Amount in US dollars"
-                    />
+                  <View className="rounded-2xl border border-brisk-borderStrong bg-brisk-bg1/70 px-4 py-3">
+                    <AmountField value={amountText} onChangeText={setAmountText} tier="compact" />
                   </View>
+                  {/* Make the deposit feel rewarding before you commit. */}
+                  {micros > 0 ? (
+                    <Text className="mt-2 text-center text-xs text-brisk-subtext">
+                      +{formatUsdPrecise(perDayMicros(liveValueMicros + micros, net), 3)}/day after
+                      this deposit
+                    </Text>
+                  ) : null}
                   <PresetAmountRow
                     options={[
                       { label: "$25", value: 25 },

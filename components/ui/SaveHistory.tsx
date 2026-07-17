@@ -2,6 +2,7 @@ import { Text, View } from "react-native";
 import { ArrowDownLeft, ArrowUpRight, Sparkles } from "lucide-react-native";
 
 import { GlassCard } from "@/components/ui/GlassCard";
+import { SectionLabel } from "@/components/ui/SectionLabel";
 import { useSaveHistory } from "@/hooks/useSaveHistory";
 import { useTheme } from "@/hooks/useTheme";
 import { formatUsd } from "@/services/blockchain/paymentTx";
@@ -22,9 +23,7 @@ export function SaveHistory() {
 
   return (
     <View className="mt-8">
-      <Text className="text-sm uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium">
-        Save activity
-      </Text>
+      <SectionLabel>Save activity</SectionLabel>
       <View className="mt-3">
         {items.map((it, i) => {
           const m = META[it.kind];

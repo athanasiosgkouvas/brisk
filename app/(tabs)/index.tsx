@@ -4,11 +4,19 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
-import { Gift, Inbox, PiggyBank, Settings as SettingsIcon } from "lucide-react-native";
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  Gift,
+  Inbox,
+  PiggyBank,
+  Settings as SettingsIcon,
+} from "lucide-react-native";
 
-import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { HeroAmount } from "@/components/ui/HeroAmount";
 import { AuroraBackground } from "@/components/ui/AuroraBackground";
+import { QuickAction } from "@/components/ui/QuickAction";
+import { SoftGlow } from "@/components/ui/SoftGlow";
 import { ListRow } from "@/components/ui/ListRow";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -26,7 +34,7 @@ import { useTabBarClearance } from "@/hooks/useTabBarClearance";
 import { formatUsd } from "@/services/blockchain/paymentTx";
 import { formatApy, formatUsdPrecise, netApyBps } from "@/services/blockchain/yieldMath";
 import { ENV } from "@/utils/constants";
-import { STAGGER_MS, ICON } from "@/theme/scale";
+import { DURATION, HERO_EYEBROW, ICON, staggerDelay } from "@/theme/scale";
 import { useTheme } from "@/hooks/useTheme";
 
 // Live-refresh cadence while the Wallet tab is focused.
@@ -109,49 +117,53 @@ export default function HomeScreen() {
             >
               {/* Balance */}
               <Animated.View
-                entering={FadeInDown.duration(500).springify()}
+                entering={FadeInDown.duration(DURATION.slow).springify()}
                 className="items-center"
               >
-                <Text className="text-center text-sm uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium">
-                  Balance
-                </Text>
+                <Text className={`text-center ${HERO_EYEBROW}`}>Balance</Text>
                 <View className="mt-1 items-center justify-center" style={{ minHeight: 76 }}>
+                  {/* Ambient lift behind the numeral (reads in both themes). */}
+                  <View
+                    className="absolute inset-0 items-center justify-center"
+                    pointerEvents="none"
+                  >
+                    <SoftGlow color={theme.accent} size={300} opacity={0.22} />
+                  </View>
                   {loading ? (
                     <Skeleton width={230} height={62} radius={16} />
                   ) : (
                     <HeroAmount micros={usdcMicros} tier="primary" />
                   )}
                 </View>
-                <Text className="mt-1 text-center text-sm text-brisk-subtext">
-                  USDC · feeless on Sui
-                </Text>
+                <View className="mt-2 flex-row items-center rounded-full border border-brisk-glassBorder bg-brisk-bg1/60 px-3 py-1">
+                  <Text className="text-xs text-brisk-subtext">USDC · feeless on Sui</Text>
+                </View>
               </Animated.View>
 
               {/* Receive / Send */}
               <Animated.View
-                entering={FadeInDown.duration(500).delay(STAGGER_MS).springify()}
+                entering={FadeInDown.duration(DURATION.slow).delay(staggerDelay(1)).springify()}
                 className="mt-8 flex-row gap-3"
               >
-                <View className="flex-1">
-                  <PrimaryButton label="Receive" onPress={() => router.push("/receive")} />
-                </View>
-                <View className="flex-1">
-                  <PrimaryButton
-                    label="Send"
-                    variant="secondary"
-                    onPress={() => router.push("/send")}
-                  />
-                </View>
+                <QuickAction
+                  label="Receive"
+                  Icon={ArrowDownLeft}
+                  onPress={() => router.push("/receive")}
+                />
+                <QuickAction
+                  label="Send"
+                  Icon={ArrowUpRight}
+                  variant="gradient"
+                  onPress={() => router.push("/send")}
+                />
               </Animated.View>
 
               {/* Your money — Save + Gift cards, grouped so they read as one set. */}
               <Animated.View
-                entering={FadeInDown.duration(500)
-                  .delay(STAGGER_MS * 2)
-                  .springify()}
+                entering={FadeInDown.duration(DURATION.slow).delay(staggerDelay(2)).springify()}
               >
                 <SectionLabel className="mt-8">Your money</SectionLabel>
-                <View className="mt-3">
+                <View className="mt-3 gap-2">
                   <ListRow
                     onPress={() => router.push("/save")}
                     icon={PiggyBank}
@@ -165,8 +177,6 @@ export default function HomeScreen() {
                     }
                     value={formatUsd(Math.round(saveValue))}
                   />
-                </View>
-                <View className="mt-3">
                   <ListRow
                     onPress={() => router.push("/gift-cards")}
                     icon={Gift}
@@ -178,7 +188,7 @@ export default function HomeScreen() {
               </Animated.View>
 
               {/* Activity */}
-              <Animated.View entering={FadeInDown.duration(500).delay(STAGGER_MS * 3)}>
+              <Animated.View entering={FadeInDown.duration(DURATION.slow).delay(staggerDelay(3))}>
                 <SectionLabel
                   className="mt-8"
                   action={

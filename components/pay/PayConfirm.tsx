@@ -1,12 +1,13 @@
 import type { ReactNode } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
-import { XCircle } from "lucide-react-native";
+import { Coins, ShieldCheck } from "lucide-react-native";
 
 import { HeroAmount } from "@/components/ui/HeroAmount";
+import { StatusGlyph } from "@/components/ui/StatusGlyph";
 import { SuccessSheet } from "@/components/ui/SuccessSheet";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
-import { useTheme } from "@/hooks/useTheme";
+import { CONTENT_MAX, DURATION, HERO_EYEBROW } from "@/theme/scale";
 import type { PayFlowState } from "@/hooks/usePayFlow";
 
 /**
@@ -20,6 +21,7 @@ export function PayConfirm({
   state,
   amountMicros,
   eyebrow = "Pay",
+  headerSlot,
   payeeLabel,
   reviewNote,
   reviewSlot,
@@ -40,6 +42,8 @@ export function PayConfirm({
   amountMicros: number;
   /** Uppercase label above the amount ("Pay" | "Send"). */
   eyebrow?: string;
+  /** Optional element above the eyebrow, review only (e.g. a merchant avatar). */
+  headerSlot?: ReactNode;
   /** Line under the amount ("to Acme Coffee" | truncated address). */
   payeeLabel?: string;
   /** Optional note under the payee line, review only (e.g. "already paid"). */
@@ -60,15 +64,15 @@ export function PayConfirm({
   /** When provided, a secondary ghost "Close" under the retry on the error state. */
   onErrorClose?: () => void;
 }) {
-  const theme = useTheme();
-
   if (state === "review") {
     return (
-      <Animated.View entering={FadeIn.duration(300)} className="w-full max-w-[360px] items-center">
-        <Text
-          numberOfLines={1}
-          className="text-sm uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium"
-        >
+      <Animated.View
+        entering={FadeIn.duration(DURATION.fast)}
+        style={{ maxWidth: CONTENT_MAX }}
+        className="w-full items-center"
+      >
+        {headerSlot ? <View className="mb-4">{headerSlot}</View> : null}
+        <Text numberOfLines={1} className={HERO_EYEBROW}>
           {eyebrow}
         </Text>
         <HeroAmount micros={amountMicros} tier="focused" countUp={false} className="mt-2" />
@@ -88,11 +92,12 @@ export function PayConfirm({
   }
 
   if (state === "authorizing" || state === "settling") {
+    const authorizing = state === "authorizing";
     return (
-      <Animated.View entering={FadeIn.duration(300)} className="items-center">
-        <ActivityIndicator color={theme.accent} size="large" />
-        <Text className="mt-4 text-sm text-brisk-subtext">
-          {state === "authorizing" ? "Authorizing…" : settlingLabel}
+      <Animated.View entering={FadeIn.duration(DURATION.fast)} className="items-center">
+        <StatusGlyph variant="pulse" Icon={authorizing ? ShieldCheck : Coins} />
+        <Text className="mt-6 text-base text-brisk-subtext">
+          {authorizing ? "Authorizing…" : settlingLabel}
         </Text>
       </Animated.View>
     );
@@ -112,8 +117,8 @@ export function PayConfirm({
 
   // error
   return (
-    <Animated.View entering={FadeIn.duration(300)} className="items-center">
-      <XCircle color={theme.danger} size={64} />
+    <Animated.View entering={FadeIn.duration(DURATION.fast)} className="items-center">
+      <StatusGlyph variant="error" />
       <Text className="mt-4 text-lg font-inter-semibold text-brisk-text">{errorTitle}</Text>
       {errorMessage ? (
         <Text className="mt-1 text-center text-sm text-brisk-subtext">{errorMessage}</Text>
@@ -121,7 +126,7 @@ export function PayConfirm({
       {errorHint ? (
         <Text className="mt-1 text-center text-xs text-brisk-subtext">{errorHint}</Text>
       ) : null}
-      <View className="mt-8 w-full max-w-[360px]">
+      <View style={{ maxWidth: CONTENT_MAX }} className="mt-8 w-full">
         <PrimaryButton label={retryLabel} onPress={onRetry} />
         {onErrorClose ? (
           <Pressable className="mt-3 py-3" onPress={onErrorClose}>

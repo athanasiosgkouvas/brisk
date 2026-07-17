@@ -7,6 +7,7 @@ import { ClipboardPaste } from "lucide-react-native";
 import { Screen } from "@/components/ui/Screen";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { ErrorText } from "@/components/ui/ErrorText";
+import { AmountField } from "@/components/ui/AmountField";
 import { BusinessAvatar } from "@/components/ui/BusinessAvatar";
 import { PayConfirm } from "@/components/pay/PayConfirm";
 import { useSend } from "@/hooks/useSend";
@@ -108,6 +109,13 @@ export default function SendScreen() {
             state={flow.state}
             amountMicros={micros}
             eyebrow="Send"
+            headerSlot={
+              <BusinessAvatar
+                logoUrl={logoFor(resolved.address)}
+                seed={resolved.address}
+                label={(resolved.display || resolved.address)?.[0]?.toUpperCase()}
+              />
+            }
             payeeLabel={`to ${
               resolved.display && resolved.display !== resolved.address
                 ? resolved.display
@@ -216,18 +224,8 @@ export default function SendScreen() {
           </View>
 
           <Text className="mb-2 mt-5 text-sm text-brisk-subtext">Amount</Text>
-          <View className="flex-row items-center rounded-2xl border border-brisk-borderStrong bg-brisk-bg1/70 px-4 py-3">
-            <Text className="text-2xl font-inter-bold text-brisk-subtext">$</Text>
-            <TextInput
-              className="ml-1 flex-1 text-2xl font-inter-bold text-brisk-text"
-              placeholder="0.00"
-              placeholderTextColor={theme.placeholder}
-              keyboardType="decimal-pad"
-              value={amountText}
-              onChangeText={setAmountText}
-              accessibilityLabel="Amount in US dollars"
-              accessibilityHint="Enter the amount of USDC to send"
-            />
+          <View className="rounded-2xl border border-brisk-borderStrong bg-brisk-bg1/70 px-4 py-3">
+            <AmountField value={amountText} onChangeText={setAmountText} tier="compact" />
           </View>
 
           {formError ? <ErrorText className="mt-4">{formError}</ErrorText> : null}

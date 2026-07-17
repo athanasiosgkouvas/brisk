@@ -1,15 +1,18 @@
 import { Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeIn } from "react-native-reanimated";
-import { SmartphoneNfc, XCircle } from "lucide-react-native";
+import { SmartphoneNfc } from "lucide-react-native";
 
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { AuroraBackground } from "@/components/ui/AuroraBackground";
+import { BusinessAvatar } from "@/components/ui/BusinessAvatar";
 import { PulseRing } from "@/components/ui/PulseRing";
+import { StatusView } from "@/components/ui/StatusView";
 import { PayConfirm } from "@/components/pay/PayConfirm";
 import { usePay } from "@/hooks/usePay";
 import { usePayFlow } from "@/hooks/usePayFlow";
 import { openNfcSettings } from "@/services/nfc/reader";
+import { CONTENT_MAX, DURATION } from "@/theme/scale";
 import { useTheme } from "@/hooks/useTheme";
 
 // Customer "Pay" tab (iOS + Android). Tap the Brisk Terminal -> review ->
@@ -44,6 +47,12 @@ export default function PayScreen() {
                 state={flow.state}
                 amountMicros={invoice.amountMicros}
                 eyebrow="Pay"
+                headerSlot={
+                  <BusinessAvatar
+                    seed={invoice.merchantId ?? invoice.merchant}
+                    label={invoice.merchant?.[0]?.toUpperCase()}
+                  />
+                }
                 payeeLabel={`to ${invoice.merchant}`}
                 confirmLabel="Confirm & Pay"
                 onConfirm={() => void flow.confirm({ settle })}
@@ -62,7 +71,7 @@ export default function PayScreen() {
             ) : null}
 
             {status === "idle" || status === "reading" ? (
-              <Animated.View entering={FadeIn.duration(300)} className="items-center">
+              <Animated.View entering={FadeIn.duration(DURATION.fast)} className="items-center">
                 <PulseRing size={64} color={status === "reading" ? theme.accent : theme.bg2}>
                   <SmartphoneNfc color={theme.accent} size={64} />
                 </PulseRing>
@@ -70,7 +79,7 @@ export default function PayScreen() {
                 <Text className="mt-2 text-center text-sm text-brisk-subtext">
                   Hold your phone near the Brisk Terminal — pay in USDC, no gas, exact amount.
                 </Text>
-                <View className="mt-8 w-full max-w-[360px]">
+                <View style={{ maxWidth: CONTENT_MAX }} className="mt-8 w-full">
                   <PrimaryButton
                     label={status === "reading" ? "Hold near terminal…" : "Tap to pay"}
                     onPress={onTap}
@@ -86,37 +95,31 @@ export default function PayScreen() {
             ) : null}
 
             {status === "nfc_off" ? (
-              <Animated.View entering={FadeIn.duration(300)} className="items-center">
-                <SmartphoneNfc color={theme.subtext} size={64} />
-                <Text className="mt-4 text-lg font-inter-semibold text-brisk-text">
-                  Turn on NFC
-                </Text>
-                <Text className="mt-1 text-center text-sm text-brisk-subtext">
-                  Brisk needs NFC to tap and pay. Enable it in settings, then try again.
-                </Text>
-                <View className="mt-8 w-full max-w-[360px]">
-                  <PrimaryButton label="Open NFC settings" onPress={() => void openNfcSettings()} />
-                  <Pressable className="mt-3 py-3" onPress={onTap}>
-                    <Text className="text-center text-sm text-brisk-subtext">Try again</Text>
-                  </Pressable>
-                </View>
-              </Animated.View>
+              <StatusView
+                variant="neutral"
+                Icon={SmartphoneNfc}
+                glyphTone="subtext"
+                title="Turn on NFC"
+                message="Brisk needs NFC to tap and pay. Enable it in settings, then try again."
+                actions={
+                  <>
+                    <PrimaryButton
+                      label="Open NFC settings"
+                      onPress={() => void openNfcSettings()}
+                    />
+                    <PrimaryButton label="Try again" variant="secondary" onPress={onTap} />
+                  </>
+                }
+              />
             ) : null}
 
             {status === "error" ? (
-              <Animated.View entering={FadeIn.duration(300)} className="items-center">
-                <XCircle color={theme.danger} size={64} />
-                <Text className="mt-4 text-lg font-inter-semibold text-brisk-text">
-                  That didn&apos;t go through
-                </Text>
-                <Text className="mt-1 text-center text-sm text-brisk-subtext">{error}</Text>
-                <Text className="mt-1 text-center text-xs text-brisk-subtext">
-                  Nothing was charged — give it another tap.
-                </Text>
-                <View className="mt-8 w-full max-w-[360px]">
-                  <PrimaryButton label="Try again" onPress={toIdle} />
-                </View>
-              </Animated.View>
+              <StatusView
+                variant="error"
+                title="That didn’t go through"
+                message={error ?? "Nothing was charged — give it another tap."}
+                actions={<PrimaryButton label="Try again" onPress={toIdle} />}
+              />
             ) : null}
           </View>
         </SafeAreaView>
