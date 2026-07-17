@@ -84,6 +84,20 @@ export default function HomeScreen() {
     <View className="flex-1 bg-brisk-bg0">
       <AuroraBackground>
         <SafeAreaView edges={["top"]} className="flex-1 px-5">
+          {/* Ambient lift behind the balance numeral — rendered as the first
+              child (behind the header + ScrollView) and outside the ScrollView,
+              which would otherwise clip its top half against the header edge. So
+              it reads as a soft halo rather than a cut disc. Personal only. */}
+          {!pro ? (
+            <View
+              pointerEvents="none"
+              className="absolute left-0 right-0 items-center"
+              style={{ top: 8 }}
+            >
+              <SoftGlow color={theme.accent} size={260} opacity={0.22} />
+            </View>
+          ) : null}
+
           {/* Fixed header: the Personal/Business mode switch (centered, the
               primary way to flip personas) with a Settings entry point trailing
               on the right. Stays put as the body below swaps between the
@@ -122,13 +136,6 @@ export default function HomeScreen() {
               >
                 <Text className={`text-center ${HERO_EYEBROW}`}>Balance</Text>
                 <View className="mt-1 items-center justify-center" style={{ minHeight: 76 }}>
-                  {/* Ambient lift behind the numeral (reads in both themes). */}
-                  <View
-                    className="absolute inset-0 items-center justify-center"
-                    pointerEvents="none"
-                  >
-                    <SoftGlow color={theme.accent} size={300} opacity={0.22} />
-                  </View>
                   {loading ? (
                     <Skeleton width={230} height={62} radius={16} />
                   ) : (
