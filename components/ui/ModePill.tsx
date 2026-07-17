@@ -1,14 +1,13 @@
-import { Pressable, Text, View } from "react-native";
 import { Store, Wallet } from "lucide-react-native";
 
+import { Segmented, type SegmentedOption } from "@/components/ui/Segmented";
 import { useAppMode } from "@/hooks/useAppMode";
 import { useProActivation } from "@/hooks/useProActivation";
-import { useTheme } from "@/hooks/useTheme";
 import type { AppMode } from "@/store/appModeStore";
 
-const OPTIONS: { mode: AppMode; label: string; Icon: typeof Wallet }[] = [
-  { mode: "personal", label: "Personal", Icon: Wallet },
-  { mode: "pro", label: "Business", Icon: Store },
+const OPTIONS: SegmentedOption<AppMode>[] = [
+  { value: "personal", label: "Personal", Icon: Wallet },
+  { value: "pro", label: "Business", Icon: Store },
 ];
 
 /**
@@ -21,35 +20,6 @@ const OPTIONS: { mode: AppMode; label: string; Icon: typeof Wallet }[] = [
 export function ModePill() {
   const { mode } = useAppMode();
   const { requestMode } = useProActivation();
-  const theme = useTheme();
 
-  return (
-    <View className="flex-row rounded-full border border-brisk-border bg-brisk-bg1/60 p-1">
-      {OPTIONS.map((opt) => {
-        const selected = opt.mode === mode;
-        const color = selected ? theme.accent : theme.subtext;
-        return (
-          <Pressable
-            key={opt.mode}
-            onPress={() => opt.mode !== mode && requestMode(opt.mode)}
-            className={`flex-row items-center rounded-full px-4 py-2 ${
-              selected ? "bg-brisk-accent/15" : ""
-            }`}
-            accessibilityRole="button"
-            accessibilityState={{ selected }}
-            accessibilityLabel={`${opt.label} mode`}
-          >
-            <opt.Icon color={color} size={15} />
-            <Text
-              className={`ml-1.5 text-sm font-inter-semibold ${
-                selected ? "text-brisk-accent" : "text-brisk-subtext"
-              }`}
-            >
-              {opt.label}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
+  return <Segmented variant="pill" options={OPTIONS} value={mode} onChange={requestMode} />;
 }

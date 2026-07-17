@@ -1,8 +1,9 @@
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
+import Animated from "react-native-reanimated";
 
 import { hapticButtonPress } from "@/utils/haptics";
+import { usePressScale } from "@/hooks/usePressScale";
 import { useTheme } from "@/hooks/useTheme";
 import { BRISK } from "@/theme/tokens";
 import { SHADOW } from "@/theme/scale";
@@ -31,8 +32,7 @@ export function PrimaryButton({
   // disabled button drops to flat slate.
   const showSlate = disabled && !loading;
   const isPrimary = variant === "primary";
-  const scale = useSharedValue(1);
-  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const { animatedStyle, onPressIn, onPressOut } = usePressScale({ disabled: inactive });
 
   // The primary label/spinner sits on the bright aurora gradient, so it stays
   // dark in BOTH themes (BRISK = dark) — never the themed bg0 (near-white in
@@ -63,15 +63,8 @@ export function PrimaryButton({
           void hapticButtonPress();
           onPress();
         }}
-        onPressIn={() => {
-          // Mutating a Reanimated shared value in a handler is the intended API.
-          // eslint-disable-next-line react-hooks/immutability
-          if (!inactive) scale.value = withSpring(0.97, { damping: 15, stiffness: 400 });
-        }}
-        onPressOut={() => {
-          // eslint-disable-next-line react-hooks/immutability
-          scale.value = withSpring(1, { damping: 15, stiffness: 400 });
-        }}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
         disabled={inactive}
         accessibilityRole="button"
         accessibilityLabel={label}
