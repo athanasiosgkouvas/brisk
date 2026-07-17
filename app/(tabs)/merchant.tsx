@@ -3,7 +3,16 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { useRouter } from "expo-router";
-import { Check, ChevronDown, MoreVertical, Plus, Smartphone, Store } from "lucide-react-native";
+import {
+  Check,
+  ChevronDown,
+  MoreVertical,
+  Nfc,
+  Plus,
+  QrCode,
+  Smartphone,
+  Store,
+} from "lucide-react-native";
 
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { HeroAmount } from "@/components/ui/HeroAmount";
@@ -39,6 +48,15 @@ const EXPIRY_OPTIONS: (SegmentedOption<ExpiryKey> & { seconds: number })[] = [
   { value: "7d", label: "7 days", seconds: 7 * 24 * 60 * 60 },
 ];
 
+// How the merchant presents the charge. "tap" = present the NFC/HCE tag; "qr" =
+// mint a payment link and show its QR (scannable by any phone camera → opens the
+// app if installed, else the web pay page). QR is the only rail without HCE.
+type ChargeMode = "tap" | "qr";
+const MODE_OPTIONS: SegmentedOption<ChargeMode>[] = [
+  { value: "tap", label: "Tap", Icon: Nfc },
+  { value: "qr", label: "QR", Icon: QrCode },
+];
+
 export default function ChargeScreen() {
   const theme = useTheme();
   const router = useRouter();
@@ -51,9 +69,9 @@ export default function ChargeScreen() {
   // One-time by default; when on, the link keeps accepting payments after the
   // first (backend leaves it "pending" for reusable links).
   const [reusable, setReusable] = useState(false);
-  // On HCE devices the tap rail is primary and the link rail is disclosed; on
-  // iOS (no HCE) the link rail is the only rail, so it's open from the start.
-  const [showLinkOptions, setShowLinkOptions] = useState(!isHceAvailable);
+  // Present via NFC tap or a scannable QR. Defaults to tap where HCE exists,
+  // otherwise QR (the only rail without HCE, e.g. iOS).
+  const [mode, setMode] = useState<ChargeMode>(isHceAvailable ? "tap" : "qr");
   const [tillPickerOpen, setTillPickerOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   // Which receiving account this charge collects into (customers never see the
@@ -141,9 +159,21 @@ export default function ChargeScreen() {
                     </Pressable>
                   )}
 
-                  {/* Primary action — one obvious button per device capability. */}
+                  {/* Present-mode toggle — tap vs QR. Only meaningful where HCE
+                      exists; without it QR is the only rail (no toggle shown). */}
                   {isHceAvailable ? (
-                    <View className="mt-6 w-full">
+                    <View className="mt-6 items-center">
+                      <Segmented
+                        variant="pill"
+                        options={MODE_OPTIONS}
+                        value={mode}
+                        onChange={setMode}
+                      />
+                    </View>
+                  ) : null}
+
+                  {mode === "tap" ? (
+                    <View className="mt-4 w-full">
                       <PrimaryButton
                         label="Charge by tap"
                         onPress={() =>
@@ -151,22 +181,15 @@ export default function ChargeScreen() {
                         }
                         disabled={!canCharge}
                       />
-                      <Pressable
-                        className="mt-3 py-2"
-                        onPress={() => setShowLinkOptions((v) => !v)}
-                        accessibilityRole="button"
-                      >
-                        <Text className="text-center text-sm font-inter-semibold text-brisk-accent">
-                          {showLinkOptions ? "Hide payment link" : "Send a payment link instead"}
-                        </Text>
-                      </Pressable>
+                      <Text className="mt-3 text-center text-xs text-brisk-subtext">
+                        Hold the customer&apos;s phone to yours to pay.
+                      </Text>
                     </View>
-                  ) : null}
-
-                  {/* Link rail — disclosed on HCE, always open on iOS. */}
-                  {showLinkOptions ? (
-                    <GlassCard className="mt-2 w-full p-4" glow>
-                      <SectionLabel>Payment link</SectionLabel>
+                  ) : (
+                    /* QR rail — mint a link and show its QR. Scannable by any phone
+                       camera: opens Brisk if installed, else the web pay page. */
+                    <GlassCard className="mt-4 w-full p-4" glow>
+                      <SectionLabel>Payment QR</SectionLabel>
                       <Text className="mb-2 mt-3 text-sm text-brisk-subtext">Expires in</Text>
                       <Segmented
                         options={EXPIRY_OPTIONS.map(({ value, label }) => ({ value, label }))}
@@ -183,8 +206,7 @@ export default function ChargeScreen() {
                       </View>
                       <View className="mt-4">
                         <PrimaryButton
-                          label="Create payment link"
-                          variant={isHceAvailable ? "secondary" : "primary"}
+                          label="Show payment QR"
                           onPress={() =>
                             selectedTillId &&
                             void createLink(amountMicros, selectedTillId, expirySec, reusable)
@@ -193,7 +215,7 @@ export default function ChargeScreen() {
                         />
                       </View>
                     </GlassCard>
-                  ) : null}
+                  )}
                 </Animated.View>
               </ScrollView>
 
@@ -289,7 +311,7 @@ export default function ChargeScreen() {
                 style={{ maxWidth: CONTENT_MAX }}
                 className="w-full items-center"
               >
-                <Text className={HERO_EYEBROW}>Payment link</Text>
+                <Text className={HERO_EYEBROW}>Scan to pay</Text>
                 <HeroAmount
                   micros={invoice.amountMicros}
                   tier="focused"
@@ -300,8 +322,11 @@ export default function ChargeScreen() {
                   value={linkUrl}
                   qrSize={180}
                   shareMessage={`Pay ${formatUsd(invoice.amountMicros)} with Brisk: ${linkUrl}`}
-                  qrAccessibilityLabel="Payment link QR code"
+                  qrAccessibilityLabel="Payment QR code"
                 />
+                <Text className="mt-4 text-center text-xs text-brisk-subtext">
+                  Point any phone camera at the code — it opens Brisk, or pays in the browser.
+                </Text>
 
                 {/* Reusable links keep accepting payments — the live repeat-payment
                     tally (N payments · $X received) lands here (parked follow-up). */}
