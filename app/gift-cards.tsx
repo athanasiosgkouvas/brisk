@@ -1,8 +1,16 @@
-import { useEffect, useState } from "react";
-import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useRouter } from "expo-router";
-import { Gift, Send, Share2 } from "lucide-react-native";
+import { Gift, Plus, Send, Share2 } from "lucide-react-native";
 
 import { Screen } from "@/components/ui/Screen";
 import { ListRow } from "@/components/ui/ListRow";
@@ -13,7 +21,7 @@ import { GiftShare } from "@/components/ui/GiftShare";
 import { useGiftCards } from "@/hooks/useGiftCards";
 import { useMerchantDirectory } from "@/hooks/useMerchantDirectory";
 import { formatUsd } from "@/services/blockchain/paymentTx";
-import { STAGGER_MS, ICON } from "@/theme/scale";
+import { DURATION, ICON, staggerDelay } from "@/theme/scale";
 import { useTheme } from "@/hooks/useTheme";
 
 function shortId(a: string): string {
@@ -25,10 +33,17 @@ function shortId(a: string): string {
 export default function GiftCardsScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { cards, shareable, loading, regift } = useGiftCards();
+  const { cards, shareable, loading, refresh, regift } = useGiftCards();
   const { nameFor, resolve } = useMerchantDirectory();
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refresh();
+    setRefreshing(false);
+  }, [refresh]);
   // The claim link to share, presented in place as a bottom sheet (re-gift or
   // re-share) — no separate screen.
   const [share, setShare] = useState<{
@@ -81,7 +96,7 @@ export default function GiftCardsScreen() {
         icon={Gift}
         title="Buy a gift card"
         onPress={() => router.push("/buy-gift-card")}
-        trailing={<Text className="text-base font-inter-semibold text-brisk-accent">＋</Text>}
+        trailing={<Plus color={theme.accent} size={ICON.inlineAction} />}
       />
 
       <ErrorText className="mt-3">{error}</ErrorText>
@@ -99,13 +114,20 @@ export default function GiftCardsScreen() {
         <ScrollView
           contentContainerStyle={{ paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={theme.accent}
+            />
+          }
         >
           {/* Cards you hold — redeemable at the merchant, and re-giftable. */}
           {cards.length > 0 ? <SectionLabel className="mb-1 mt-5">Your cards</SectionLabel> : null}
           {cards.map((c, i) => (
             <Animated.View
               key={c.objectId}
-              entering={FadeInDown.duration(400).delay(Math.min(i, 8) * STAGGER_MS)}
+              entering={FadeInDown.duration(DURATION.base).delay(staggerDelay(i))}
               className="mt-3"
             >
               <ListRow
@@ -145,7 +167,7 @@ export default function GiftCardsScreen() {
           {shareable.map((c, i) => (
             <Animated.View
               key={c.objectId}
-              entering={FadeInDown.duration(400).delay(Math.min(i, 8) * STAGGER_MS)}
+              entering={FadeInDown.duration(DURATION.base).delay(staggerDelay(i))}
               className="mt-3"
             >
               <ListRow

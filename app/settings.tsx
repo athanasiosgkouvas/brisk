@@ -18,6 +18,7 @@ import { Screen } from "@/components/ui/Screen";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { ModeSwitch } from "@/components/ui/ModeSwitch";
+import { Segmented, type SegmentedOption } from "@/components/ui/Segmented";
 import { ErrorText } from "@/components/ui/ErrorText";
 import { BusinessAvatar } from "@/components/ui/BusinessAvatar";
 import { useAuth } from "@/hooks/useAuth";
@@ -26,16 +27,13 @@ import { useUsername } from "@/hooks/useUsername";
 import { useTheme, useThemeMode } from "@/hooks/useTheme";
 import { pickAvatarDataUri } from "@/services/media/avatar";
 import { handleError, normalizeHandle } from "@/utils/handle";
-import { ICON } from "@/theme/scale";
+import { ENV } from "@/utils/constants";
+import { DURATION, ICON, staggerDelay } from "@/theme/scale";
 import type { ThemeScheme } from "@/store/themeStore";
 
-// Placeholders — swap for the real destinations when they exist.
-const TERMS_URL = "https://brisk.app/terms";
-const CONTACT_URL = "mailto:support@brisk.app";
-
-const THEME_OPTIONS: { scheme: ThemeScheme; label: string; Icon: typeof Sun }[] = [
-  { scheme: "light", label: "Light", Icon: Sun },
-  { scheme: "dark", label: "Dark", Icon: Moon },
+const THEME_OPTIONS: SegmentedOption<ThemeScheme>[] = [
+  { value: "light", label: "Light", Icon: Sun },
+  { value: "dark", label: "Dark", Icon: Moon },
 ];
 
 /**
@@ -138,7 +136,7 @@ export default function SettingsScreen() {
   return (
     <Screen title="Settings" onClose={() => router.back()} scroll bottomInset={40}>
       {/* Brisk username — how friends send you money; editable, unique. */}
-      <Animated.View entering={FadeInDown.duration(400).springify()}>
+      <Animated.View entering={FadeInDown.duration(DURATION.base).springify()}>
         <SectionLabel className="mb-2 mt-2">Your Brisk name</SectionLabel>
         <GlassCard className="px-4 py-4" blur={false}>
           {editingName ? (
@@ -227,7 +225,9 @@ export default function SettingsScreen() {
       </Animated.View>
 
       {/* Mode */}
-      <Animated.View entering={FadeInDown.duration(400).delay(60).springify()}>
+      <Animated.View
+        entering={FadeInDown.duration(DURATION.base).delay(staggerDelay(1)).springify()}
+      >
         <SectionLabel className="mb-2 mt-6">Mode</SectionLabel>
         <GlassCard className="px-4 py-4" blur={false}>
           <ModeSwitch onRequestMode={requestMode} />
@@ -245,48 +245,25 @@ export default function SettingsScreen() {
       </Animated.View>
 
       {/* Appearance */}
-      <Animated.View entering={FadeInDown.duration(400).delay(80).springify()}>
+      <Animated.View
+        entering={FadeInDown.duration(DURATION.base).delay(staggerDelay(2)).springify()}
+      >
         <SectionLabel className="mb-2 mt-6">Appearance</SectionLabel>
         <GlassCard className="px-4 py-4" blur={false}>
-          <View className="flex-row gap-1 rounded-2xl border border-brisk-border bg-brisk-bg1/60 p-1">
-            {THEME_OPTIONS.map(({ scheme: opt, label, Icon }) => {
-              const selected = opt === scheme;
-              return (
-                <Pressable
-                  key={opt}
-                  onPress={() => setScheme(opt)}
-                  className={`flex-1 flex-row items-center justify-center rounded-xl px-4 py-2 ${
-                    selected
-                      ? "border border-brisk-accent bg-brisk-accent/15"
-                      : "border border-transparent"
-                  }`}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  accessibilityLabel={`${label} theme`}
-                >
-                  <Icon color={selected ? theme.accent : theme.subtext} size={16} />
-                  <Text
-                    className={`ml-2 text-sm font-inter-semibold ${
-                      selected ? "text-brisk-accent" : "text-brisk-subtext"
-                    }`}
-                  >
-                    {label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          <Segmented variant="block" options={THEME_OPTIONS} value={scheme} onChange={setScheme} />
         </GlassCard>
       </Animated.View>
 
       {/* About */}
-      <Animated.View entering={FadeInDown.duration(400).delay(140).springify()}>
+      <Animated.View
+        entering={FadeInDown.duration(DURATION.base).delay(staggerDelay(3)).springify()}
+      >
         <SectionLabel className="mb-2 mt-6">About</SectionLabel>
         <GlassCard className="px-1 py-1" blur={false}>
           <LinkRow
             Icon={FileText}
             label="Terms of Service"
-            onPress={() => openLink(TERMS_URL)}
+            onPress={() => openLink(ENV.termsUrl)}
             iconColor={theme.subtext}
             chevronColor={theme.placeholder}
           />
@@ -294,7 +271,7 @@ export default function SettingsScreen() {
           <LinkRow
             Icon={Mail}
             label="Contact us"
-            onPress={() => openLink(CONTACT_URL)}
+            onPress={() => openLink(ENV.contactUrl)}
             iconColor={theme.subtext}
             chevronColor={theme.placeholder}
           />
@@ -302,7 +279,9 @@ export default function SettingsScreen() {
       </Animated.View>
 
       {/* Account */}
-      <Animated.View entering={FadeInDown.duration(400).delay(200).springify()}>
+      <Animated.View
+        entering={FadeInDown.duration(DURATION.base).delay(staggerDelay(4)).springify()}
+      >
         <SectionLabel className="mb-2 mt-6">Account</SectionLabel>
         <Pressable onPress={confirmLogout} accessibilityRole="button" accessibilityLabel="Log out">
           <GlassCard className="flex-row items-center px-4 py-4" blur={false}>

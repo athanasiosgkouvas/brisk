@@ -16,6 +16,7 @@ import { useReceiveTap } from "@/hooks/useReceiveTap";
 import { isHceAvailable } from "@/services/nfc/hce";
 import { openNfcSettings } from "@/services/nfc/reader";
 import { usdToMicros } from "@/services/blockchain/paymentTx";
+import { ENV } from "@/utils/constants";
 import { useTheme } from "@/hooks/useTheme";
 
 // Receive: show the address QR (works everywhere) AND — on Android — a "receive
@@ -112,8 +113,10 @@ export default function ReceiveScreen() {
           ) : null}
 
           <Text className="mt-8 px-8 text-center text-xs text-brisk-subtext">
-            Send USDC to this address to top up. On testnet, get test USDC from the Circle faucet
-            (faucet.circle.com → Sui).
+            Send USDC to this address to top up.
+            {ENV.suiNetwork !== "mainnet"
+              ? " On testnet, get test USDC from the Circle faucet (faucet.circle.com → Sui)."
+              : ""}
           </Text>
         </ScrollView>
       ) : (

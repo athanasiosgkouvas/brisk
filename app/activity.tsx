@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, FlatList, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, RefreshControl, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { ArrowDownLeft, ArrowUpRight, Inbox, Sparkles } from "lucide-react-native";
 
@@ -45,6 +45,7 @@ export default function ActivityScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadInitial = useCallback(async () => {
     if (!session) return;
@@ -62,6 +63,12 @@ export default function ActivityScreen() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadInitial();
+  }, [loadInitial]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadInitial();
+    setRefreshing(false);
   }, [loadInitial]);
 
   // Warm the merchant directory so counterparties show business names, not 0x.
@@ -118,6 +125,13 @@ export default function ActivityScreen() {
           contentContainerStyle={{ paddingTop: 8, paddingBottom: 40 }}
           onEndReached={() => void loadMore()}
           onEndReachedThreshold={0.5}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={theme.accent}
+            />
+          }
           renderItem={({ item: row, index }) =>
             row.type === "usdc" ? (
               <ActivityRow

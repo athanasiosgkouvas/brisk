@@ -237,9 +237,12 @@ export default function PayLinkScreen() {
                           );
                         }}
                       >
-                        <Text className="text-center text-sm font-inter-semibold text-brisk-accent">
-                          🎁 Buy a gift card for {invoice.merchant}
-                        </Text>
+                        <View className="flex-row items-center justify-center">
+                          <Gift color={theme.accent} size={16} />
+                          <Text className="ml-2 text-center text-sm font-inter-semibold text-brisk-accent">
+                            Buy a gift card for {invoice.merchant}
+                          </Text>
+                        </View>
                       </Pressable>
                     </>
                   ),

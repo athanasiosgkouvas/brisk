@@ -77,6 +77,10 @@ export const ENV = {
     "0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdc::USDC",
   usdcDecimals: Number(process.env.EXPO_PUBLIC_USDC_DECIMALS ?? "6"),
   usdcSymbol: process.env.EXPO_PUBLIC_USDC_SYMBOL ?? "USDC",
+
+  /** Legal / contact destinations surfaced in Settings (overridable per build). */
+  termsUrl: process.env.EXPO_PUBLIC_TERMS_URL ?? "https://brisk.app/terms",
+  contactUrl: process.env.EXPO_PUBLIC_CONTACT_URL ?? "mailto:support@brisk.app",
 } as const;
 
 /**
