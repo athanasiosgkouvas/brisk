@@ -30,9 +30,18 @@ export function usePosTerminal(opts: {
   tillId: string | null;
   merchantId: string | null;
   merchantName: string;
+  // How the customer pays an incoming sale: "tap" emulates the NFC tag; "qr"
+  // mints a payment link and shows its QR (scannable by any phone → app or web).
+  // Settlement is detected the same way (the till balance) either way.
+  mode: "tap" | "qr";
 }) {
   const { session } = useAuth();
   const charge = useCharge();
+  // Read the live mode inside pump() (a stable useCallback) without re-creating it.
+  const modeRef = useRef(opts.mode);
+  useEffect(() => {
+    modeRef.current = opts.mode;
+  });
 
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [terminalId, setTerminalId] = useState<string | null>(null);
@@ -90,7 +99,13 @@ export function usePosTerminal(opts: {
     };
     setCurrentSale(next);
     socketRef.current?.send({ type: "ACK", sessionId: next.sessionId });
-    void chargeRef.current.startCharge(next.amountMicros, next.tillId);
+    if (modeRef.current === "qr") {
+      // Mint a one-time payment link + show its QR; settlement into the till is
+      // watched exactly as the tap flow (charge.status → "paid").
+      void chargeRef.current.createLink(next.amountMicros, next.tillId);
+    } else {
+      void chargeRef.current.startCharge(next.amountMicros, next.tillId);
+    }
   }, []);
   const pumpRef = useRef(pump);
   useEffect(() => {
@@ -243,6 +258,7 @@ export function usePosTerminal(opts: {
     currentSale,
     chargeStatus: charge.status,
     chargeInvoice: charge.invoice,
+    chargeLinkUrl: charge.linkUrl,
     chargeError: charge.error,
     lastResult,
     cancel: charge.cancel,

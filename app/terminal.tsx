@@ -9,18 +9,28 @@ import Animated, {
 } from "react-native-reanimated";
 import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
-import { Check, Copy, Radio, Smartphone, Store } from "lucide-react-native";
+import { Check, Copy, Nfc, QrCode, Radio, Smartphone, Store } from "lucide-react-native";
 
 import { Screen } from "@/components/ui/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { HeroAmount } from "@/components/ui/HeroAmount";
 import { AnimatedCheck } from "@/components/ui/AnimatedCheck";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
+import { Segmented, type SegmentedOption } from "@/components/ui/Segmented";
+import { ShareSheet } from "@/components/ui/ShareSheet";
 import { useTills } from "@/hooks/useTills";
 import { useMerchantProfile } from "@/hooks/useMerchantProfile";
 import { usePosTerminal } from "@/hooks/usePosTerminal";
+import { isHceAvailable } from "@/services/nfc/hce";
+import { formatUsd } from "@/services/blockchain/paymentTx";
 import { useTheme } from "@/hooks/useTheme";
 import { hapticSwipeSuccess } from "@/utils/haptics";
+
+type ChargeMode = "tap" | "qr";
+const MODE_OPTIONS: SegmentedOption<ChargeMode>[] = [
+  { value: "tap", label: "Tap", Icon: Nfc },
+  { value: "qr", label: "QR", Icon: QrCode },
+];
 
 // Pro: ERP terminal mode. This device holds a socket open to the backend; when
 // the ERP initiates a sale, the sale is pushed here and the NFC charge starts
@@ -34,6 +44,9 @@ export default function TerminalScreen() {
   const [pickedTillId, setPickedTillId] = useState<string | null>(null);
   const selectedTillId = pickedTillId ?? tills[0]?.tillId ?? null;
   const [copied, setCopied] = useState(false);
+  // How incoming sales are collected: NFC tap or a scannable QR (default tap
+  // where HCE exists, else QR — e.g. an iOS terminal).
+  const [mode, setMode] = useState<ChargeMode>(isHceAvailable ? "tap" : "qr");
 
   const {
     terminalId,
@@ -41,6 +54,7 @@ export default function TerminalScreen() {
     currentSale,
     chargeStatus,
     chargeInvoice,
+    chargeLinkUrl,
     lastResult,
     cancelSale,
   } = usePosTerminal({
@@ -48,6 +62,7 @@ export default function TerminalScreen() {
     tillId: selectedTillId,
     merchantId,
     merchantName: merchantName ?? "Brisk terminal",
+    mode,
   });
 
   const copyTerminalId = async () => {
@@ -137,7 +152,7 @@ export default function TerminalScreen() {
       </GlassCard>
       <Text className="mt-2 text-xs text-brisk-subtext">
         Enter this code in your ERP once to link this terminal — sales then appear below and charge
-        automatically over tap.
+        automatically.
       </Text>
 
       {/* Receiving account (till) this terminal collects into. */}
@@ -189,6 +204,17 @@ export default function TerminalScreen() {
         )}
       </View>
 
+      {/* How to collect an incoming sale — tap vs QR. Only meaningful where HCE
+          exists; without it QR is the only rail. */}
+      {isHceAvailable ? (
+        <View className="mt-5">
+          <Text className="mb-2 text-xs uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium">
+            Collect by
+          </Text>
+          <Segmented options={MODE_OPTIONS} value={mode} onChange={setMode} />
+        </View>
+      ) : null}
+
       {/* Live sale status. */}
       <GlassCard className="mt-6 items-center py-8">
         {chargeStatus === "awaiting" && chargeInvoice ? (
@@ -207,6 +233,30 @@ export default function TerminalScreen() {
               Waiting for the customer to tap…
             </Text>
             <Pressable className="mt-5 py-2" onPress={() => void cancelSale()}>
+              <Text className="text-sm font-inter-semibold text-brisk-subtext">Cancel</Text>
+            </Pressable>
+          </>
+        ) : chargeStatus === "link" && chargeInvoice && chargeLinkUrl ? (
+          <>
+            <Text className="mb-3 text-xs uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium">
+              Incoming sale · scan to pay
+            </Text>
+            <HeroAmount
+              micros={chargeInvoice.amountMicros}
+              tier="focused"
+              countUp={false}
+              className="mb-4"
+            />
+            <ShareSheet
+              value={chargeLinkUrl}
+              qrSize={180}
+              shareMessage={`Pay ${formatUsd(chargeInvoice.amountMicros)} with Brisk: ${chargeLinkUrl}`}
+              qrAccessibilityLabel="Payment QR code"
+            />
+            <Text className="mt-4 text-center text-xs text-brisk-subtext">
+              Customer scans with any phone camera — pays in the app or the browser.
+            </Text>
+            <Pressable className="mt-4 py-2" onPress={() => void cancelSale()}>
               <Text className="text-sm font-inter-semibold text-brisk-subtext">Cancel</Text>
             </Pressable>
           </>
@@ -262,7 +312,6 @@ export default function TerminalScreen() {
 function StatusDot({ color, pulse }: { color: string; pulse: boolean }) {
   const v = useSharedValue(1);
   useEffect(() => {
-     
     v.value = pulse
       ? withRepeat(withTiming(0.3, { duration: 700, easing: Easing.inOut(Easing.ease) }), -1, true)
       : withTiming(1, { duration: 150 });

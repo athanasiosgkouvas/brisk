@@ -22,6 +22,12 @@ export type ChargeStatus =
 
 const FALLBACK_MERCHANT_NAME = "Brisk Merchant";
 
+// A tap settles in seconds, but a QR/link payment involves the customer scanning,
+// signing in, and paying (possibly in a browser) — so links get a much longer
+// settlement window before we flag a timeout.
+const TAP_SETTLE_TIMEOUT_MS = 60_000;
+const LINK_SETTLE_TIMEOUT_MS = 5 * 60_000;
+
 export function useCharge() {
   const { session } = useAuth();
   const { name: businessName } = useMerchantProfile();
@@ -71,11 +77,12 @@ export function useCharge() {
 
   /** Watch the TILL's balance and flip to paid once this charge lands. */
   const awaitSettlement = useCallback(
-    async (amountMicros: number, baselineMicros: number, tillId: string) => {
+    async (amountMicros: number, baselineMicros: number, tillId: string, timeoutMs?: number) => {
       const settled = await waitForSettlement({
         merchant: tillId,
         baselineMicros,
         expectedMicros: amountMicros,
+        timeoutMs,
         // Till funds arrive in the address-balance accumulator — read accordingly.
         readBalance: getTillBalanceMicros,
       });
@@ -109,7 +116,7 @@ export function useCharge() {
         setInvoice(inv);
         setStatus("awaiting");
         activeRef.current = true;
-        await awaitSettlement(amountMicros, baselineMicros, tillId);
+        await awaitSettlement(amountMicros, baselineMicros, tillId, TAP_SETTLE_TIMEOUT_MS);
       } catch (e) {
         await stopEmulating();
         setError(e instanceof Error ? e.message : "Charge failed");
@@ -148,7 +155,7 @@ export function useCharge() {
         setLinkUrl(url);
         setStatus("link");
         activeRef.current = true;
-        await awaitSettlement(amountMicros, baselineMicros, tillId);
+        await awaitSettlement(amountMicros, baselineMicros, tillId, LINK_SETTLE_TIMEOUT_MS);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Couldn't create payment link");
         setStatus("error");
