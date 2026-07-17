@@ -42,9 +42,10 @@ services:
     runtime: node
     plan: free
     rootDir: backend
-    # tsx/typescript are devDependencies; --include=dev ensures they're present
-    # for the tsc build even when Render sets NODE_ENV=production.
-    buildCommand: npm install --include=dev && npm run build
+    # Build the browser pay app (webpay/) first — the backend serves its dist at
+    # /pay. Then build the backend. tsx/typescript are devDependencies; the
+    # --include=dev flags ensure the tsc/vite builds have them under NODE_ENV=production.
+    buildCommand: cd ../webpay && npm install --include=dev && npm run build && cd ../backend && npm install --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /health
     autoDeploy: true
@@ -85,8 +86,25 @@ services:
       - key: PUBLIC_BASE_URL
         value: "https://brisk-z5bu.onrender.com"
       # CORS is intentionally left unset → permissive. The native app sends no
-      # Origin header, so CORS is moot; set CORS_ALLOWED_ORIGINS only if you add
-      # a web client.
+      # Origin header, so CORS is moot. The web pay SPA is served from THIS origin
+      # (/pay), so its /api calls are same-origin — no CORS entry needed either.
+      #
+      # ── Web pay app (webpay/) build-time env (Vite inlines VITE_* at build) ──
+      - key: VITE_BACKEND_URL
+        value: "https://brisk-z5bu.onrender.com"
+      - key: VITE_WEB_REDIRECT_URI
+        value: "https://brisk-z5bu.onrender.com/pay/"
+      - key: VITE_SUI_NETWORK
+        value: "testnet"
+      - key: VITE_USDC_TYPE
+        value: "0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdc::USDC"
+      # Public Enoki zkLogin key (same as the app's EXPO_PUBLIC_ENOKI_API_KEY).
+      - key: VITE_ENOKI_API_KEY
+        sync: false # set in the Render dashboard
+      # Google OAuth *Web* client id (authorized JS origin + /pay/ redirect =
+      # this backend origin). The app's native client id will NOT work here.
+      - key: VITE_GOOGLE_CLIENT_ID
+        sync: false # set in the Render dashboard
 
   # Daily sweep cron: drains every active till's accumulated USDC to its recorded
   # treasury. till::sweep is permissionless + the destination is on-chain, so this

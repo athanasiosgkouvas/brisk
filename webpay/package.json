@@ -1,0 +1,19 @@
+{
+  "name": "brisk-webpay",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@mysten/enoki": "^1.2.3",
+    "@mysten/sui": "^2.20.2"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.2",
+    "vite": "^5.4.11"
+  }
+}

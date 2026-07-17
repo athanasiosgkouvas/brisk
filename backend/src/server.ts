@@ -1,3 +1,5 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { WebSocketServer, WebSocket, type RawData } from "ws";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -71,6 +73,13 @@ app.use((req, _res, next) => {
   if (req.path.startsWith("/api/")) console.log(`[req] ${req.method} ${req.path}`);
   next();
 });
+
+// Serve the browser payment app (webpay/dist, built alongside the backend) under
+// /pay. Static assets first; the SPA fallback (below, before listen) handles the
+// /pay/:code deep routes so the code resolves client-side. Same-origin with the
+// API, so no CORS entry is needed for the SPA.
+const WEBPAY_DIST = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../webpay/dist");
+app.use("/pay", express.static(WEBPAY_DIST));
 
 // ─── Validation schemas ─────────────────────────────────────────────────────
 
@@ -1789,9 +1798,9 @@ display:flex;min-height:100vh;align-items:center;justify-content:center;text-ali
   <a class="btn primary" href="${deepLink}">Open in Brisk</a>
   <div class="fallback" id="fallback">
     <p>Don't have Brisk yet?</p>
+    <a class="btn primary" href="/pay/${link.code}">Pay in browser</a>
     <a class="btn ghost" href="https://play.google.com/store" target="_blank" rel="noopener">Get it on Google Play</a>
     <a class="btn ghost" href="https://apps.apple.com/" target="_blank" rel="noopener">Download on the App Store</a>
-    <button class="btn disabled" disabled title="Coming soon">Pay in browser (coming soon)</button>
     <div class="qr"><img src="${qr}" width="220" height="220" alt="Scan to open this link"/></div>
     <p><small>Scan with your phone to open this request in Brisk.</small></p>
   </div>
@@ -1806,6 +1815,12 @@ display:flex;min-height:100vh;align-items:center;justify-content:center;text-ali
   })();
 </script>
 </body></html>`);
+});
+
+// SPA fallback: any /pay/* path that isn't a static asset serves the web pay app
+// shell, which reads the :code from the path and resolves it client-side.
+app.get("/pay/*splat", (_req, res) => {
+  res.sendFile(path.join(WEBPAY_DIST, "index.html"));
 });
 
 const server = app.listen(port, () => {
