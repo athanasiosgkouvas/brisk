@@ -2,12 +2,13 @@
 
 # Brisk
 
-### Tap to pay in stablecoins — feeless for shoppers, instant and card‑fee‑free for businesses.
+### Tap or scan to pay in stablecoins — feeless for shoppers, instant and card‑fee‑free for businesses.
 
-Brisk is a **B2C payments app**. Shoppers tap their phone to pay in **USDC** — the exact amount,
-**no gas, no card fees** — and their idle balance quietly **earns yield**. Businesses get **paid
-instantly**, run a **gift‑card program** out of the box, and can plug Brisk straight into the
-**point‑of‑sale / ERP** they already use. One Google sign‑in. No seed phrase. No pop‑ups.
+Brisk is a **B2C payments app**. Shoppers **tap their phone or scan a QR** to pay in **USDC** — the exact
+amount, **no gas, no card fees** — and their idle balance quietly **earns yield**. No app? A scanned QR or
+payment link **completes the payment in the browser**. Businesses get **paid instantly**, run a
+**gift‑card program** out of the box, and can plug Brisk straight into the **point‑of‑sale / ERP** they
+already use. One Google sign‑in. No seed phrase. No pop‑ups.
 
 **[▶ Watch the demo](https://www.youtube.com/watch?v=K89fJfj3xQo)** · **[🌐 Live site](https://brisk-site.onrender.com)** · **[📱 Get the Android app](https://appdistribution.firebase.dev/i/daeadf277c746f80)**
 
@@ -46,8 +47,12 @@ Everything is **self‑custodial** (your money is yours), **feeless** to the pay
 
 - **Sign in with Google — no seed phrase.** Your account is self‑custodial and created from a normal
   sign‑in; every payment is confirmed with **Face ID / fingerprint**.
-- **Tap to pay.** Hold your phone to a Brisk terminal and pay the exact amount — works on **iPhone and
-  Android**. It feels like Apple Pay; it's stablecoins on open rails.
+- **Tap or scan to pay.** Hold your phone to a Brisk terminal, or **scan the merchant's QR** — pay the
+  exact amount, on **iPhone and Android**. It feels like Apple Pay; it's stablecoins on open rails.
+- **No app? Pay in the browser.** Scan any Brisk QR (or open a payment link) without the app installed —
+  it opens Brisk if you have it, otherwise a **web page that completes the payment** with a Google sign‑in.
+- **Scan from inside the app, too.** A built‑in QR scanner on the Pay tab, for when you'd rather scan
+  than tap.
 - **Truly feeless.** You're charged `$X` and pay `$0` — **no gas, no card fees**, and you never need to
   hold any other token.
 - **Your money earns while it waits.** Move idle balance into **Save** with one tap and it earns yield in
@@ -76,15 +81,18 @@ Everything is **self‑custodial** (your money is yours), **feeless** to the pay
 - **Your business, done properly.** Set your **name, VAT / Tax ID, address, contact details, category, and
   logo** — and they show up consistently everywhere customers see you (checkout, gift cards, activity).
 - **Get paid in person, two ways:**
-  - **Tap to charge** — enter an amount and have the customer tap to pay. Money lands instantly.
+  - **Tap or scan to charge** — enter an amount, then either have the customer **tap** to pay or show a
+    **QR they scan**. The QR works for anyone: it opens the Brisk app, or lets them **pay in the browser**
+    with no app at all. Money lands instantly either way.
   - **Point‑of‑sale / ERP integration** — pair Brisk with the POS or ERP you already run using a short
     **terminal code**. Your system starts a sale, it's **pushed to the phone in real time** (with a buzz),
-    the terminal **charges automatically over tap**, and the **on‑chain transaction reference is reported
-    straight back to your ERP** — ready for tax reporting. Cancel a sale any time; every sale reconciles.
+    the terminal **charges automatically over tap or QR**, and the **on‑chain transaction reference is
+    reported straight back to your ERP** — ready for tax reporting. Cancel a sale any time; every sale reconciles.
 - **Receiving accounts.** Collect into named accounts that keep your **private treasury hidden** from
   customers, and sweep funds to your treasury whenever you like.
-- **Payment links.** Not in person? Create a shareable payment link — **single‑use or reusable**, with an
-  **expiry**, one‑tap **cancel**, and a management screen that tracks each link's status.
+- **Payment links & QR.** Not in person? Create a shareable payment link (also rendered as a **QR**) —
+  **single‑use or reusable**, with an **expiry**, one‑tap **cancel**, and a management screen that tracks
+  each link's status. The payer needs **no app** — they can complete it **in the browser**.
 - **A gift‑card program for free.** Any business can sell gift cards. You're **paid upfront** at purchase;
   customers buy, share, and redeem them — no third‑party gift‑card platform taking a cut.
 - **Instant settlement, no card fees.** Funds are yours the moment a customer pays — not in two business
@@ -94,14 +102,14 @@ Everything is **self‑custodial** (your money is yours), **feeless** to the pay
 
 ## Why Brisk
 
-|                     | Card networks           | Crypto wallets            | **Brisk**                       |
-| ------------------- | ----------------------- | ------------------------- | ------------------------------- |
-| Shopper fee         | 0 (business pays 2–3%)  | Gas on every payment      | **$0 — feeless**                |
-| Sign‑up             | Bank account            | Seed phrase               | **Google sign‑in**              |
-| Pay gesture         | Tap                     | Scan a QR / paste address | **Tap (NFC), iPhone + Android** |
-| Business settlement | Days                    | Seconds                   | **Instant**                     |
-| Idle balance        | 0%                      | 0%                        | **Earns yield**                 |
-| Gift cards          | Closed platform, ~3–10% | —                         | **Built in, share & re‑gift**   |
+|                     | Card networks           | Crypto wallets            | **Brisk**                                   |
+| ------------------- | ----------------------- | ------------------------- | ------------------------------------------- |
+| Shopper fee         | 0 (business pays 2–3%)  | Gas on every payment      | **$0 — feeless**                            |
+| Sign‑up             | Bank account            | Seed phrase               | **Google sign‑in**                          |
+| Pay gesture         | Tap                     | Scan a QR / paste address | **Tap (NFC) or scan a QR — app or browser** |
+| Business settlement | Days                    | Seconds                   | **Instant**                                 |
+| Idle balance        | 0%                      | 0%                        | **Earns yield**                             |
+| Gift cards          | Closed platform, ~3–10% | —                         | **Built in, share & re‑gift**               |
 
 ---
 
