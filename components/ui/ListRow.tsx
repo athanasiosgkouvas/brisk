@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { ChevronRight, type LucideIcon } from "lucide-react-native";
 
 import { GlassCard } from "@/components/ui/GlassCard";
+import { usePressScale } from "@/hooks/usePressScale";
 import { useTheme } from "@/hooks/useTheme";
 import { ICON } from "@/theme/scale";
 
@@ -39,6 +41,7 @@ export function ListRow({
   children?: ReactNode;
 }) {
   const theme = useTheme();
+  const { animatedStyle, onPressIn, onPressOut } = usePressScale();
   const lead =
     leading ?? (Icon ? <Icon color={iconColor ?? theme.accent} size={ICON.row} /> : null);
   const body = (
@@ -61,9 +64,17 @@ export function ListRow({
 
   if (onPress) {
     return (
-      <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={title}>
-        {body}
-      </Pressable>
+      <Animated.View style={animatedStyle}>
+        <Pressable
+          onPress={onPress}
+          onPressIn={onPressIn}
+          onPressOut={onPressOut}
+          accessibilityRole="button"
+          accessibilityLabel={title}
+        >
+          {body}
+        </Pressable>
+      </Animated.View>
     );
   }
   return body;

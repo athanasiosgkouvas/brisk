@@ -1,17 +1,26 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from "react-native-reanimated";
 import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
-import { Copy, Radio, Smartphone, Store } from "lucide-react-native";
+import { Check, Copy, Radio, Smartphone, Store } from "lucide-react-native";
 
 import { Screen } from "@/components/ui/Screen";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { HeroAmount } from "@/components/ui/HeroAmount";
+import { AnimatedCheck } from "@/components/ui/AnimatedCheck";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { useTills } from "@/hooks/useTills";
 import { useMerchantProfile } from "@/hooks/useMerchantProfile";
 import { usePosTerminal } from "@/hooks/usePosTerminal";
 import { useTheme } from "@/hooks/useTheme";
+import { hapticSwipeSuccess } from "@/utils/haptics";
 
 // Pro: ERP terminal mode. This device holds a socket open to the backend; when
 // the ERP initiates a sale, the sale is pushed here and the NFC charge starts
@@ -45,6 +54,7 @@ export default function TerminalScreen() {
     if (!terminalId) return;
     await Clipboard.setStringAsync(terminalId);
     setCopied(true);
+    void hapticSwipeSuccess();
     setTimeout(() => setCopied(false), 1500);
   };
 
@@ -73,7 +83,7 @@ export default function TerminalScreen() {
     connection === "connected"
       ? theme.accent
       : connection === "connecting"
-        ? "#F0B400"
+        ? theme.warning
         : theme.subtext;
   const connShort =
     connection === "connected"
@@ -89,7 +99,7 @@ export default function TerminalScreen() {
       <GlassCard className="mt-2 flex-row items-center justify-between px-4 py-3.5">
         <View className="flex-1">
           <View className="flex-row items-center">
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dot }} />
+            <StatusDot color={dot} pulse={connection === "connecting"} />
             <Text className="ml-2 text-[11px] uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium">
               Terminal ID · {connShort}
             </Text>
@@ -115,7 +125,11 @@ export default function TerminalScreen() {
           accessibilityRole="button"
           accessibilityLabel="Copy terminal ID"
         >
-          <Copy color={theme.accent} size={14} />
+          {copied ? (
+            <Check color={theme.accent} size={14} />
+          ) : (
+            <Copy color={theme.accent} size={14} />
+          )}
           <Text className="ml-1.5 text-xs font-inter-semibold text-brisk-accent">
             {copied ? "Copied" : "Copy"}
           </Text>
@@ -200,7 +214,8 @@ export default function TerminalScreen() {
           <Text className="text-sm text-brisk-subtext">Preparing charge…</Text>
         ) : chargeStatus === "paid" ? (
           <>
-            <Text className="text-lg font-inter-bold text-brisk-accent">✓ Paid</Text>
+            <AnimatedCheck size={56} />
+            <Text className="mt-4 text-lg font-inter-bold text-brisk-accent">Paid</Text>
             {lastResult?.digest ? (
               <Text className="mt-2 text-center text-xs text-brisk-subtext" numberOfLines={1}>
                 {lastResult.digest}
@@ -213,11 +228,14 @@ export default function TerminalScreen() {
           </Text>
         ) : lastResult ? (
           <>
-            <Text
-              className={`text-lg font-inter-bold ${lastResult.ok ? "text-brisk-accent" : "text-brisk-text"}`}
-            >
-              {lastResult.ok ? "✓ Last sale paid" : "Last sale failed"}
-            </Text>
+            <View className="flex-row items-center">
+              {lastResult.ok ? <Check color={theme.accent} size={18} /> : null}
+              <Text
+                className={`text-lg font-inter-bold ${lastResult.ok ? "ml-1.5 text-brisk-accent" : "text-brisk-text"}`}
+              >
+                {lastResult.ok ? "Last sale paid" : "Last sale failed"}
+              </Text>
+            </View>
             <Text className="mt-3 text-sm text-brisk-subtext">Waiting for the next sale…</Text>
           </>
         ) : (
@@ -236,5 +254,23 @@ export default function TerminalScreen() {
         </Text>
       ) : null}
     </Screen>
+  );
+}
+
+/** The connection indicator dot — breathes while `pulse` (connecting), static
+ *  otherwise. Keeps the 8px footprint so the row layout never shifts. */
+function StatusDot({ color, pulse }: { color: string; pulse: boolean }) {
+  const v = useSharedValue(1);
+  useEffect(() => {
+     
+    v.value = pulse
+      ? withRepeat(withTiming(0.3, { duration: 700, easing: Easing.inOut(Easing.ease) }), -1, true)
+      : withTiming(1, { duration: 150 });
+  }, [pulse, v]);
+  const style = useAnimatedStyle(() => ({ opacity: v.value }));
+  return (
+    <Animated.View
+      style={[{ width: 8, height: 8, borderRadius: 4, backgroundColor: color }, style]}
+    />
   );
 }

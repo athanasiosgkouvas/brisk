@@ -7,7 +7,7 @@ import { Check, Copy, Share2 } from "lucide-react-native";
 
 import { useTheme } from "@/hooks/useTheme";
 import { ICON } from "@/theme/scale";
-import { hapticButtonPress } from "@/utils/haptics";
+import { hapticSwipeSuccess } from "@/utils/haptics";
 
 /**
  * The aurora-framed white QR + Copy (+ optional Share) action row. One component
@@ -35,7 +35,7 @@ export function ShareSheet({
     if (!value) return;
     await Clipboard.setStringAsync(value);
     setCopied(true);
-    void hapticButtonPress();
+    void hapticSwipeSuccess();
     setTimeout(() => setCopied(false), 1500);
   };
   const share = async () => {
