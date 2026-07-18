@@ -76,3 +76,6 @@ android/app/google-services.json
 
 # local design source, not shipped (site inlines a recolored copy)
 /image.svg
+/brisk-demo-runsheet.html
+/effective1.png
+/image 2.svg
