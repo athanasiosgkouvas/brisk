@@ -42,7 +42,7 @@ export function ProDashboard() {
   const { state: save, refresh: refreshSave } = useSave();
   const { liveValueMicros: saveValue } = useLiveYield(save);
   const { items: activity, refresh: refreshActivity } = useActivity();
-  const { nameFor, logoFor, resolve } = useMerchantDirectory();
+  const { nameFor, logoFor, resolve, invalidate } = useMerchantDirectory();
   const { name: businessName } = useMerchantProfile();
   const { tills, refresh: refreshTills } = useTills();
   const [refreshing, setRefreshing] = useState(false);
@@ -61,9 +61,11 @@ export function ProDashboard() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
+    // Pull-to-refresh forces counterparty names/photos to re-resolve fresh.
+    invalidate(activity.map((it) => it.counterparty));
     await refreshAll();
     setRefreshing(false);
-  }, [refreshAll]);
+  }, [refreshAll, invalidate, activity]);
 
   // Warm the merchant directory so Activity shows business names, not 0x.
   useEffect(() => {

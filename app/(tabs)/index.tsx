@@ -46,7 +46,7 @@ export default function HomeScreen() {
   const { usdcMicros, loading, refresh } = useWallet();
   const { state: save, refresh: refreshSave } = useSave();
   const { items, refresh: refreshActivity } = useActivity();
-  const { nameFor, logoFor, resolve } = useMerchantDirectory();
+  const { nameFor, logoFor, resolve, invalidate } = useMerchantDirectory();
   const pro = useAppModeStore((s) => s.mode === "pro");
   const [refreshing, setRefreshing] = useState(false);
   const bottomPad = useTabBarClearance();
@@ -61,9 +61,12 @@ export default function HomeScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
+    // A manual pull means "show me the latest" — drop cached counterparty names/
+    // photos so the post-refresh warm-up re-resolves them fresh.
+    invalidate(items.map((it) => it.counterparty));
     await refreshAll();
     setRefreshing(false);
-  }, [refreshAll]);
+  }, [refreshAll, invalidate, items]);
 
   // Warm the merchant directory so Activity shows business names, not 0x.
   useEffect(() => {

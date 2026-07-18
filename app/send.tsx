@@ -83,7 +83,8 @@ export default function SendScreen() {
   // A never-empty, never-business-name label for a recipient: the @brisk alias
   // (or resolved name) if known, else a friendly display, else the short address.
   const recipientLabel = (address: string, display?: string) =>
-    nameFor(address) ?? (display && !display.startsWith("0x") ? display : shortAddr(address));
+    nameFor(address) ??
+    (display?.trim() && !display.startsWith("0x") ? display.trim() : shortAddr(address));
 
   // Tap a recent: pre-fill the (already-resolved) recipient; jump straight to
   // review when an amount is already entered. The pinned display carries the
@@ -101,6 +102,17 @@ export default function SendScreen() {
     setReviewing(false);
   };
 
+  // The review's recipient name line — guaranteed non-empty. `named` is true only
+  // when we resolved a real display (an @brisk alias / .sui name), not a raw
+  // address and not a blank/whitespace value; otherwise we fall back to the short
+  // address so the name slot is never rendered empty (the "to <blank> 0x…" bug).
+  const named =
+    !!resolved &&
+    !!resolved.display?.trim() &&
+    resolved.display !== resolved.address &&
+    !resolved.display.startsWith("0x");
+  const payeeName = resolved ? (named ? resolved.display.trim() : shortAddr(resolved.address)) : "";
+
   return (
     <Screen title="Send" onClose={close}>
       {reviewing && resolved ? (
@@ -113,18 +125,14 @@ export default function SendScreen() {
               <BusinessAvatar
                 logoUrl={logoFor(resolved.address)}
                 seed={resolved.address}
-                label={(resolved.display || resolved.address)?.[0]?.toUpperCase()}
+                label={payeeName?.[0]?.toUpperCase()}
               />
             }
-            payeeLabel={`to ${
-              resolved.display && resolved.display !== resolved.address
-                ? resolved.display
-                : shortAddr(resolved.address)
-            }`}
+            payeeLabel={`to ${payeeName}`}
             // Anti-phishing: when the recipient was a name/username, still show the
             // resolved on-chain address the money is actually going to.
             reviewNote={
-              resolved.display && resolved.display !== resolved.address ? (
+              named ? (
                 <Text className="mt-1 text-xs text-brisk-subtext">
                   {shortAddr(resolved.address)}
                 </Text>

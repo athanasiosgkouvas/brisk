@@ -38,7 +38,7 @@ export default function ActivityScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { session } = useAuth();
-  const { nameFor, logoFor, resolve } = useMerchantDirectory();
+  const { nameFor, logoFor, resolve, invalidate } = useMerchantDirectory();
   const [usdc, setUsdc] = useState<ActivityItem[]>([]);
   const [save, setSave] = useState<SaveHistoryItem[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -67,9 +67,12 @@ export default function ActivityScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
+    // Force counterparties' names/photos to re-resolve (a pull-to-refresh means
+    // "give me the latest"); the warm-up effect below refetches once items land.
+    invalidate(usdc.map((it) => it.counterparty));
     await loadInitial();
     setRefreshing(false);
-  }, [loadInitial]);
+  }, [loadInitial, invalidate, usdc]);
 
   // Warm the merchant directory so counterparties show business names, not 0x.
   useEffect(() => {

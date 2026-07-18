@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from "react";
 
 import { useAuth } from "@/hooks/useAuth";
+import { seedOwnProfile } from "@/hooks/useMerchantDirectory";
 import { useUsernameStore } from "@/store/userStore";
 import { getUserByOwner, upsertUsername } from "@/services/api/backendApi";
 import { loadUsername, saveUsername } from "@/services/storage/prefsStorage";
@@ -66,6 +67,10 @@ export function useUsername() {
         avatar: nextAvatar,
       });
       void saveUsername(session.address, user.handle);
+      // Push the new alias/photo into the shared directory cache immediately so
+      // every by-address surface (Activity, dashboards, Send) shows our new
+      // identity at once, without waiting out the TTL or an app restart.
+      seedOwnProfile(session.address, formatAlias(user.handle), user.avatar ?? null);
       setState({
         handle: user.handle,
         avatar: user.avatar ?? null,
