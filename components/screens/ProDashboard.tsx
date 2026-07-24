@@ -20,6 +20,7 @@ import { useTabBarClearance } from "@/hooks/useTabBarClearance";
 import { useLiveYield } from "@/hooks/useLiveYield";
 import { formatUsd } from "@/services/blockchain/paymentTx";
 import { STAGGER_MS, ICON } from "@/theme/scale";
+import { ENV } from "@/utils/constants";
 import { useTheme } from "@/hooks/useTheme";
 
 function shortAddr(a: string): string {
@@ -167,6 +168,19 @@ export function ProDashboard() {
         <View className="mt-3">
           <SaveAccountRow save={save} onPress={() => router.push("/save")} />
         </View>
+
+        {/* Top up the treasury with fiat (Coinbase onramp → USDC on Sui). */}
+        {ENV.coinbaseEnabled ? (
+          <View className="mt-3">
+            <ListRow
+              onPress={() => router.push("/add-funds")}
+              icon={Plus}
+              title="Top up"
+              subtitle="Buy USDC with card or bank"
+              chevron
+            />
+          </View>
+        ) : null}
 
         {/* Receiving accounts (tills) — only those holding funds */}
         {fundedTills.map((t, i) => (

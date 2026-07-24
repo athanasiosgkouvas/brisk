@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { WebSocketServer, WebSocket, type RawData } from "ws";
@@ -15,6 +16,8 @@ import * as merchantStore from "./services/merchantStore.js";
 import * as userStore from "./services/userStore.js";
 import * as giftCardStore from "./services/giftCardStore.js";
 import * as posStore from "./services/posStore.js";
+import * as coinbase from "./services/coinbase.js";
+import * as rampStore from "./services/rampStore.js";
 import { ensureSchema, isDbConfigured } from "./db.js";
 
 dotenv.config();
@@ -54,7 +57,16 @@ app.use(
         },
   }),
 );
-app.use(express.json({ limit: "1mb" }));
+app.use(
+  express.json({
+    limit: "1mb",
+    // Stash the raw body so the Coinbase webhook can HMAC-verify the exact bytes
+    // (JSON re-serialization wouldn't match the provider's signature).
+    verify: (req, _res, buf) => {
+      (req as express.Request & { rawBody?: Buffer }).rawBody = buf;
+    },
+  }),
+);
 // Fallbacks so ERP/webhook posts in other content types are still captured
 // (see POST /pos/v1/sale). JSON above wins for application/json.
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
@@ -98,6 +110,14 @@ const executeSchema = z.object({
 
 const faucetSchema = z.object({
   address: z.string().startsWith("0x"),
+});
+
+const onrampSessionSchema = z.object({
+  address: z.string().startsWith("0x").min(4),
+  // Optional preset fiat amount (interpreted in the user's auto-detected currency).
+  amountUsd: z.number().positive().max(100_000).optional(),
+  // Which front-end is asking — decides the return redirect (deep link vs web).
+  surface: z.enum(["app", "web"]).optional(),
 });
 
 const analyticsSchema = z.object({
@@ -398,6 +418,21 @@ const faucetTracker = new Map<string, number[]>();
 const faucetWindowMs = Number(process.env.FAUCET_WINDOW_MS ?? 3_600_000);
 const faucetMaxRequests = Number(process.env.FAUCET_MAX_REQUESTS_PER_WINDOW ?? 3);
 const faucetRedirectUrl = process.env.FAUCET_REDIRECT_URL ?? "https://faucet.sui.io/";
+
+// Where Coinbase returns the user after a hosted ramp. CDP's domain allowlist
+// only accepts https domains (NOT custom schemes), so the app return goes to an
+// https bounce endpoint (/onramp/return) that 302s to the brisk:// deep link —
+// the same trick as /auth/callback → brisk://oauth. Webpay returns to its own
+// https page. Validated server-side (never client-set) so the ramp URL can't be
+// pointed at an attacker's redirect. Allowlist the backend DOMAIN in the CDP
+// portal (e.g. brisk-z5bu.onrender.com), not the brisk:// scheme.
+const onrampDeepLink = process.env.COINBASE_ONRAMP_DEEPLINK ?? "brisk://onramp-return";
+const onrampRedirectApp =
+  process.env.COINBASE_ONRAMP_REDIRECT ?? (publicBaseUrl ? `${publicBaseUrl}/onramp/return` : "");
+const onrampRedirectWeb =
+  process.env.COINBASE_ONRAMP_WEB_REDIRECT ??
+  (publicBaseUrl ? `${publicBaseUrl}/pay/onramp-return` : "");
+const coinbaseWebhookSecret = process.env.CDP_WEBHOOK_SECRET ?? "";
 
 // ─── Health ─────────────────────────────────────────────────────────────────
 
@@ -901,6 +936,137 @@ app.post("/api/faucet/request", (req, res) => {
     message: "Open the external faucet and request funds for this address.",
     redirectUrl: faucetRedirectUrl,
   });
+});
+
+// ─── Fiat ramp (Coinbase onramp/offramp) ─────────────────────────────────────
+// The app/webpay POST here for a ready-to-open hosted URL; all Coinbase specifics
+// (CDP key, session token, sandbox-vs-prod) stay in services/coinbase.ts. The
+// front-ends never see the CDP key or build Coinbase URLs themselves.
+
+/**
+ * The client's PUBLIC IP for CDP quote validation, or undefined. CDP rejects
+ * private/loopback IPs, and req.ip is loopback/private in local + some proxy
+ * setups — send it only when it's a routable public address (real client IP in
+ * prod, thanks to `trust proxy 1`).
+ */
+function publicClientIp(req: express.Request): string | undefined {
+  let ip = req.ip ?? "";
+  if (ip.startsWith("::ffff:")) ip = ip.slice(7); // IPv4-mapped IPv6
+  if (
+    !ip ||
+    ip === "::1" ||
+    /^127\./.test(ip) ||
+    /^10\./.test(ip) ||
+    /^192\.168\./.test(ip) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(ip) ||
+    /^169\.254\./.test(ip) || // link-local
+    /^(fc|fd|fe80)/i.test(ip) // IPv6 ULA / link-local
+  ) {
+    return undefined;
+  }
+  return ip;
+}
+
+app.post("/api/onramp/session", async (req, res) => {
+  if (!coinbase.isCoinbaseConfigured()) {
+    res.status(503).json({ error: "Onramp is not configured" });
+    return;
+  }
+  const parsed = onrampSessionSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid payload" });
+    return;
+  }
+
+  const surface = parsed.data.surface ?? "app";
+  const redirectUrl = surface === "web" ? onrampRedirectWeb : onrampRedirectApp;
+  if (!redirectUrl) {
+    res.status(503).json({ error: "Onramp redirect is not configured for this surface" });
+    return;
+  }
+
+  try {
+    // Persist first so the short ref exists to correlate the completion webhook.
+    const ref = await rampStore.createRampSession({
+      kind: "onramp",
+      address: parsed.data.address,
+      amountMicros: parsed.data.amountUsd ? Math.round(parsed.data.amountUsd * 1e6) : null,
+    });
+    const url = await coinbase.createOnrampUrl({
+      address: parsed.data.address,
+      partnerUserRef: ref,
+      redirectUrl,
+      presetFiatAmount: parsed.data.amountUsd,
+      clientIp: publicClientIp(req),
+    });
+    res.json({ url });
+  } catch (error: unknown) {
+    console.error("[onramp] session failed", {
+      message: error instanceof Error ? error.message : String(error),
+      address: parsed.data.address,
+      env: coinbase.coinbaseEnv,
+      timestamp: new Date().toISOString(),
+    });
+    res.status(502).json({ error: "Failed to create onramp session" });
+  }
+});
+
+// Completion webhook (source of truth; the app also polls the balance for instant
+// UX, so the flow works even if this is unconfigured). Verifies the CDP-issued
+// HMAC over the raw body, then advances the ramp_sessions row by partnerUserRef.
+// NOTE: exact header name + payload shape to be confirmed against a live CDP
+// webhook when the subscription is registered — parsing here is deliberately
+// tolerant of field-name variants.
+app.post("/webhooks/coinbase", async (req, res) => {
+  const raw = (req as express.Request & { rawBody?: Buffer }).rawBody;
+  if (coinbaseWebhookSecret) {
+    const provided =
+      req.header("x-coinbase-signature") ??
+      req.header("x-cb-signature") ??
+      req.header("x-cc-webhook-signature") ??
+      "";
+    const expected = createHmac("sha256", coinbaseWebhookSecret)
+      .update(raw ?? Buffer.from(JSON.stringify(req.body ?? {})))
+      .digest("hex");
+    const ok =
+      provided.length === expected.length &&
+      timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
+    if (!ok) {
+      res.status(401).json({ error: "Invalid signature" });
+      return;
+    }
+  }
+
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const data = (body.data ?? body) as Record<string, unknown>;
+  const eventType = String(body.eventType ?? body.type ?? data.eventType ?? "");
+  const ref = String(data.partnerUserRef ?? body.partnerUserRef ?? "");
+  const txHash = (data.txHash ?? data.transactionHash ?? null) as string | null;
+
+  if (ref) {
+    const status = /success/i.test(eventType)
+      ? "success"
+      : /fail/i.test(eventType)
+        ? "failed"
+        : "pending";
+    await rampStore.updateRampStatus(ref, status, txHash).catch((e) => {
+      console.error("[onramp] webhook status update failed", e);
+    });
+  }
+  // Always 200 quickly so the provider doesn't retry a handled event.
+  res.json({ ok: true });
+});
+
+// https bounce for the mobile onramp return: Coinbase redirects here (an
+// allowlistable https URL), and we 302 to the brisk:// deep link, which Custom
+// Tabs / ASWebAuthenticationSession follow so expo-web-browser resolves the
+// session. Same mechanism as /auth/relay → brisk://oauth. Any status params
+// Coinbase appends are forwarded verbatim.
+app.get("/onramp/return", (req, res) => {
+  const q = req.originalUrl.indexOf("?");
+  const qs = q >= 0 ? req.originalUrl.slice(q) : "";
+  res.setHeader("ngrok-skip-browser-warning", "true");
+  res.redirect(`${onrampDeepLink}${qs}`);
 });
 
 // ─── Analytics + error reporting ─────────────────────────────────────────────

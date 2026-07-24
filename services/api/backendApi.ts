@@ -61,6 +61,23 @@ export async function requestFaucet(address: string): Promise<{
   });
 }
 
+/**
+ * Ask the backend for a ready-to-open Coinbase hosted onramp URL (buy USDC on
+ * Sui → this address). The backend mints the CDP session token + builds the URL;
+ * the app just opens it. `surface` decides the return redirect (deep link vs web).
+ * Mirrors the faucet endpoint's "backend returns a URL to open" shape.
+ */
+export async function createOnrampSession(
+  address: string,
+  amountUsd?: number,
+  surface: "app" | "web" = "app",
+): Promise<{ url: string }> {
+  return backendFetch<{ url: string }>("/api/onramp/session", {
+    method: "POST",
+    body: JSON.stringify({ address, amountUsd, surface }),
+  });
+}
+
 export type ResolvedLink = {
   merchantId: string;
   payee: string;

@@ -17,6 +17,9 @@ export const CONFIG = {
   // Google web client's authorized redirect URIs. A fixed path (not per-code) so
   // one URI covers every link; the pending code is restored from localStorage.
   redirectUri: import.meta.env.VITE_WEB_REDIRECT_URI ?? `${origin}/pay/`,
+  // Coinbase onramp surface (buy USDC on Sui). Feature flag only — the backend
+  // holds all Coinbase config and 503s if unset.
+  coinbaseEnabled: (import.meta.env.VITE_COINBASE_ENABLED ?? "true") !== "false",
 } as const;
 
 export const GOOGLE_AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth";

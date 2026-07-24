@@ -112,12 +112,25 @@ export default function ReceiveScreen() {
             </Animated.View>
           ) : null}
 
-          <Text className="mt-8 px-8 text-center text-xs text-brisk-subtext">
-            Send USDC to this address to top up.
-            {ENV.suiNetwork !== "mainnet"
-              ? " On testnet, get test USDC from the Circle faucet (faucet.circle.com → Sui)."
-              : ""}
-          </Text>
+          {ENV.coinbaseEnabled ? (
+            <View className="mt-8">
+              <PrimaryButton
+                label="Add funds with Coinbase"
+                variant="secondary"
+                onPress={() => router.push("/add-funds")}
+              />
+              <Text className="mt-3 px-8 text-center text-xs text-brisk-subtext">
+                Buy USDC with a card or bank — or send USDC to the address above to top up.
+              </Text>
+            </View>
+          ) : (
+            <Text className="mt-8 px-8 text-center text-xs text-brisk-subtext">
+              Send USDC to this address to top up.
+              {ENV.suiNetwork !== "mainnet"
+                ? " On testnet, get test USDC from the Circle faucet (faucet.circle.com → Sui)."
+                : ""}
+            </Text>
+          )}
         </ScrollView>
       ) : (
         <View className="flex-1 items-center justify-center">

@@ -64,12 +64,14 @@ export function renderMessage(title: string, sub: string, emoji = "🔗"): void 
   );
 }
 
-export function renderError(message: string, onRetry?: () => void): void {
+export function renderError(message: string, onRetry?: () => void, onAddFunds?: () => void): void {
   shell(`
     <div class="glyph">⚠️</div>
     <h2>Something went wrong</h2>
     <p class="muted">${escapeHtml(message)}</p>
     ${onRetry ? '<button id="retry" class="btn primary">Try again</button>' : ""}
+    ${onAddFunds ? '<button id="addfunds" class="btn ghost">Add funds with Coinbase</button>' : ""}
   `);
   if (onRetry) document.getElementById("retry")!.addEventListener("click", onRetry);
+  if (onAddFunds) document.getElementById("addfunds")!.addEventListener("click", onAddFunds);
 }

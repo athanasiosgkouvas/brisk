@@ -259,5 +259,28 @@ export async function ensureSchema(): Promise<void> {
        ON pos_sessions (terminal_id) WHERE state = 'PROCESSING' AND delivered = false;`,
   );
 
-  console.log("[db] payment_links + tills + merchant + gift-card + POS schema ready");
+  // --- Fiat ramp sessions (Coinbase onramp/offramp, provider-agnostic) ----
+  // One row per hosted ramp session. `ref` is a short (<=50 char) id we generate
+  // and pass to the provider as partnerUserRef (a Sui address is 66 chars, too
+  // long) — the completion webhook echoes it back so we can correlate to the
+  // address + amount. Generic across kinds/providers so offramp + future flows
+  // reuse it without a new table.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ramp_sessions (
+      ref           TEXT PRIMARY KEY,
+      kind          TEXT NOT NULL,
+      provider      TEXT NOT NULL DEFAULT 'coinbase',
+      address       TEXT NOT NULL,
+      amount_micros BIGINT,
+      status        TEXT NOT NULL DEFAULT 'created',
+      tx_hash       TEXT,
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS ramp_sessions_address_idx ON ramp_sessions (address);`,
+  );
+
+  console.log("[db] payment_links + tills + merchant + gift-card + POS + ramp schema ready");
 }

@@ -44,6 +44,27 @@ export async function markPaid(code: string, digest: string): Promise<void> {
   }
 }
 
+/**
+ * Ask the backend for a Coinbase hosted onramp URL (buy USDC on Sui → address).
+ * `surface: "web"` makes the backend return the user to the web /pay/onramp-return
+ * page. Same endpoint the app uses; all Coinbase specifics stay server-side.
+ */
+export async function createOnrampSession(
+  address: string,
+  amountUsd?: number,
+): Promise<{ url: string }> {
+  const res = await fetch(`${CONFIG.backendUrl}/api/onramp/session`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ address, amountUsd, surface: "web" }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || `Could not start Add funds (${res.status})`);
+  }
+  return (await res.json()) as { url: string };
+}
+
 /** Format micro-USDC (6dp) as `$1,234.56` (matches the app's formatUsd). */
 export function formatUsd(micros: number): string {
   const [int, dec] = (micros / 1_000_000).toFixed(2).split(".");

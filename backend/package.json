@@ -12,6 +12,7 @@
     "ngrok": "ngrok http 3001"
   },
   "dependencies": {
+    "@coinbase/cdp-sdk": "^1.54.0",
     "@mysten/enoki": "^1.2.3",
     "@mysten/sui": "^2.20.2",
     "cors": "^2.8.5",

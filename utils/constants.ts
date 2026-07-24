@@ -78,6 +78,11 @@ export const ENV = {
   usdcDecimals: Number(process.env.EXPO_PUBLIC_USDC_DECIMALS ?? "6"),
   usdcSymbol: process.env.EXPO_PUBLIC_USDC_SYMBOL ?? "USDC",
 
+  /** Coinbase fiat onramp/offramp (buy/sell USDC on Sui). Feature flag only —
+   *  all Coinbase config + secrets live on the backend, which 503s if unset.
+   *  Set EXPO_PUBLIC_COINBASE_ENABLED=false to hide the "Add funds" entries. */
+  coinbaseEnabled: (process.env.EXPO_PUBLIC_COINBASE_ENABLED ?? "true") !== "false",
+
   /** Legal / contact destinations surfaced in Settings (overridable per build). */
   termsUrl: process.env.EXPO_PUBLIC_TERMS_URL ?? "https://brisk.app/terms",
   contactUrl: process.env.EXPO_PUBLIC_CONTACT_URL ?? "mailto:support@brisk.app",

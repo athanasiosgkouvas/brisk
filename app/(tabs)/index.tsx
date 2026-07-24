@@ -10,6 +10,7 @@ import {
   Gift,
   Inbox,
   PiggyBank,
+  Plus,
   Settings as SettingsIcon,
 } from "lucide-react-native";
 
@@ -178,11 +179,18 @@ export default function HomeScreen() {
                 </View>
               </Animated.View>
 
-              {/* Receive / Send */}
+              {/* Add funds / Receive / Send */}
               <Animated.View
                 entering={FadeInDown.duration(DURATION.slow).delay(staggerDelay(1)).springify()}
                 className="mt-8 flex-row gap-3"
               >
+                {ENV.coinbaseEnabled ? (
+                  <QuickAction
+                    label="Add funds"
+                    Icon={Plus}
+                    onPress={() => router.push("/add-funds")}
+                  />
+                ) : null}
                 <QuickAction
                   label="Receive"
                   Icon={ArrowDownLeft}

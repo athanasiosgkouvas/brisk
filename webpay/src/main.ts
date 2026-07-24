@@ -1,11 +1,29 @@
 import "./styles.css";
 
-import { formatUsd, LinkError, resolveLink, type ResolvedLink } from "./api";
+import { createOnrampSession, formatUsd, LinkError, resolveLink, type ResolvedLink } from "./api";
 import { completeLoginFromRedirect, loadSession, startLogin, type WebSession } from "./auth";
 import { payLink } from "./tx";
+import { CONFIG } from "./config";
 import * as ui from "./ui";
 
 const msg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
+
+/** Stash the link code across the Coinbase redirect so we can resume the payment
+ *  on return (the web redirect URL is fixed and doesn't carry the code). */
+const ONRAMP_PENDING_KEY = "brisk.web.onramp";
+
+/** Hand off to Coinbase's hosted onramp to buy USDC into the payer's address,
+ *  preset to the link amount. We come back to /pay/onramp-return (see boot). */
+async function startOnramp(address: string, amountUsd: number, code: string): Promise<void> {
+  try {
+    localStorage.setItem(ONRAMP_PENDING_KEY, code);
+    const { url } = await createOnrampSession(address, amountUsd);
+    window.location.href = url;
+  } catch (e) {
+    localStorage.removeItem(ONRAMP_PENDING_KEY);
+    ui.renderError(msg(e));
+  }
+}
 
 /** The link code from the path — served at `/pay/<code>` (Vite base `/pay/`). */
 function codeFromPath(): string | null {
@@ -23,7 +41,12 @@ async function payNow(code: string, inv: ResolvedLink, session: WebSession): Pro
     const digest = await payLink(session, inv, code);
     ui.renderPaid(inv, digest);
   } catch (e) {
-    ui.renderError(msg(e), () => void payNow(code, inv, session));
+    // A failed transfer is most often "not enough USDC" — offer a top-up right
+    // here, preset to the amount due (destination = the signed-in payer).
+    const onAddFunds = CONFIG.coinbaseEnabled
+      ? () => void startOnramp(session.address, inv.amountMicros / 1_000_000, code)
+      : undefined;
+    ui.renderError(msg(e), () => void payNow(code, inv, session), onAddFunds);
   }
 }
 
@@ -67,6 +90,23 @@ async function showReview(code: string): Promise<void> {
 
 async function boot(): Promise<void> {
   ui.renderLoading();
+
+  // 0) Returning from Coinbase onramp? Resume the payment we stashed. (Checked
+  //    before codeFromPath, whose code regex would otherwise mis-read the path.)
+  if (window.location.pathname.startsWith("/pay/onramp-return")) {
+    const stashed = localStorage.getItem(ONRAMP_PENDING_KEY);
+    localStorage.removeItem(ONRAMP_PENDING_KEY);
+    if (stashed) {
+      window.location.replace(`/pay/${stashed}`);
+    } else {
+      ui.renderMessage(
+        "Funds on the way",
+        "Your purchase is processing. Open your payment link again to finish paying.",
+        "✅",
+      );
+    }
+    return;
+  }
 
   // 1) Returning from Google? Finish zkLogin, then pay the stashed code.
   try {
