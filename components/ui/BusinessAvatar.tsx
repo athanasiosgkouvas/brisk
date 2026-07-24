@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Image } from "react-native";
+import { Image } from "expo-image";
 
 import { Identicon } from "@/components/ui/Identicon";
 import { useTheme } from "@/hooks/useTheme";
@@ -28,6 +28,11 @@ export function BusinessAvatar({
       <Image
         source={{ uri: logoUrl }}
         onError={() => setFailed(true)}
+        // Memory+disk cache keeps logos (and base64 avatar data URIs) off the hot
+        // scroll path: they decode once, not on every re-scroll through the feed.
+        cachePolicy="memory-disk"
+        contentFit="cover"
+        transition={120}
         style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: theme.bg1 }}
       />
     );

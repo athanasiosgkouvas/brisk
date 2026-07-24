@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -27,6 +27,7 @@ import { ProDashboard } from "@/components/screens/ProDashboard";
 import { useAppModeStore } from "@/store/appModeStore";
 import { useWallet } from "@/hooks/useWallet";
 import { useSave } from "@/hooks/useSave";
+import type { SaveState } from "@/services/blockchain/saveAccount";
 import { useActivity } from "@/hooks/useActivity";
 import { useMerchantDirectory } from "@/hooks/useMerchantDirectory";
 import { useLiveYield } from "@/hooks/useLiveYield";
@@ -40,6 +41,36 @@ import { useTheme } from "@/hooks/useTheme";
 // Live-refresh cadence while the Wallet tab is focused.
 const POLL_MS = 10_000;
 
+/** The "Save" summary row on the personal home. Isolated in its own leaf so the
+ *  live-ticking earned/value (~8fps via useLiveYield) repaints only this row —
+ *  not the whole home ScrollView with its mapped activity feed. */
+const SaveSummaryRow = memo(function SaveSummaryRow({
+  save,
+  onPress,
+}: {
+  save: SaveState;
+  onPress: () => void;
+}) {
+  const { liveValueMicros, liveEarnedMicros } = useLiveYield(save);
+  const active = !!save.vaultId && save.principalMicros > 0;
+  const netApy = netApyBps(save.apyBps || ENV.briskApyBps, ENV.briskReserveFactorBps);
+  return (
+    <ListRow
+      onPress={onPress}
+      icon={PiggyBank}
+      title="Save"
+      subtitle={
+        active
+          ? `+${formatUsdPrecise(liveEarnedMicros)} earned · ${formatApy(netApy)} APY`
+          : save.vaultId
+            ? "Earning yield on idle dollars"
+            : "Not active yet"
+      }
+      value={formatUsd(Math.round(liveValueMicros))}
+    />
+  );
+});
+
 export default function HomeScreen() {
   const theme = useTheme();
   const router = useRouter();
@@ -50,9 +81,6 @@ export default function HomeScreen() {
   const pro = useAppModeStore((s) => s.mode === "pro");
   const [refreshing, setRefreshing] = useState(false);
   const bottomPad = useTabBarClearance();
-  const { liveValueMicros: saveValue, liveEarnedMicros: saveEarned } = useLiveYield(save);
-  const saveActive = !!save.vaultId && save.principalMicros > 0;
-  const saveNetApy = netApyBps(save.apyBps || ENV.briskApyBps, ENV.briskReserveFactorBps);
 
   const refreshAll = useCallback(
     () => Promise.all([refresh(), refreshSave(), refreshActivity()]),
@@ -174,19 +202,7 @@ export default function HomeScreen() {
               >
                 <SectionLabel className="mt-8">Your money</SectionLabel>
                 <View className="mt-3 gap-2">
-                  <ListRow
-                    onPress={() => router.push("/save")}
-                    icon={PiggyBank}
-                    title="Save"
-                    subtitle={
-                      saveActive
-                        ? `+${formatUsdPrecise(saveEarned)} earned · ${formatApy(saveNetApy)} APY`
-                        : save.vaultId
-                          ? "Earning yield on idle dollars"
-                          : "Not active yet"
-                    }
-                    value={formatUsd(Math.round(saveValue))}
-                  />
+                  <SaveSummaryRow save={save} onPress={() => router.push("/save")} />
                   <ListRow
                     onPress={() => router.push("/gift-cards")}
                     icon={Gift}

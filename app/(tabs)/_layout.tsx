@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { BlurView } from "expo-blur";
 import {
   Wallet,
@@ -19,6 +19,38 @@ import { useTheme } from "@/hooks/useTheme";
 import { FLOATING_TAB_BAR_HEIGHT } from "@/hooks/useTabBarClearance";
 
 const TAB_BAR_HEIGHT = FLOATING_TAB_BAR_HEIGHT;
+
+// Real blur is native + cheap on iOS but a per-frame GPU cost on Android
+// (dimezisBlurView), and this bar is mounted over every scrolling screen. So we
+// blur on iOS and fall back to a near-opaque tint on Android (same trade-off as
+// GlassCard). The tint doubles as the legibility layer, so it's more opaque when
+// there's no blur behind it.
+const USE_BLUR = Platform.OS === "ios";
+
+const tabStyles = StyleSheet.create({
+  glassClip: { ...StyleSheet.absoluteFillObject, borderRadius: 32, overflow: "hidden" },
+  border: { ...StyleSheet.absoluteFillObject, borderRadius: 32, borderWidth: 1 },
+  itemsRow: { flex: 1, flexDirection: "row" },
+  tabItem: { flex: 1, alignItems: "center", justifyContent: "center", gap: 3 },
+  label: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+});
+
+// Static parts of the floating container; `bottom` is merged in per-render since
+// it depends on the safe-area inset.
+const TAB_BAR_CONTAINER = {
+  position: "absolute",
+  left: 40,
+  right: 40,
+  height: TAB_BAR_HEIGHT,
+  borderRadius: 32,
+  // iOS depth shadow — must live on an outer view without overflow:hidden.
+  shadowColor: "#000",
+  shadowOpacity: 0.45,
+  shadowRadius: 24,
+  shadowOffset: { width: 0, height: 8 },
+  // Android elevation.
+  elevation: 20,
+} as const;
 
 // Which tab routes are hidden in each mode. The custom bar maps `state.routes`
 // directly, so `href: null` (which only the default bar honors) doesn't hide
@@ -48,41 +80,25 @@ function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   return (
     <View
       pointerEvents="box-none"
-      style={{
-        position: "absolute",
-        left: 40,
-        right: 40,
-        bottom: Math.max(insets.bottom, 16) + 12,
-        height: TAB_BAR_HEIGHT,
-        borderRadius: 32,
-        // iOS depth shadow — must live on an outer view without overflow:hidden.
-        shadowColor: "#000",
-        shadowOpacity: 0.45,
-        shadowRadius: 24,
-        shadowOffset: { width: 0, height: 8 },
-        // Android elevation.
-        elevation: 20,
-      }}
+      style={[TAB_BAR_CONTAINER, { bottom: Math.max(insets.bottom, 16) + 12 }]}
     >
       {/* Glass layer: overflow:hidden clips the blur and tint to the pill shape. */}
-      <View
-        style={{
-          ...StyleSheet.absoluteFillObject,
-          borderRadius: 32,
-          overflow: "hidden",
-        }}
-      >
-        <BlurView
-          intensity={60}
-          tint={scheme}
-          experimentalBlurMethod="dimezisBlurView"
-          style={StyleSheet.absoluteFill}
-        />
-        {/* Translucent tint over the blur for legibility (per theme). */}
+      <View style={tabStyles.glassClip}>
+        {USE_BLUR ? (
+          <BlurView intensity={60} tint={scheme} style={StyleSheet.absoluteFill} />
+        ) : null}
+        {/* Tint over the blur for legibility (per theme). Near-opaque on Android,
+            where there's no blur behind it; lighter on iOS, layered over blur. */}
         <View
           style={{
             ...StyleSheet.absoluteFillObject,
-            backgroundColor: dark ? "rgba(14, 20, 34, 0.40)" : "rgba(255, 255, 255, 0.55)",
+            backgroundColor: USE_BLUR
+              ? dark
+                ? "rgba(14, 20, 34, 0.40)"
+                : "rgba(255, 255, 255, 0.55)"
+              : dark
+                ? "rgba(14, 20, 34, 0.92)"
+                : "rgba(255, 255, 255, 0.94)",
           }}
         />
       </View>
@@ -90,16 +106,14 @@ function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
       {/* Hairline glass border rendered above the blur, not clipped by it. */}
       <View
         pointerEvents="none"
-        style={{
-          ...StyleSheet.absoluteFillObject,
-          borderRadius: 32,
-          borderWidth: 1,
-          borderColor: dark ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.08)",
-        }}
+        style={[
+          tabStyles.border,
+          { borderColor: dark ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.08)" },
+        ]}
       />
 
       {/* Tab items row. */}
-      <View style={{ flex: 1, flexDirection: "row" }}>
+      <View style={tabStyles.itemsRow}>
         {visibleRoutes.map((route) => {
           const { options } = descriptors[route.key];
           const focused = route.key === activeKey;
@@ -123,7 +137,7 @@ function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
           return (
             <Pressable
               key={route.key}
-              style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 3 }}
+              style={tabStyles.tabItem}
               onPress={onPress}
               onLongPress={onLongPress}
               accessibilityRole="tab"
@@ -132,14 +146,7 @@ function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
               testID={options.tabBarButtonTestID}
             >
               {options.tabBarIcon?.({ color, size: 24, focused })}
-              <Text
-                numberOfLines={1}
-                style={{
-                  fontSize: 11,
-                  color,
-                  fontFamily: "Inter_600SemiBold",
-                }}
-              >
+              <Text numberOfLines={1} style={[tabStyles.label, { color }]}>
                 {String(options.title ?? route.name)}
               </Text>
             </Pressable>

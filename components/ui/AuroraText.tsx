@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import { Text, type StyleProp, type TextStyle } from "react-native";
 import MaskedView from "@react-native-masked-view/masked-view";
 import { LinearGradient } from "expo-linear-gradient";
@@ -12,8 +12,14 @@ import { BRISK } from "@/theme/tokens";
  * MaskedView is per-instance expensive, so never put this inside list rows.
  *
  * The visible mask is a real <Text>, so it keeps exact RN text metrics + Inter.
+ *
+ * Memoized: the hero balance re-renders every frame while counting up (useCountUp)
+ * or ticking live (useLiveYield), but the displayed *string* only changes when the
+ * value crosses a whole cent. Shallow-prop memo bails on the duplicate frames so
+ * the expensive MaskedView repaints only when the digits actually change. Children
+ * are always plain strings at every call site, so shallow compare is correct.
  */
-export function AuroraText({
+function AuroraTextImpl({
   children,
   className,
   style,
@@ -41,3 +47,5 @@ export function AuroraText({
     </MaskedView>
   );
 }
+
+export const AuroraText = memo(AuroraTextImpl);

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { memo, useCallback, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Clipboard from "expo-clipboard";
@@ -20,7 +20,7 @@ function shortAddr(a: string): string {
  * One on-chain USDC movement (sent/received) with a tap-to-copy tx digest.
  * Shared by the personal Wallet activity feed and the Pro dashboard history.
  */
-export function ActivityRow({
+function ActivityRowImpl({
   item,
   index,
   name,
@@ -50,8 +50,10 @@ export function ActivityRow({
       entering={FadeInDown.duration(400).delay(Math.min(index, 8) * 55)}
       className="mb-2"
     >
-      {/* Translucent (no blur) — keeps the scrolling list smooth on Android. */}
-      <GlassCard className="flex-row items-center px-4 py-3">
+      {/* Translucent (no blur) — keeps the scrolling list smooth. `blur` defaults
+          to on for iOS in GlassCard, so pass it off explicitly: a real per-row
+          BlurView is the classic list-scroll jank source (matches ListRow/SaveRow). */}
+      <GlassCard className="flex-row items-center px-4 py-3" blur={false}>
         {/* Aurora identicon for the counterparty + a small direction badge. */}
         <View style={{ width: 44, height: 44 }}>
           <BusinessAvatar
@@ -113,3 +115,7 @@ export function ActivityRow({
     </Animated.View>
   );
 }
+
+// Memoized so a parent re-render (10s poll, live-yield tick, directory bump) does
+// not re-render every row — rows repaint only when their own props change.
+export const ActivityRow = memo(ActivityRowImpl);

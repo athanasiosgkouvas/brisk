@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { ArrowDownLeft, ArrowUpRight, Inbox, Sparkles } from "lucide-react-native";
@@ -128,6 +128,8 @@ export default function ActivityScreen() {
           contentContainerStyle={{ paddingTop: 8, paddingBottom: 40 }}
           onEndReached={() => void loadMore()}
           onEndReachedThreshold={0.5}
+          initialNumToRender={12}
+          windowSize={11}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -135,6 +137,10 @@ export default function ActivityScreen() {
               tintColor={theme.accent}
             />
           }
+          // renderItem is intentionally inline (not a stable useCallback): the
+          // merchant directory resolves names/logos asynchronously and repaints
+          // via a parent re-render, so the row props must be recomputed here each
+          // render. ActivityRow/SaveRow are memoized, so unchanged rows still bail.
           renderItem={({ item: row, index }) =>
             row.type === "usdc" ? (
               <ActivityRow
@@ -167,7 +173,7 @@ export default function ActivityScreen() {
 }
 
 /** One Save deposit/withdraw/activation row (mirrors SaveHistory's row style). */
-function SaveRow({ item }: { item: SaveHistoryItem }) {
+const SaveRow = memo(function SaveRow({ item }: { item: SaveHistoryItem }) {
   const theme = useTheme();
   const m = SAVE_META[item.kind];
   const Icon = m.icon;
@@ -190,4 +196,4 @@ function SaveRow({ item }: { item: SaveHistoryItem }) {
       ) : null}
     </GlassCard>
   );
-}
+});

@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { Landmark, PiggyBank, Plus, Sparkles, Store } from "lucide-react-native";
 
-import { HeroAmount } from "@/components/ui/HeroAmount";
+import { LiveHeroAmount } from "@/components/ui/LiveHeroAmount";
 import { ListRow } from "@/components/ui/ListRow";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
@@ -28,6 +28,29 @@ function shortAddr(a: string): string {
 
 const POLL_MS = 10_000;
 
+type YieldState = Parameters<typeof useLiveYield>[0];
+
+/** The itemized "Save" account row, isolated so its live-ticking value repaints
+ *  only this row rather than the whole dashboard tree on every yield tick. */
+const SaveAccountRow = memo(function SaveAccountRow({
+  save,
+  onPress,
+}: {
+  save: YieldState;
+  onPress: () => void;
+}) {
+  const { liveValueMicros } = useLiveYield(save);
+  return (
+    <ListRow
+      onPress={onPress}
+      icon={PiggyBank}
+      title="Save"
+      subtitle="Earning yield"
+      value={formatUsd(Math.round(liveValueMicros))}
+    />
+  );
+});
+
 /**
  * Pro home: the merchant's business view. The hero shows the TOTAL balance
  * across everything — treasury liquid + Save + all receiving accounts (tills).
@@ -40,7 +63,6 @@ export function ProDashboard() {
   const router = useRouter();
   const { usdcMicros, refresh: refreshWallet } = useWallet();
   const { state: save, refresh: refreshSave } = useSave();
-  const { liveValueMicros: saveValue } = useLiveYield(save);
   const { items: activity, refresh: refreshActivity } = useActivity();
   const { nameFor, logoFor, resolve, invalidate } = useMerchantDirectory();
   const { name: businessName } = useMerchantProfile();
@@ -52,7 +74,10 @@ export function ProDashboard() {
   // Only surface receiving accounts that actually hold funds; empty ones are
   // hidden (managed from the Tills screen via "Manage").
   const fundedTills = tills.filter((t) => t.balanceMicros > 0);
-  const totalMicros = usdcMicros + saveValue + pendingMicros;
+  // The live Save value is added inside LiveHeroAmount so its ~8fps tick repaints
+  // only the hero numeral, not this whole dashboard. `staticMicros` is everything
+  // that changes only on the 10s poll (treasury + receiving accounts).
+  const staticMicros = usdcMicros + pendingMicros;
 
   const refreshAll = useCallback(
     () => Promise.all([refreshWallet(), refreshSave(), refreshTills(), refreshActivity()]),
@@ -109,7 +134,7 @@ export function ProDashboard() {
         <Text className="text-center text-sm uppercase tracking-[1.5px] text-brisk-subtext font-mono-medium">
           Total balance
         </Text>
-        <HeroAmount micros={totalMicros} tier="primary" className="mt-1" />
+        <LiveHeroAmount save={save} baseMicros={staticMicros} tier="primary" className="mt-1" />
         <Text className="mt-1 text-center text-sm text-brisk-subtext">
           Across treasury, savings & receiving accounts
         </Text>
@@ -140,13 +165,7 @@ export function ProDashboard() {
 
         {/* Save (treasury earning yield) */}
         <View className="mt-3">
-          <ListRow
-            onPress={() => router.push("/save")}
-            icon={PiggyBank}
-            title="Save"
-            subtitle="Earning yield"
-            value={formatUsd(Math.round(saveValue))}
-          />
+          <SaveAccountRow save={save} onPress={() => router.push("/save")} />
         </View>
 
         {/* Receiving accounts (tills) — only those holding funds */}

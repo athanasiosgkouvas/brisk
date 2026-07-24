@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { ChevronRight, type LucideIcon } from "lucide-react-native";
@@ -14,7 +14,7 @@ import { ICON } from "@/theme/scale";
  * renders below the row (e.g. an inline action button). Use everywhere an
  * icon+label+value row appears so they're pixel-identical.
  */
-export function ListRow({
+function ListRowImpl({
   icon: Icon,
   iconColor,
   leading,
@@ -79,3 +79,8 @@ export function ListRow({
   }
   return body;
 }
+
+// Memoized so a ticking sibling (live-yield value) or a parent poll re-render
+// doesn't repaint every static row. Rows with inline onPress/children props still
+// re-render (new prop identity), which is fine — the win is the stable ones.
+export const ListRow = memo(ListRowImpl);

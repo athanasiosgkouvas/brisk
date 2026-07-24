@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -33,6 +33,68 @@ import { hapticButtonPress } from "@/utils/haptics";
 import { useTheme } from "@/hooks/useTheme";
 import { useTabBarClearance } from "@/hooks/useTabBarClearance";
 
+type YieldState = Parameters<typeof useLiveYield>[0];
+
+/**
+ * The Save hero (piggy ring + balance numeral + live "earned" ticker + stats).
+ * Isolated in its own leaf that owns the `useLiveYield` subscription, so the
+ * ~8fps tick repaints only this block — the screen shell (amount input, preset
+ * row, deposit/withdraw buttons, history) stays still. The balance uses
+ * `countUp={false}` (the ticker interpolates smoothly); the premium "landing"
+ * feel is carried by the FadeInDown entrance instead.
+ */
+const SaveHero = memo(function SaveHero({
+  state,
+  net,
+  funded,
+}: {
+  state: YieldState;
+  net: number;
+  funded: boolean;
+}) {
+  const theme = useTheme();
+  const { liveValueMicros, liveEarnedMicros } = useLiveYield(state);
+  return (
+    <Animated.View
+      entering={FadeInDown.duration(DURATION.slow).springify()}
+      className="items-center"
+    >
+      <PulseRing size={56}>
+        <PiggyBank color={theme.accent} size={52} />
+      </PulseRing>
+      <Text className={`mt-4 ${HERO_EYEBROW}`}>Save balance</Text>
+      <View className="mt-1 items-center justify-center">
+        {/* Glowing-vault ambient lift behind the balance. */}
+        <View className="absolute inset-0 items-center justify-center" pointerEvents="none">
+          <SoftGlow color={theme.accent} size={280} opacity={0.2} />
+        </View>
+        <HeroAmount micros={Math.round(liveValueMicros)} tier="focused" countUp={false} />
+      </View>
+      {funded ? (
+        <>
+          {/* Live earnings — ticks up every second; the heart of Save. Kept a
+              plain Text (NOT AuroraText): MaskedView is per-instance expensive. */}
+          <Text className="mt-3 text-2xl font-inter-extrabold text-brisk-accent">
+            +{formatUsdPrecise(liveEarnedMicros)} earned
+          </Text>
+          <View className="mt-4 w-full flex-row justify-around">
+            <Stat label="APY" value={formatApy(net)} tone="accent" />
+            <Stat
+              label="Per day"
+              value={`+${formatUsdPrecise(perDayMicros(liveValueMicros, net), 3)}`}
+            />
+            <Stat label="Principal" value={formatUsd(state.principalMicros)} />
+          </View>
+        </>
+      ) : (
+        <Text className="mt-2 text-center text-sm text-brisk-subtext">
+          Earn {formatApy(net)} APY on idle dollars — spend straight from it anytime.
+        </Text>
+      )}
+    </Animated.View>
+  );
+});
+
 // "Save" tab: the yield vault rebuilt as a real cToken money market (mock lender
 // mirroring Suilend/Scallop). Idle USDC earns a compounding yield that ticks live;
 // principal is always redeemable, and it stays instantly spendable.
@@ -40,7 +102,6 @@ export default function SaveScreen() {
   const theme = useTheme();
   const { state, status, error, activate, deposit, withdraw, refresh } = useSave();
   const wallet = useWallet();
-  const { liveValueMicros, liveEarnedMicros } = useLiveYield(state);
   const [amountText, setAmountText] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const bottomPad = useTabBarClearance();
@@ -107,45 +168,8 @@ export default function SaveScreen() {
               />
             }
           >
-            {/* Hero */}
-            <Animated.View
-              entering={FadeInDown.duration(DURATION.slow).springify()}
-              className="items-center"
-            >
-              <PulseRing size={56}>
-                <PiggyBank color={theme.accent} size={52} />
-              </PulseRing>
-              <Text className={`mt-4 ${HERO_EYEBROW}`}>Save balance</Text>
-              <View className="mt-1 items-center justify-center">
-                {/* Glowing-vault ambient lift behind the balance. */}
-                <View className="absolute inset-0 items-center justify-center" pointerEvents="none">
-                  <SoftGlow color={theme.accent} size={280} opacity={0.2} />
-                </View>
-                <HeroAmount micros={Math.round(liveValueMicros)} tier="focused" fromZero />
-              </View>
-              {funded ? (
-                <>
-                  {/* Live earnings — ticks up every second; the heart of Save.
-                      Kept a plain Text (NOT AuroraText): it re-renders ~8fps and
-                      MaskedView is per-instance expensive → jank. */}
-                  <Text className="mt-3 text-2xl font-inter-extrabold text-brisk-accent">
-                    +{formatUsdPrecise(liveEarnedMicros)} earned
-                  </Text>
-                  <View className="mt-4 w-full flex-row justify-around">
-                    <Stat label="APY" value={formatApy(net)} tone="accent" />
-                    <Stat
-                      label="Per day"
-                      value={`+${formatUsdPrecise(perDayMicros(liveValueMicros, net), 3)}`}
-                    />
-                    <Stat label="Principal" value={formatUsd(state.principalMicros)} />
-                  </View>
-                </>
-              ) : (
-                <Text className="mt-2 text-center text-sm text-brisk-subtext">
-                  Earn {formatApy(net)} APY on idle dollars — spend straight from it anytime.
-                </Text>
-              )}
-            </Animated.View>
+            {/* Hero — owns the live-yield tick in its own leaf (see SaveHero). */}
+            <SaveHero state={state} net={net} funded={funded} />
 
             {status === "loading" ? (
               <View className="mt-6">
@@ -175,11 +199,14 @@ export default function SaveScreen() {
                   <View className="rounded-2xl border border-brisk-borderStrong bg-brisk-bg1/70 px-4 py-3">
                     <AmountField value={amountText} onChangeText={setAmountText} tier="compact" />
                   </View>
-                  {/* Make the deposit feel rewarding before you commit. */}
+                  {/* Make the deposit feel rewarding before you commit. Uses the
+                      static on-chain value (not the live ticker): a projection
+                      preview needn't tick, and this keeps the interactive section
+                      out of the ~8fps re-render. */}
                   {micros > 0 ? (
                     <Text className="mt-2 text-center text-xs text-brisk-subtext">
-                      +{formatUsdPrecise(perDayMicros(liveValueMicros + micros, net), 3)}/day after
-                      this deposit
+                      +{formatUsdPrecise(perDayMicros(state.valueMicros + micros, net), 3)}/day
+                      after this deposit
                     </Text>
                   ) : null}
                   <PresetAmountRow
