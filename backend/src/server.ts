@@ -1001,13 +1001,19 @@ app.post("/api/onramp/session", async (req, res) => {
     });
     res.json({ url });
   } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error("[onramp] session failed", {
-      message: error instanceof Error ? error.message : String(error),
+      message,
       address: parsed.data.address,
       env: coinbase.coinbaseEnv,
       timestamp: new Date().toISOString(),
     });
-    res.status(502).json({ error: "Failed to create onramp session" });
+    // Surface the upstream CDP error in non-prod so the dev env is debuggable
+    // without dashboard log access; prod stays opaque.
+    res.status(502).json({
+      error: "Failed to create onramp session",
+      ...(coinbase.coinbaseEnv !== "production" ? { detail: message } : {}),
+    });
   }
 });
 
